@@ -4,6 +4,8 @@
  */
 
 import type { LevelGeometry, StreamOptions } from '@game/level';
+import type { StatsConfig } from '@game/stats';
+import type { SoundConfig } from '@systems/sound';
 
 export const SIM = {
   /** Fixed simulation step. The only clock the game logic ever sees. */
@@ -62,6 +64,84 @@ export const LIGHTING = {
   flashlightHalfAngle: 0.42,
   flashlightStrength: 1,
   darkThreshold: 0.22,
+} as const;
+
+/**
+ * Balance target: a careful run lasts 5-15 minutes. Thirst is the tightest
+ * clock, hunger the second; everything else kills faster but is avoidable.
+ */
+export const STATS: StatsConfig = {
+  maxHealth: 100,
+  maxHunger: 100,
+  maxThirst: 100,
+  maxStamina: 100,
+  maxSanity: 100,
+  hungerPerSecond: 0.115,
+  thirstPerSecond: 0.16,
+  sprintHungerFactor: 2.2,
+  staminaDrainPerSecond: 16,
+  staminaRegenPerSecond: 11,
+  staminaCrouchRegenFactor: 1.8,
+  sprintRecoveryStamina: 30,
+  starvationDamagePerSecond: 1.6,
+  dehydrationDamagePerSecond: 2.2,
+  sanityDarkPerSecond: 1.5,
+  sanitySilencePerSecond: 0.85,
+  sanityCreaturePerSecond: 3.4,
+  sanityRegenPerSecond: 1.2,
+  lowSanityFraction: 0.35,
+  healthRegenPerSecond: 0.35,
+  healthRegenFraction: 0.5,
+};
+
+export const INVENTORY = {
+  width: 8,
+  height: 5,
+  /** Weight budget in kilograms. */
+  capacity: 14,
+  /** Pixels per inventory cell in the DOM overlay. */
+  cellPixels: 34,
+} as const;
+
+export const SOUND: SoundConfig = {
+  wallAttenuation: 0.3,
+  memoryTicks: 90,
+};
+
+/** Radii, in world units, of the noise the player makes. */
+export const NOISE = {
+  walk: 110,
+  sprint: 250,
+  crouch: 0,
+  /** Ticks between footstep noises while moving. */
+  stepInterval: 22,
+  searchFallback: 180,
+  melee: 210,
+  /** Ticks of quiet before the silence starts eating at the player's nerve. */
+  silenceTicks: 300,
+} as const;
+
+export const INTERACTION = {
+  interactRange: 40,
+  pickupRange: 34,
+  /** Ticks a search takes when the container does not say otherwise. */
+  searchFallbackTicks: 40,
+  throwSpeed: 430,
+  throwRange: 460,
+  meleeRange: 40,
+  meleeHalfArc: 0.85,
+  meleeCooldownTicks: 34,
+  meleeFallbackDamage: 6,
+  meleeStaminaCost: 12,
+  /** Force applied to a creature that is shoved. */
+  shoveImpulse: 240,
+} as const;
+
+export const VISION = {
+  /** Rays per light. Higher is smoother and costs a raycast each. */
+  lightRays: 48,
+  playerRays: 72,
+  flashlightRays: 40,
 } as const;
 
 export const KEY_BINDINGS = {

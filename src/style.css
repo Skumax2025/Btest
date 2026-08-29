@@ -32,3 +32,196 @@ body {
   inset: 0;
   cursor: crosshair;
 }
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.hud {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+
+.hud-level {
+  position: absolute;
+  top: 14px;
+  left: 16px;
+  color: var(--hud-dim);
+}
+
+.hud-stats {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--hud-panel);
+  padding: 10px 12px;
+  border: 1px solid rgba(239, 227, 187, 0.12);
+}
+
+.hud-bar {
+  display: grid;
+  grid-template-columns: 52px 132px 28px;
+  align-items: center;
+  gap: 8px;
+}
+
+.hud-bar-label {
+  color: var(--hud-dim);
+}
+
+.hud-bar-track {
+  height: 7px;
+  background: rgba(239, 227, 187, 0.12);
+}
+
+.hud-bar-fill {
+  height: 100%;
+  width: 100%;
+  background: var(--hud-text);
+  transition: width 120ms linear;
+}
+
+.hud-bar--health .hud-bar-fill {
+  background: #c98a7c;
+}
+.hud-bar--hunger .hud-bar-fill {
+  background: #c2a866;
+}
+.hud-bar--thirst .hud-bar-fill {
+  background: #7fa8bd;
+}
+.hud-bar--stamina .hud-bar-fill {
+  background: #9dbb85;
+}
+.hud-bar--sanity .hud-bar-fill {
+  background: #a78fbd;
+}
+
+.hud-bar-value {
+  color: var(--hud-dim);
+  text-align: right;
+}
+
+.hud-hand {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  background: var(--hud-panel);
+  padding: 10px 12px;
+  border: 1px solid rgba(239, 227, 187, 0.12);
+  min-width: 190px;
+  text-align: right;
+}
+
+.hud-hand-label {
+  color: var(--hud-dim);
+  font-size: 10px;
+}
+
+.hud-hand-name {
+  margin-top: 4px;
+  font-size: 14px;
+}
+
+.hud-hand-meta {
+  color: var(--hud-dim);
+  font-size: 10px;
+  margin-top: 3px;
+  min-height: 12px;
+}
+
+.hud-hint {
+  position: absolute;
+  left: 50%;
+  bottom: 74px;
+  transform: translateX(-50%);
+  color: var(--hud-text);
+  text-shadow: 0 0 8px #000;
+  min-height: 16px;
+}
+
+.hud--strained {
+  animation: strain 2.6s infinite ease-in-out;
+}
+
+@keyframes strain {
+  0%,
+  100% {
+    filter: none;
+  }
+  50% {
+    filter: hue-rotate(-14deg) saturate(1.4);
+  }
+}
+
+.bag {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--hud-panel);
+  border: 1px solid rgba(239, 227, 187, 0.18);
+  padding: 14px;
+  pointer-events: auto;
+}
+
+.bag-title {
+  font-size: 11px;
+  color: var(--hud-dim);
+  letter-spacing: 0.2em;
+  margin-bottom: 8px;
+}
+
+.bag-grid {
+  position: relative;
+  background-image:
+    linear-gradient(to right, rgba(239, 227, 187, 0.12) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(239, 227, 187, 0.12) 1px, transparent 1px);
+  background-color: rgba(0, 0, 0, 0.35);
+  touch-action: none;
+}
+
+.bag-item {
+  position: absolute;
+  background: #4a4227;
+  border: 1px solid #7d7047;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 3px;
+  font-size: 9px;
+  line-height: 1.1;
+  cursor: grab;
+  overflow: hidden;
+}
+
+.bag-item--held {
+  border-color: #efe3bb;
+  box-shadow: inset 0 0 0 1px rgba(239, 227, 187, 0.4);
+}
+
+.bag-item--dragging {
+  opacity: 0.75;
+  cursor: grabbing;
+  z-index: 2;
+}
+
+.bag-item-count {
+  align-self: flex-end;
+  color: var(--hud-dim);
+}
+
+.bag-help {
+  margin-top: 8px;
+  font-size: 10px;
+  color: var(--hud-dim);
+  max-width: 300px;
+}

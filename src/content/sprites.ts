@@ -31,7 +31,42 @@ const decal = (color: string, seed: number, density: number): PlaceholderSpec =>
   shapes: [{ kind: 'noise', color, density, seed }],
 });
 
+const icon = (
+  body: string,
+  accent: string,
+  width: number,
+  height: number,
+): PlaceholderSpec => ({
+  width: width * 24,
+  height: height * 24,
+  shapes: [
+    { kind: 'rect', color: '#1a170f', inset: 1 },
+    { kind: 'rect', color: body, inset: 3 },
+    { kind: 'bar', color: accent, x: 0.2, y: 0.2, w: 0.6, h: 0.22 },
+  ],
+});
+
 export const SPRITES: Readonly<Record<string, PlaceholderSpec>> = {
+  'item.water': icon('#5f8fa8', '#cfe9f2', 1, 2),
+  'item.soda': icon('#8a5f4a', '#e0c2a0', 1, 1),
+  'item.crackers': icon('#a98d54', '#e8d9a6', 1, 1),
+  'item.canned': icon('#7b7f6a', '#c9cdb4', 2, 1),
+  'item.medkit': icon('#9a4a44', '#ecd9d4', 2, 2),
+  'item.bandage': icon('#cbc3ac', '#f2ecdb', 1, 1),
+  'item.flashlight': icon('#4f5a63', '#f2e6b4', 1, 2),
+  'item.battery': icon('#3f4a54', '#b7c96a', 1, 1),
+  'item.pipe': icon('#6f7378', '#aeb3b8', 1, 3),
+  'item.wrench': icon('#6a5f52', '#b5a692', 1, 2),
+  'item.noisemaker': icon('#8f7a3f', '#e7d38a', 1, 1),
+  'item.ground': {
+    width: 20,
+    height: 20,
+    shapes: [
+      { kind: 'circle', color: '#0f0d08', inset: 1 },
+      { kind: 'circle', color: '#7fd0c8', inset: 5 },
+    ],
+  },
+
   unknown: {
     width: TILE,
     height: TILE,

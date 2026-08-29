@@ -88,6 +88,16 @@ const isStrideChunk = (
   );
 };
 
+/** Certainty for the opening block: lit lamp, real containers, no creature. */
+const startSpec = (spec: LevelSpec): LevelSpec => ({
+  ...spec,
+  lampChance: 1,
+  lampWorkingChance: 1,
+  lampFlickerChance: 0,
+  containerChance: 1,
+  creatureChance: 0,
+});
+
 const pickTemplate = (
   spec: LevelSpec,
   isLandmark: boolean,
@@ -144,12 +154,11 @@ export const generateChunk = ({ seed, levelIndex, cx, cy, spec, geo }: GenerateP
 
       const rng = streamFor(seed, levelIndex, gx, gy, TOPIC.ROOM);
       const isLandmark = blockIndex === landmarkBlock;
-      const template = pickTemplate(
-        spec,
-        isLandmark,
-        gx === 0 && gy === 0 ? spec.startRoomId : null,
-        rng,
-      );
+      const isStart = gx === 0 && gy === 0 && spec.startRoomId !== null;
+      const template = pickTemplate(spec, isLandmark, isStart ? spec.startRoomId : null, rng);
+      // The opening block never rolls dice: its lamp is lit and its containers
+      // are there, so the first thirty seconds teach reliably.
+      const blockPropCtx = isStart ? { ...propCtx, spec: startSpec(spec) } : propCtx;
 
       const marks: Array<{ char: string; ox: number; oy: number }> = [];
       for (let oy = 1; oy <= interior; oy++) {
@@ -191,7 +200,7 @@ export const generateChunk = ({ seed, levelIndex, cx, cy, spec, geo }: GenerateP
           cx * size + originX + mark.ox,
           cy * size + originY + mark.oy,
           propRng,
-          propCtx,
+          blockPropCtx,
         );
         if (spawn) props.push(spawn);
       }
