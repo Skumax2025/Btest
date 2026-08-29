@@ -145,6 +145,11 @@ export class LevelStream {
 
   // ---- chunk deltas -------------------------------------------------------
 
+  /** Read-only view; unlike `delta` it never allocates an entry for a quiet chunk. */
+  peekDelta(cx: number, cy: number): ChunkDelta | undefined {
+    return this.deltas.get(chunkKey(cx, cy));
+  }
+
   delta(cx: number, cy: number): ChunkDelta {
     const key = chunkKey(cx, cy);
     const existing = this.deltas.get(key);
@@ -162,12 +167,12 @@ export class LevelStream {
   /** True when a prop was already taken/killed and must not spawn again. */
   isConsumed(prop: PropSpawn): boolean {
     const { cx, cy } = this.chunkCoordAt(prop.x, prop.y);
-    return this.delta(cx, cy).consumed.includes(prop.key);
+    return this.peekDelta(cx, cy)?.consumed.includes(prop.key) ?? false;
   }
 
   isOpened(prop: PropSpawn): boolean {
     const { cx, cy } = this.chunkCoordAt(prop.x, prop.y);
-    return this.delta(cx, cy).opened.includes(prop.key);
+    return this.peekDelta(cx, cy)?.opened.includes(prop.key) ?? false;
   }
 
   consume(worldX: number, worldY: number, key: string): void {

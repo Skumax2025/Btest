@@ -53,6 +53,9 @@ export interface CreatureState {
   readonly defId: string;
   /** Prop key of the spawn it came from, so a kill can be recorded. */
   readonly spawnKey: string;
+  /** Chunk that owns this creature; when that chunk unloads, so does it. */
+  readonly homeCx: number;
+  readonly homeCy: number;
   x: number;
   y: number;
   prevX: number;
@@ -69,6 +72,11 @@ export interface CreatureState {
   health: number;
   /** Ticks left before the walk path is recomputed. */
   repathIn: number;
+  /** Flat [tx, ty, ...] route being followed, empty when steering directly. */
+  path: number[];
+  pathIndex: number;
+  /** Ticks until this creature makes its own noise again. */
+  noiseIn: number;
 }
 
 /** What the run measured for one creature this tick. */

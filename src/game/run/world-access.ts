@@ -12,6 +12,7 @@ import type { PlayerState } from '@game/player';
 import type { StatsState } from '@game/stats';
 import type { InventoryState } from '@game/inventory';
 import type { CreatureState } from '@game/ai';
+import type { RandomStream } from '@core/rng';
 import type { NoiseField } from '@systems/sound';
 import type { RunConfig } from './config';
 
@@ -70,6 +71,10 @@ export interface RunWorld {
   readonly noise: NoiseField;
   readonly projectiles: Projectile[];
   readonly creatures: CreatureState[];
+  /** Gameplay randomness. Its state is part of the save, so a reload replays. */
+  readonly rng: RandomStream;
+  /** Chunks whose creature spawns have already been turned into creatures. */
+  readonly spawnedChunks: Set<string>;
   search: SearchProgress | null;
   flashlightOn: boolean;
   meleeCooldown: number;

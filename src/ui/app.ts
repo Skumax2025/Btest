@@ -5,72 +5,37 @@
  */
 
 import { PlaceholderSpriteProvider, domCanvasFactory } from '@core/assets';
+import { WebAudio } from '@core/audio';
 import { Camera } from '@core/camera';
 import { InputDevice } from '@core/input';
 import { GameLoop, browserLoopOptions } from '@core/loop';
 import { Canvas2DRenderer } from '@core/canvas-renderer';
 import { createRandom } from '@core/rng';
-import { Run } from '@game/run';
-import type { RunConfig } from '@game/run';
-import { LEVELS } from '@content/levels';
-import { CREATURES } from '@content/entities';
+import { bestEffortStorage, clearEnvelope, loadEnvelope, saveEnvelope } from '@core/serialize';
+import type { StorageLike } from '@core/serialize';
+import { Run, SAVE_VERSION, restoreRun, snapshotRun } from '@game/run';
+import type { RunSave } from '@game/run';
 import { ITEMS } from '@content/items';
-import { CONTAINERS, LOOT_TABLES } from '@content/loot-tables';
+import { createRunConfig } from '@content/run-config';
+import { AUDIO } from '@content/audio';
 import { paletteOf } from '@content/palettes';
 import { FALLBACK_SPRITE, SPRITES } from '@content/sprites';
 import {
   AXIS_BINDINGS,
   CAMERA,
-  GEOMETRY,
-  INTERACTION,
   INVENTORY,
   KEY_BINDINGS,
   LIGHTING,
-  NOISE,
-  PLAYER,
   SIM,
-  SOUND,
   STATS,
-  STREAM,
   VISION,
 } from '@content/tuning';
 import { WorldView } from '@view/world-view';
+import { AudioView } from './audio-view';
 import { Hud } from './hud';
 import { InventoryUi } from './inventory-ui';
 
-const ACTIONS = {
-  sprint: 'sprint',
-  crouch: 'crouch',
-  interact: 'interact',
-  use: 'use',
-  attack: 'attack',
-  throwItem: 'throwItem',
-  drop: 'drop',
-  flashlight: 'flashlight',
-} as const;
-
-export const runConfigFor = (seed: number): RunConfig => ({
-  seed,
-  content: {
-    levels: LEVELS,
-    items: ITEMS,
-    containers: CONTAINERS,
-    loot: LOOT_TABLES,
-    creatures: CREATURES,
-  },
-  geometry: GEOMETRY,
-  stream: STREAM,
-  player: PLAYER,
-  stats: STATS,
-  inventory: INVENTORY,
-  lighting: LIGHTING,
-  sound: SOUND,
-  noise: NOISE,
-  interaction: INTERACTION,
-  actions: ACTIONS,
-  stepSeconds: SIM.stepMs / 1000,
-  propCellSize: GEOMETRY.tileSize * 4,
-});
+const SAVE_KEY = 'backrooms.run';
 
 export class App {
   private readonly renderer: Canvas2DRenderer;
@@ -81,6 +46,9 @@ export class App {
   private readonly overlay: HTMLElement;
   private readonly hud: Hud;
   private readonly bag: InventoryUi;
+  private readonly storage: StorageLike = bestEffortStorage();
+  private readonly audio = new WebAudio(AUDIO.masterGain);
+  private readonly audioView: AudioView;
   private run: Run;
 
   constructor(private readonly root: HTMLElement) {
@@ -97,13 +65,17 @@ export class App {
     );
     this.camera.zoom = CAMERA.zoom;
 
-    this.run = new Run(runConfigFor(createRandom(Date.now()).nextUint32()));
+    this.run = this.resumeOrStart();
     this.camera.snapTo(this.run.player.x, this.run.player.y);
 
     this.overlay = document.createElement('div');
     this.overlay.className = 'overlay';
     root.appendChild(this.overlay);
     this.hud = new Hud(this.overlay);
+    this.audioView = new AudioView(this.audio, LIGHTING);
+    const wake = (): void => this.audio.resume();
+    window.addEventListener('pointerdown', wake);
+    window.addEventListener('keydown', wake);
     this.bag = new InventoryUi(this.overlay, this.run.inventory, ITEMS, {
       cellPixels: INVENTORY.cellPixels,
     });
@@ -115,6 +87,36 @@ export class App {
       fixedUpdate: () => this.fixedUpdate(),
       render: (alpha) => this.render(alpha),
     });
+    window.addEventListener('beforeunload', () => this.persist());
+  }
+
+  /** A reload drops the player back exactly where they were, mid-run. */
+  private resumeOrStart(): Run {
+    const saved = loadEnvelope<RunSave>(this.storage, SAVE_KEY, SAVE_VERSION);
+    if (saved && saved.phase === 'alive') {
+      const resumed = new Run(createRunConfig(saved.seed));
+      restoreRun(resumed, saved);
+      return resumed;
+    }
+    return new Run(createRunConfig(createRandom(Date.now()).nextUint32()));
+  }
+
+  private persist(): void {
+    if (this.run.phase !== 'alive') {
+      clearEnvelope(this.storage, SAVE_KEY);
+      return;
+    }
+    saveEnvelope(this.storage, SAVE_KEY, SAVE_VERSION, snapshotRun(this.run));
+  }
+
+  /** Death is permanent: a new run means a new seed and an empty save slot. */
+  restart(): void {
+    clearEnvelope(this.storage, SAVE_KEY);
+    this.run = new Run(createRunConfig(createRandom(Date.now()).nextUint32()));
+    this.camera.snapTo(this.run.player.x, this.run.player.y);
+    this.bag.setState(this.run.inventory);
+    this.bag.setOpen(false);
+    this.audioView.reset();
   }
 
   start(): void {
@@ -133,21 +135,28 @@ export class App {
     const world = this.camera.screenToWorld(pointer.x, pointer.y);
     const frame = this.input.sample(world.x, world.y);
     if (frame.pressed.includes('inventory')) this.bag.toggle();
+    if (this.run.phase === 'dead' && frame.pressed.includes('restart')) {
+      this.restart();
+      return;
+    }
     this.run.step(frame);
     this.camera.follow(this.run.player.x, this.run.player.y, CAMERA.smoothing);
+    if (this.run.tick % SIM.autosaveTicks === 0) this.persist();
   }
 
   private render(alpha: number): void {
     const view = this.camera.view(alpha);
+    const derangement = this.derangement();
     this.worldView.draw(this.run, view, alpha, {
       lighting: LIGHTING,
       palette: paletteOf(this.run.spec.paletteId),
       rays: VISION,
-      derangement: this.derangement(),
+      derangement,
     });
     this.renderer.endFrame();
     this.hud.update(this.run);
     this.bag.update();
+    this.audioView.update(this.run, derangement);
   }
 
   /** 0 while the player is composed, rising as nerve runs out. */

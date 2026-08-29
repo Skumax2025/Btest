@@ -162,6 +162,18 @@ export const KEY_BINDINGS = {
   restart: ['Enter'],
 } as const;
 
+/** Action names the simulation reacts to; they must exist in KEY_BINDINGS. */
+export const ACTIONS = {
+  sprint: 'sprint',
+  crouch: 'crouch',
+  interact: 'interact',
+  use: 'use',
+  attack: 'attack',
+  throwItem: 'throwItem',
+  drop: 'drop',
+  flashlight: 'flashlight',
+} as const;
+
 export const AXIS_BINDINGS = {
   up: 'up',
   down: 'down',

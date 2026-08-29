@@ -76,9 +76,11 @@ export class NoiseField {
     y: number,
     tileSize: number,
     isSolid: SolidSampler,
+    accept?: (event: NoiseEvent) => boolean,
   ): { event: NoiseEvent; loudness: number } | null {
     let best: { event: NoiseEvent; loudness: number } | null = null;
     for (const event of this.events) {
+      if (accept && !accept(event)) continue;
       const loudness = loudnessAt(event, x, y, tileSize, isSolid, this.config);
       if (loudness > 0 && (best === null || loudness > best.loudness)) best = { event, loudness };
     }

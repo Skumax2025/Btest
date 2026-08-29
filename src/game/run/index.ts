@@ -11,4 +11,17 @@
 
 export { Run } from './run';
 export type { RunPhase } from './run';
-export type { ActionNames, RunConfig } from './config';
+export { nearestInteractable } from './actions';
+export type { Interactable } from './actions';
+export { SAVE_VERSION, restoreRun, snapshotRun } from './save';
+export type { RunSave } from './save';
+export type {
+  ActionNames,
+  InteractionConfig,
+  InventoryConfig,
+  NoiseConfig,
+  RunConfig,
+  RunContent,
+} from './config';
+export type { GroundItem, HintKey, Projectile, RunWorld, SearchProgress } from './world-access';
+export type { Perception } from './perception';

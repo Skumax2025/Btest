@@ -10,6 +10,8 @@
 
 import { SpatialGrid } from '@core/spatial';
 import { World } from '@core/world';
+import { createRandom } from '@core/rng';
+import type { RandomStream } from '@core/rng';
 import type { InputFrame } from '@core/input';
 import { isHeld } from '@core/input';
 import { LevelStream, TILE, isSolidTile } from '@game/level';
@@ -24,6 +26,7 @@ import type { CreatureState } from '@game/ai';
 import { NoiseField } from '@systems/sound';
 import type { RunConfig } from './config';
 import { handleActions, nearestInteractable } from './actions';
+import { stepCreatures, syncCreatures } from './creatures';
 import { applyContactDamage, stepLight, stepProjectiles, stepSearch } from './effects';
 import { perceive } from './perception';
 import type { Perception } from './perception';
@@ -40,6 +43,8 @@ export class Run implements RunWorld {
   readonly noise: NoiseField;
   readonly projectiles: Projectile[] = [];
   readonly creatures: CreatureState[] = [];
+  readonly rng: RandomStream;
+  readonly spawnedChunks = new Set<string>();
 
   level: LevelStream;
   levelIndex = 0;
@@ -55,13 +60,16 @@ export class Run implements RunWorld {
   hint: HintKey | null = null;
   perception: Perception;
 
-  private lastNoiseTick = 0;
-  private lastFootstepTick = 0;
+  /** Public because the save file owns them; nothing else should write them. */
+  lastNoiseTick = 0;
+  lastFootstepTick = 0;
+
   private readonly propGrid: SpatialGrid;
   private readonly propList: PropSpawn[] = [];
 
   constructor(config: RunConfig) {
     this.config = config;
+    this.rng = createRandom(config.seed);
     this.propGrid = new SpatialGrid(config.propCellSize);
     this.noise = new NoiseField(config.sound);
     this.stats = createStats(config.stats);
@@ -74,6 +82,7 @@ export class Run implements RunWorld {
     const spawn = this.spawnPoint();
     this.player = createPlayer(spawn.x, spawn.y);
     this.level.prime(spawn.x, spawn.y);
+    syncCreatures(this);
     this.rebuildPropIndex();
     this.perception = this.perceiveNow();
   }
@@ -106,8 +115,7 @@ export class Run implements RunWorld {
   step(input: InputFrame): void {
     this.tick++;
     this.level.update(this.player.x, this.player.y);
-    const changed = this.level.drainLoaded().length + this.level.drainUnloaded().length;
-    if (changed > 0) this.rebuildPropIndex();
+    if (syncCreatures(this) > 0) this.rebuildPropIndex();
     if (this.phase !== 'alive') return;
 
     this.noise.prune(this.tick);
@@ -127,6 +135,7 @@ export class Run implements RunWorld {
     this.emitFootstep();
 
     handleActions(this, input);
+    stepCreatures(this);
     stepSearch(this);
     stepProjectiles(this);
     this.flashlightCharge = stepLight(this);
@@ -243,7 +252,8 @@ export class Run implements RunWorld {
     const span = Math.ceil(radius / this.level.chunkWorldSize);
     for (let cy = origin.cy - span; cy <= origin.cy + span; cy++) {
       for (let cx = origin.cx - span; cx <= origin.cx + span; cx++) {
-        const dropped = this.level.delta(cx, cy).dropped;
+        const dropped = this.level.peekDelta(cx, cy)?.dropped;
+        if (!dropped) continue;
         for (let index = 0; index < dropped.length; index++) {
           const entry = dropped[index];
           if (Math.hypot(entry.x - x, entry.y - y) > radius) continue;

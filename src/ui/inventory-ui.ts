@@ -33,7 +33,7 @@ export class InventoryUi {
 
   constructor(
     parent: HTMLElement,
-    private readonly state: InventoryState,
+    private state: InventoryState,
     private readonly catalog: ItemCatalog,
     private readonly options: InventoryUiOptions,
   ) {
@@ -54,6 +54,15 @@ export class InventoryUi {
     window.addEventListener('pointermove', this.onPointerMove);
     window.addEventListener('pointerup', this.onPointerUp);
     this.grid.addEventListener('contextmenu', this.onContextMenu);
+  }
+
+  /** Points the panel at a different bag — used when a new run starts. */
+  setState(state: InventoryState): void {
+    this.state = state;
+    for (const node of this.nodes.values()) node.remove();
+    this.nodes.clear();
+    this.signature = '';
+    this.update();
   }
 
   get isOpen(): boolean {
