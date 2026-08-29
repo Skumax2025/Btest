@@ -13,6 +13,7 @@ export default defineConfig({
       '@game': resolvePath('./src/game'),
       '@content': resolvePath('./src/content'),
       '@ui': resolvePath('./src/ui'),
+      '@view': resolvePath('./src/view'),
     },
   },
   build: {

@@ -1,0 +1,34 @@
+:root {
+  color-scheme: dark;
+  --hud-text: #efe3bb;
+  --hud-dim: #9a8f6f;
+  --hud-panel: rgba(14, 12, 9, 0.9);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #05040a;
+  color: var(--hud-text);
+  font-family: ui-monospace, 'SFMono-Regular', 'Menlo', 'Consolas', monospace;
+  user-select: none;
+}
+
+#app {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+}
+
+.game-canvas {
+  display: block;
+  position: absolute;
+  inset: 0;
+  cursor: crosshair;
+}

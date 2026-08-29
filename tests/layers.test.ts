@@ -26,6 +26,7 @@ const ALIASES: Record<string, string> = {
   '@game': join(srcRoot, 'game'),
   '@content': join(srcRoot, 'content'),
   '@ui': join(srcRoot, 'ui'),
+  '@view': join(srcRoot, 'view'),
 };
 
 const listFiles = (dir: string): string[] =>

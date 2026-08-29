@@ -39,7 +39,7 @@ export default tseslint.config(
     rules: {
       'no-restricted-imports': [
         'error',
-        forbid(['systems', 'game', 'content', 'ui'], 'L0 core may not import higher layers.'),
+        forbid(['systems', 'game', 'content', 'ui', 'view'], 'L0 core may not import higher layers.'),
       ],
     },
   },
@@ -48,7 +48,7 @@ export default tseslint.config(
     rules: {
       'no-restricted-imports': [
         'error',
-        forbid(['game', 'content', 'ui'], 'L1 systems may only import L0 core.'),
+        forbid(['game', 'content', 'ui', 'view'], 'L1 systems may only import L0 core.'),
       ],
     },
   },
@@ -57,14 +57,14 @@ export default tseslint.config(
     rules: {
       'no-restricted-imports': [
         'error',
-        forbid(['content', 'ui'], 'L2 game may not import L3 content or L4 ui: data is injected.'),
+        forbid(['content', 'ui', 'view'], 'L2 game may not import L3 content or L4 ui: data is injected.'),
       ],
     },
   },
   {
     files: ['src/content/**/*.ts'],
     rules: {
-      'no-restricted-imports': ['error', forbid(['ui'], 'L3 content may not import L4 ui.')],
+      'no-restricted-imports': ['error', forbid(['ui', 'view'], 'L3 content may not import L4 ui.')],
     },
   },
   {

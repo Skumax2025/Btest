@@ -251,7 +251,8 @@ export class Canvas2DRenderer implements Renderer {
     if (radius <= 0 || strength <= 0) return;
     const gradient = this.darkCtx.createRadialGradient(x, y, 0, x, y, radius);
     gradient.addColorStop(0, `rgba(0,0,0,${strength})`);
-    gradient.addColorStop(0.55, `rgba(0,0,0,${strength * 0.72})`);
+    gradient.addColorStop(0.65, `rgba(0,0,0,${strength * 0.88})`);
+    gradient.addColorStop(0.85, `rgba(0,0,0,${strength * 0.5})`);
     gradient.addColorStop(1, 'rgba(0,0,0,0)');
     this.darkCtx.fillStyle = gradient;
     this.darkCtx.beginPath();

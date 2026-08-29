@@ -16,7 +16,7 @@ export interface Sprite {
 }
 
 export type ShapeSpec =
-  | { readonly kind: 'rect'; readonly color: string; readonly inset?: number; readonly radius?: number }
+  | { readonly kind: 'rect'; readonly color: string; readonly inset?: number }
   | { readonly kind: 'circle'; readonly color: string; readonly inset?: number }
   | { readonly kind: 'ring'; readonly color: string; readonly inset?: number; readonly thickness?: number }
   | { readonly kind: 'bar'; readonly color: string; readonly x: number; readonly y: number; readonly w: number; readonly h: number }
@@ -49,7 +49,7 @@ const drawShape = (
   width: number,
   height: number,
 ): void => {
-  ctx.fillStyle = shape.kind === 'noise' ? shape.color : shape.color;
+  ctx.fillStyle = shape.color;
   switch (shape.kind) {
     case 'rect': {
       const inset = shape.inset ?? 0;

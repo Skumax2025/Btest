@@ -24,7 +24,8 @@
       "@systems/*": ["src/systems/*"],
       "@game/*": ["src/game/*"],
       "@content/*": ["src/content/*"],
-      "@ui/*": ["src/ui/*"]
+      "@ui/*": ["src/ui/*"],
+      "@view/*": ["src/view/*"]
     }
   },
   "include": ["src", "tests", "vite.config.ts"]
