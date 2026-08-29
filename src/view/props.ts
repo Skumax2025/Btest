@@ -81,7 +81,7 @@ export const drawGround = (
       height: 18,
     });
   }
-  for (const projectile of run.projectiles) {
+  for (const projectile of run.projectiles.values()) {
     const def = run.config.content.items[projectile.itemId];
     renderer.drawSprite(sprites.sprite(def ? def.sprite : 'item.ground'), projectile.x, projectile.y, {
       width: 14,
@@ -98,7 +98,7 @@ export const drawCreatures = (
   palette: Palette,
   derangement: number,
 ): void => {
-  for (const creature of run.creatures) {
+  for (const creature of run.creatures.values()) {
     const def = run.config.content.creatures[creature.defId];
     if (!def) continue;
     const x = creature.prevX + (creature.x - creature.prevX) * alpha;

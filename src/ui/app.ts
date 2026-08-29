@@ -31,9 +31,12 @@ import {
   VISION,
 } from '@content/tuning';
 import { WorldView } from '@view/world-view';
+import { drawDebug } from '@view/debug-view';
 import { AudioView } from './audio-view';
+import { DebugOverlay } from './debug-overlay';
 import { Hud } from './hud';
 import { InventoryUi } from './inventory-ui';
+import { SummaryScreen } from './summary';
 
 const SAVE_KEY = 'backrooms.run';
 
@@ -49,6 +52,8 @@ export class App {
   private readonly storage: StorageLike = bestEffortStorage();
   private readonly audio = new WebAudio(AUDIO.masterGain);
   private readonly audioView: AudioView;
+  private readonly summary: SummaryScreen;
+  private readonly debug: DebugOverlay;
   private run: Run;
 
   constructor(private readonly root: HTMLElement) {
@@ -72,6 +77,8 @@ export class App {
     this.overlay.className = 'overlay';
     root.appendChild(this.overlay);
     this.hud = new Hud(this.overlay);
+    this.summary = new SummaryScreen(this.overlay);
+    this.debug = new DebugOverlay(this.overlay);
     this.audioView = new AudioView(this.audio, LIGHTING);
     const wake = (): void => this.audio.resume();
     window.addEventListener('pointerdown', wake);
@@ -116,6 +123,7 @@ export class App {
     this.camera.snapTo(this.run.player.x, this.run.player.y);
     this.bag.setState(this.run.inventory);
     this.bag.setOpen(false);
+    this.summary.update(this.run);
     this.audioView.reset();
   }
 
@@ -135,6 +143,7 @@ export class App {
     const world = this.camera.screenToWorld(pointer.x, pointer.y);
     const frame = this.input.sample(world.x, world.y);
     if (frame.pressed.includes('inventory')) this.bag.toggle();
+    if (frame.pressed.includes('debug')) this.debug.toggle();
     if (this.run.phase === 'dead' && frame.pressed.includes('restart')) {
       this.restart();
       return;
@@ -153,9 +162,12 @@ export class App {
       rays: VISION,
       derangement,
     });
+    if (this.debug.isVisible) drawDebug(this.renderer, this.run, view, alpha);
     this.renderer.endFrame();
     this.hud.update(this.run);
     this.bag.update();
+    this.summary.update(this.run);
+    this.debug.update(this.run, this.loop.stats, window.devicePixelRatio || 1);
     this.audioView.update(this.run, derangement);
   }
 

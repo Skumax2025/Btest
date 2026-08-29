@@ -15,7 +15,7 @@ import type { CreaturePerception, CreatureState } from '@game/ai';
 import { chunkKey } from '@game/level';
 import type { RunWorld } from './world-access';
 
-const AI_TOPIC = 8821;
+const CREATURE_NOISE = 'creature';
 /** A* budget per creature request. Generous enough for a room, cheap enough for many. */
 const PATH_NODES = 320;
 const REPATH_TICKS = 24;
@@ -37,7 +37,7 @@ export const syncCreatures = (world: RunWorld): number => {
       if (prop.kind !== 'creature' || world.level.isConsumed(prop)) continue;
       const def = world.config.content.creatures[prop.defId];
       if (!def) continue;
-      world.creatures.push({
+      world.spawn(world.creatures, {
         defId: prop.defId,
         spawnKey: prop.key,
         homeCx: chunk.cx,
@@ -64,9 +64,8 @@ export const syncCreatures = (world: RunWorld): number => {
 
   for (const { cx, cy } of unloaded) {
     world.spawnedChunks.delete(chunkKey(cx, cy));
-    for (let i = world.creatures.length - 1; i >= 0; i--) {
-      const creature = world.creatures[i];
-      if (creature.homeCx === cx && creature.homeCy === cy) world.creatures.splice(i, 1);
+    for (const [id, creature] of [...world.creatures.entries()]) {
+      if (creature.homeCx === cx && creature.homeCy === cy) world.world.destroyEntity(id);
     }
   }
   return loaded.length + unloaded.length;
@@ -102,7 +101,7 @@ const perceiveCreature = (world: RunWorld, creature: CreatureState): CreaturePer
     creature.y,
     tileSize,
     world.level.isSolidTileAt,
-    (event) => event.source !== 'creature',
+    CREATURE_NOISE,
   );
 
   return {
@@ -175,16 +174,16 @@ const advance = (world: RunWorld, creature: CreatureState, speed: number): void 
 };
 
 export const stepCreatures = (world: RunWorld): void => {
-  for (let i = world.creatures.length - 1; i >= 0; i--) {
-    const creature = world.creatures[i];
+  const dead: number[] = [];
+  for (const [id, creature] of world.creatures.entries()) {
     const def = world.config.content.creatures[creature.defId];
     if (!def) {
-      world.creatures.splice(i, 1);
+      dead.push(id);
       continue;
     }
     if (creature.health <= 0) {
       world.level.consume(creature.x, creature.y, creature.spawnKey);
-      world.creatures.splice(i, 1);
+      dead.push(id);
       continue;
     }
 
@@ -193,10 +192,7 @@ export const stepCreatures = (world: RunWorld): void => {
     if (creature.repathIn > 0) creature.repathIn--;
 
     const perception = perceiveCreature(world, creature);
-    applyDecision(
-      creature,
-      decide(creature, def, perception, world.rng.fork(creature.spawnKey.length + AI_TOPIC)),
-    );
+    applyDecision(creature, decide(creature, def, perception, world.rng));
 
     const speed = speedFor(creature.mode, def);
     if (speed > 0) advance(world, creature, speed);
@@ -207,4 +203,5 @@ export const stepCreatures = (world: RunWorld): void => {
       world.emitNoise(creature.x, creature.y, def.noiseRadius, 'creature');
     }
   }
+  for (const id of dead) world.world.destroyEntity(id);
 };

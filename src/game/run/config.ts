@@ -80,4 +80,6 @@ export interface RunConfig {
   readonly stepSeconds: number;
   /** Cell size of the static prop index, in world units. */
   readonly propCellSize: number;
+  /** Ticks the opening "how to move" line stays up when nothing else is nearer. */
+  readonly openingHintTicks: number;
 }

@@ -46,4 +46,5 @@ export const createRunConfig = (seed: number): RunConfig => ({
   actions: ACTIONS,
   stepSeconds: SIM.stepMs / 1000,
   propCellSize: GEOMETRY.tileSize * 4,
+  openingHintTicks: INTERACTION.openingHintTicks,
 });

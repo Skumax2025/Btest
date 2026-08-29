@@ -119,3 +119,67 @@ export const LEVEL0_START_ROOM: RoomTemplate = {
   weight: 0,
   rows: ['#######', '#c...c#', '#.....#', '...L...', '#.....#', '#c...,#', '#######'],
 };
+
+/**
+ * Level 1 is what is under Level 0: narrower, wetter, colder, less lit. The
+ * shapes are deliberately close enough to be confusing and different enough to
+ * notice within a few rooms.
+ */
+export const LEVEL1_ROOMS: readonly RoomTemplate[] = [
+  {
+    id: 'l1.pipes',
+    weight: 11,
+    rows: ['#o...o#', '#.....#', '.......', '...L...', '.......', '#.....#', '#o...o#'],
+  },
+  {
+    id: 'l1.flooded',
+    weight: 9,
+    rows: ['~~...~~', '~~~.~~~', '.......', '...L...', '.......', '~~~.~~~', '~~...~~'],
+  },
+  {
+    id: 'l1.cells',
+    weight: 8,
+    rows: ['##...##', '#c...c#', '.......', '.......', '.......', '#c...c#', '##...##'],
+  },
+  {
+    id: 'l1.shaft',
+    weight: 10,
+    rows: ['###.###', '##...##', '.......', '...L...', '.......', '##...##', '###.###'],
+  },
+  {
+    id: 'l1.rubble',
+    weight: 9,
+    rows: ['#o.,.o#', '.,...,.', '.......', '.......', '.......', '.,...,.', '#o.,.o#'],
+  },
+  {
+    id: 'l1.den',
+    weight: 6,
+    rows: ['##...##', '#s...s#', '.......', '.......', '.......', '#.....#', '##...##'],
+  },
+  {
+    id: 'l1.dark',
+    weight: 8,
+    rows: [',,,.,,,', ',.....,', '.......', '.......', '.......', ',.....,', ',,,.,,,'],
+  },
+];
+
+export const LEVEL1_LANDMARKS: readonly LandmarkTemplate[] = [
+  {
+    id: 'l1.mark.pump',
+    weight: 10,
+    marker: 'decal.pool',
+    rows: ['~~~~~~~', '~o...o~', '~.....~', '~..L..~', '~.....~', '~o...o~', '~~~~~~~'],
+  },
+  {
+    id: 'l1.mark.stack',
+    weight: 8,
+    marker: 'decal.cache',
+    rows: ['##...##', '#ccccc#', '#.....#', '...L...', '#.....#', '#ccccc#', '##...##'],
+  },
+  {
+    id: 'l1.mark.silence',
+    weight: 9,
+    marker: 'decal.stain',
+    rows: [',,,,,,,', ',.....,', ',.....,', ',......', ',.....,', ',.....,', ',,,,,,,'],
+  },
+];

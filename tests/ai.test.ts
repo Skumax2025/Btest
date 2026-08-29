@@ -170,9 +170,7 @@ describe('sound', () => {
     field.emit({ x: 300, y: 0, radius: 400, tick: 0, source: 'step' });
     field.emit({ x: 10, y: 0, radius: 400, tick: 0, source: 'creature' });
     expect(field.loudest(0, 0, tileSize, open)?.event.source).toBe('creature');
-    expect(
-      field.loudest(0, 0, tileSize, open, (event) => event.source !== 'creature')?.event.source,
-    ).toBe('step');
+    expect(field.loudest(0, 0, tileSize, open, 'creature')?.event.source).toBe('step');
   });
 });
 

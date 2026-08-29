@@ -135,6 +135,8 @@ export const INTERACTION = {
   meleeStaminaCost: 12,
   /** Force applied to a creature that is shoved. */
   shoveImpulse: 240,
+  /** How long the opening movement line stays up, in ticks. */
+  openingHintTicks: 360,
 } as const;
 
 export const VISION = {

@@ -122,12 +122,39 @@ describe('a full loop', () => {
     setHand(run.inventory, 3);
     const startX = run.player.x;
     run.step({ ...press('throwItem'), pointerX: startX + 400, pointerY: run.player.y });
-    expect(run.projectiles.length).toBe(1);
+    expect(run.projectiles.size).toBe(1);
     idleFor(run, 90);
-    expect(run.projectiles.length).toBe(0);
+    expect(run.projectiles.size).toBe(0);
     const landed = run.groundItemsNear(run.player.x, run.player.y, 600);
     expect(landed.some((item) => item.itemId === 'item.noisemaker')).toBe(true);
     expect(run.noise.recent().some((event) => event.source === 'impact')).toBe(true);
+  });
+
+  it('descends through an exit into a level that looks different', () => {
+    const run = new Run(createRunConfig(1717));
+    let exit = null;
+    for (let radius = 400; radius <= 12000 && !exit; radius += 400) {
+      exit = run.propsNear(run.player.x, run.player.y, radius).find((p) => p.kind === 'exit');
+    }
+    expect(exit).toBeTruthy();
+    if (!exit) return;
+    const beforeId = run.spec.id;
+    const beforePalette = run.spec.paletteId;
+    run.inventory.stacks.push({ id: 1, itemId: 'item.soda', count: 1, x: 0, y: 0, charge: 0 });
+    run.inventory.nextId = 2;
+
+    standAt(run, exit.x, exit.y);
+    run.step(press('interact'));
+
+    expect(run.levelIndex).toBe(1);
+    expect(run.spec.id).not.toBe(beforeId);
+    expect(run.spec.paletteId).not.toBe(beforePalette);
+    // The body and the bag come with you; the creatures do not.
+    expect(run.inventory.stacks.length).toBe(1);
+    expect(run.creatures.size).toBeLessThan(60);
+    expect(run.level.tileAt(4, 4)).not.toBe(0);
+    idleFor(run, 30);
+    expect(run.phase).toBe('alive');
   });
 
   it('ends the run when the body gives out and stops simulating', () => {
@@ -155,8 +182,8 @@ describe('a full loop', () => {
     // Stand near enough for the chunk to wake, far enough not to be touched yet.
     standAt(run, found.x + 400, found.y);
     idleFor(run, 2);
-    expect(run.creatures.length).toBeGreaterThan(0);
-    const target = run.creatures.find((creature) => creature.spawnKey === found.key);
+    expect(run.creatures.size).toBeGreaterThan(0);
+    const target = [...run.creatures.values()].find((creature) => creature.spawnKey === found.key);
     expect(target).toBeDefined();
     if (!target) return;
     const before = run.stats.health;

@@ -4,7 +4,13 @@
  */
 
 import type { LevelSpec } from '@game/level';
-import { LEVEL0_LANDMARKS, LEVEL0_ROOMS, LEVEL0_START_ROOM } from './rooms';
+import {
+  LEVEL0_LANDMARKS,
+  LEVEL0_ROOMS,
+  LEVEL0_START_ROOM,
+  LEVEL1_LANDMARKS,
+  LEVEL1_ROOMS,
+} from './rooms';
 
 export const LEVELS: readonly LevelSpec[] = [
   {
@@ -35,6 +41,36 @@ export const LEVELS: readonly LevelSpec[] = [
     exitStride: 3,
     ambientLight: 0.1,
     startRoomId: 'room.start',
+  },
+  {
+    id: 'level1',
+    title: 'Level 1',
+    paletteId: 'level1.grey',
+    rooms: LEVEL1_ROOMS,
+    landmarks: LEVEL1_LANDMARKS,
+    // A longer spine period means longer detours and more dead ends.
+    spinePeriod: 4,
+    extraDoorChance: 0.1,
+    lampChance: 0.62,
+    lampWorkingChance: 0.3,
+    lampFlickerChance: 0.32,
+    containerChance: 0.52,
+    containers: [
+      { id: 'container.crate', weight: 8 },
+      { id: 'container.locker', weight: 10 },
+      { id: 'container.bag', weight: 5 },
+    ],
+    creatureChance: 0.46,
+    creatures: [
+      { id: 'creature.hound', weight: 10 },
+      { id: 'creature.bloom', weight: 9 },
+      { id: 'creature.drifter', weight: 5 },
+    ],
+    lootTableId: 'loot.level0',
+    landmarkStride: 2,
+    exitStride: 3,
+    ambientLight: 0.05,
+    startRoomId: null,
   },
 ];
 

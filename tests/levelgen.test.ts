@@ -10,23 +10,23 @@ import {
 import type { DoorRules, LevelGeometry, LevelSpec } from '@game/level';
 import { GEOMETRY } from '@content/tuning';
 import { LEVELS } from '@content/levels';
-import { LEVEL0_LANDMARKS, LEVEL0_ROOMS, LEVEL0_START_ROOM } from '@content/rooms';
+import { LEVEL0_START_ROOM } from '@content/rooms';
 
 const geo: LevelGeometry = GEOMETRY;
 const spec: LevelSpec = LEVELS[0];
 const SEED = 0x5eed;
 const chunkTiles = geo.blockSize * geo.chunkBlocks;
 
-const chunk = (cx: number, cy: number, seed = SEED, levelIndex = 0) =>
-  generateChunk({ seed, levelIndex, cx, cy, spec, geo });
+const chunk = (cx: number, cy: number, seed = SEED, levelIndex = 0, which: LevelSpec = spec) =>
+  generateChunk({ seed, levelIndex, cx, cy, spec: which, geo });
 
 /** Stitches a rectangle of chunks into one grid so we can flood fill across them. */
-const region = (minCx: number, minCy: number, size: number) => {
+const region = (minCx: number, minCy: number, size: number, which: LevelSpec = spec) => {
   const width = size * chunkTiles;
   const tiles = new Uint8Array(width * width);
   for (let dy = 0; dy < size; dy++) {
     for (let dx = 0; dx < size; dx++) {
-      const generated = chunk(minCx + dx, minCy + dy);
+      const generated = chunk(minCx + dx, minCy + dy, SEED, 0, which);
       for (let ty = 0; ty < chunkTiles; ty++) {
         for (let tx = 0; tx < chunkTiles; tx++) {
           tiles[(dy * chunkTiles + ty) * width + dx * chunkTiles + tx] =
@@ -201,8 +201,40 @@ describe('level generation', () => {
   });
 });
 
+describe('every level', () => {
+  it.each(LEVELS.map((level, index) => [level.id, index] as const))(
+    '%s stays connected with no unreachable floor',
+    (_id, index) => {
+      const level = LEVELS[index];
+      const size = 5;
+      const { tiles, width } = region(-2, -2, size, level);
+      const startX = 2 * chunkTiles + Math.floor(geo.blockSize / 2);
+      const startY = 2 * chunkTiles + Math.floor(geo.blockSize / 2);
+      const seen = floodFill(tiles, width, startX, startY);
+      let unreachable = 0;
+      for (let y = chunkTiles; y < width - chunkTiles; y++) {
+        for (let x = chunkTiles; x < width - chunkTiles; x++) {
+          const at = y * width + x;
+          if (!isSolidTile(tiles[at]) && !seen[at]) unreachable++;
+        }
+      }
+      expect(unreachable).toBe(0);
+    },
+  );
+
+  it('gives each level its own look: palette, rooms and creature mix differ', () => {
+    const ids = LEVELS.map((level) => level.paletteId);
+    expect(new Set(ids).size).toBe(LEVELS.length);
+    const [first, second] = LEVELS;
+    if (!second) return;
+    expect(second.rooms.map((room) => room.id)).not.toEqual(first.rooms.map((room) => room.id));
+    expect(second.ambientLight).toBeLessThan(first.ambientLight);
+    expect(second.lampWorkingChance).toBeLessThan(first.lampWorkingChance);
+  });
+});
+
 describe('room templates', () => {
-  const all = [...LEVEL0_ROOMS, ...LEVEL0_LANDMARKS, LEVEL0_START_ROOM];
+  const all = LEVELS.flatMap((level) => [...level.rooms, ...level.landmarks]);
 
   it('are square and sized to the block interior', () => {
     const interior = geo.blockSize - 1;
@@ -225,5 +257,12 @@ describe('room templates', () => {
   it('have unique ids', () => {
     const ids = all.map((template) => template.id);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it('register the start room with the level that names it', () => {
+    const level = LEVELS.find((candidate) => candidate.startRoomId !== null);
+    expect(level).toBeDefined();
+    expect(level?.rooms.some((room) => room.id === level.startRoomId)).toBe(true);
+    expect(LEVEL0_START_ROOM.id).toBe(level?.startRoomId);
   });
 });

@@ -14,7 +14,7 @@ import type { CreatureCatalog, CreatureState } from '@game/ai';
 
 export interface PerceptionParams {
   readonly props: readonly PropSpawn[];
-  readonly creatures: readonly CreatureState[];
+  readonly creatures: Iterable<CreatureState>;
   readonly creatureDefs: CreatureCatalog;
   readonly tick: number;
   readonly x: number;

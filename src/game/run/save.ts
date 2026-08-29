@@ -10,10 +10,10 @@ import type { StreamSave } from '@game/level';
 import type { PlayerState } from '@game/player';
 import type { StatsState } from '@game/stats';
 import type { InventoryState } from '@game/inventory';
-import type { CreatureState } from '@game/ai';
+import type { WorldSnapshot } from '@core/world';
 import { chunkKey } from '@game/level';
 import type { Run, RunPhase } from './run';
-import type { Projectile, SearchProgress } from './world-access';
+import type { SearchProgress } from './world-access';
 
 export const SAVE_VERSION = 4;
 
@@ -32,8 +32,8 @@ export interface RunSave {
   readonly player: PlayerState;
   readonly stats: StatsState;
   readonly inventory: InventoryState;
-  readonly creatures: CreatureState[];
-  readonly projectiles: Projectile[];
+  /** Entities and their components, exactly as the store holds them. */
+  readonly world: WorldSnapshot;
   readonly search: SearchProgress | null;
   readonly level: StreamSave;
 }
@@ -55,8 +55,7 @@ export const snapshotRun = (run: Run): RunSave => ({
   player: clone(run.player),
   stats: clone(run.stats),
   inventory: clone(run.inventory),
-  creatures: clone(run.creatures),
-  projectiles: clone(run.projectiles),
+  world: clone(run.world.serialize()),
   search: run.search ? clone(run.search) : null,
   level: clone(run.level.save()),
 });
@@ -81,10 +80,7 @@ export const restoreRun = (run: Run, save: RunSave): void => {
   run.inventory.nextId = inventory.nextId;
   run.inventory.hand = inventory.hand;
 
-  run.creatures.length = 0;
-  for (const creature of clone(save.creatures)) run.creatures.push(creature);
-  run.projectiles.length = 0;
-  for (const projectile of clone(save.projectiles)) run.projectiles.push(projectile);
+  run.world.restore(clone(save.world));
 
   run.level = run.createLevel(save.levelIndex);
   run.level.restore(clone(save.level));

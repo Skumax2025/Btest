@@ -10,6 +10,7 @@
 
 import { SpatialGrid } from '@core/spatial';
 import { World } from '@core/world';
+import type { ComponentStore, EntityId } from '@core/world';
 import { createRandom } from '@core/rng';
 import type { RandomStream } from '@core/rng';
 import type { InputFrame } from '@core/input';
@@ -41,8 +42,8 @@ export class Run implements RunWorld {
   readonly stats: StatsState;
   readonly inventory: InventoryState;
   readonly noise: NoiseField;
-  readonly projectiles: Projectile[] = [];
-  readonly creatures: CreatureState[] = [];
+  readonly projectiles: ComponentStore<Projectile>;
+  readonly creatures: ComponentStore<CreatureState>;
   readonly rng: RandomStream;
   readonly spawnedChunks = new Set<string>();
 
@@ -69,6 +70,8 @@ export class Run implements RunWorld {
 
   constructor(config: RunConfig) {
     this.config = config;
+    this.creatures = this.world.store<CreatureState>('creature');
+    this.projectiles = this.world.store<Projectile>('projectile');
     this.rng = createRandom(config.seed);
     this.propGrid = new SpatialGrid(config.propCellSize);
     this.noise = new NoiseField(config.sound);
@@ -135,13 +138,14 @@ export class Run implements RunWorld {
     this.emitFootstep();
 
     handleActions(this, input);
+    if (this.descendRequested) this.descend();
     stepCreatures(this);
     stepSearch(this);
     stepProjectiles(this);
     this.flashlightCharge = stepLight(this);
     applyContactDamage(this);
     if (this.meleeCooldown > 0) this.meleeCooldown--;
-    for (const creature of this.creatures) {
+    for (const creature of this.creatures.values()) {
       if (creature.attackCooldown > 0) creature.attackCooldown--;
     }
 
@@ -162,10 +166,43 @@ export class Run implements RunWorld {
     this.updateHint(input);
   }
 
+  /**
+   * One way only. The next level is a different generator seed stream, so the
+   * one above is gone — which is why the exit is called a way down and not a
+   * door.
+   */
+  descend(): void {
+    this.descendRequested = false;
+    if (this.levelIndex + 1 >= this.config.content.levels.length) return;
+    this.levelIndex++;
+    this.level = this.createLevel(this.levelIndex);
+    const spawn = this.spawnPoint();
+    this.player.x = spawn.x;
+    this.player.y = spawn.y;
+    this.player.prevX = spawn.x;
+    this.player.prevY = spawn.y;
+    this.player.vx = 0;
+    this.player.vy = 0;
+    this.creatures.clear();
+    this.projectiles.clear();
+    this.world.clear();
+    this.search = null;
+    this.spawnedChunks.clear();
+    this.noise.clear();
+    this.level.prime(spawn.x, spawn.y);
+    syncCreatures(this);
+    this.rebuildPropIndex();
+  }
+
+  /** Seconds the run has lasted, from the only clock the simulation has. */
+  get elapsedSeconds(): number {
+    return this.tick * this.config.stepSeconds;
+  }
+
   private perceiveNow(): Perception {
     return perceive({
       props: this.propsNear(this.player.x, this.player.y, this.config.lighting.lampRadius * 2),
-      creatures: this.creatures,
+      creatures: this.creatures.values(),
       creatureDefs: this.config.content.creatures,
       tick: this.tick,
       x: this.player.x,
@@ -206,10 +243,19 @@ export class Run implements RunWorld {
     } else if (this.stats.exhausted && isHeld(input, this.config.actions.sprint)) {
       this.hint = 'exhausted';
     } else if (this.perception.inDark) {
-      this.hint = 'darkness';
+      this.hint = this.flashlightCharge > 0 && !this.flashlightOn ? 'flashlight' : 'darkness';
+    } else if (this.tick < this.config.openingHintTicks) {
+      this.hint = 'move';
     } else {
       this.hint = null;
     }
+  }
+
+  /** Creates an entity carrying one component — the only way things get spawned. */
+  spawn<T>(store: ComponentStore<T>, value: T): EntityId {
+    const entity = this.world.createEntity();
+    store.set(entity, value);
+    return entity;
   }
 
   emitNoise(x: number, y: number, radius: number, source: string): void {

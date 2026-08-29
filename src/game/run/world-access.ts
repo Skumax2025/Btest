@@ -12,6 +12,7 @@ import type { PlayerState } from '@game/player';
 import type { StatsState } from '@game/stats';
 import type { InventoryState } from '@game/inventory';
 import type { CreatureState } from '@game/ai';
+import type { ComponentStore, EntityId, World } from '@core/world';
 import type { RandomStream } from '@core/rng';
 import type { NoiseField } from '@systems/sound';
 import type { RunConfig } from './config';
@@ -21,6 +22,8 @@ import type { RunConfig } from './config';
  * player reads, so translating the game touches one content file.
  */
 export type HintKey =
+  | 'move'
+  | 'flashlight'
   | 'search'
   | 'pickup'
   | 'descend'
@@ -64,13 +67,15 @@ export interface SearchProgress {
 export interface RunWorld {
   readonly tick: number;
   readonly config: RunConfig;
+  /** Entity store. Creatures and thrown items are components on it. */
+  readonly world: World;
   readonly player: PlayerState;
   readonly stats: StatsState;
   readonly inventory: InventoryState;
   readonly level: LevelStream;
   readonly noise: NoiseField;
-  readonly projectiles: Projectile[];
-  readonly creatures: CreatureState[];
+  readonly projectiles: ComponentStore<Projectile>;
+  readonly creatures: ComponentStore<CreatureState>;
   /** Gameplay randomness. Its state is part of the save, so a reload replays. */
   readonly rng: RandomStream;
   /** Chunks whose creature spawns have already been turned into creatures. */
@@ -81,6 +86,7 @@ export interface RunWorld {
   /** Set when the player has stepped into an exit this tick. */
   descendRequested: boolean;
   collected: number;
+  spawn<T>(store: ComponentStore<T>, value: T): EntityId;
   propsNear(x: number, y: number, radius: number): PropSpawn[];
   groundItemsNear(x: number, y: number, radius: number): GroundItem[];
   setHint(hint: HintKey | null): void;

@@ -151,7 +151,7 @@ const throwHeld = (world: RunWorld, input: InputFrame): void => {
   const dy = input.pointerY - world.player.y;
   const length = Math.hypot(dx, dy) || 1;
   const speed = world.config.interaction.throwSpeed;
-  world.projectiles.push({
+  world.spawn(world.projectiles, {
     itemId: held.itemId,
     x: world.player.x,
     y: world.player.y,
@@ -181,7 +181,7 @@ const swing = (world: RunWorld): void => {
   world.stats.stamina = Math.max(0, world.stats.stamina - interaction.meleeStaminaCost);
   world.emitNoise(world.player.x, world.player.y, world.config.noise.melee, 'melee');
 
-  for (const creature of world.creatures) {
+  for (const creature of world.creatures.values()) {
     const dx = creature.x - world.player.x;
     const dy = creature.y - world.player.y;
     const distance = Math.hypot(dx, dy);

@@ -13,8 +13,8 @@ import type { RunWorld } from './world-access';
 /** Advances thrown items; a landing makes noise where it lands, not where it was thrown. */
 export const stepProjectiles = (world: RunWorld): void => {
   const { tileSize } = world.config.geometry;
-  for (let i = world.projectiles.length - 1; i >= 0; i--) {
-    const projectile = world.projectiles[i];
+  const landed: number[] = [];
+  for (const [id, projectile] of world.projectiles.entries()) {
     const nextX = projectile.x + projectile.vx * world.config.stepSeconds;
     const nextY = projectile.y + projectile.vy * world.config.stepSeconds;
     const hit = castRay(
@@ -33,12 +33,13 @@ export const stepProjectiles = (world: RunWorld): void => {
       const def = world.config.content.items[projectile.itemId];
       world.level.drop(projectile.itemId, 1, landX, landY);
       if (def) world.emitNoise(landX, landY, def.noise, 'impact');
-      world.projectiles.splice(i, 1);
+      landed.push(id);
       continue;
     }
     projectile.x = nextX;
     projectile.y = nextY;
   }
+  for (const id of landed) world.world.destroyEntity(id);
 };
 
 export const stepSearch = (world: RunWorld): void => {
@@ -74,7 +75,7 @@ export const stepLight = (world: RunWorld): number => {
 };
 
 export const applyContactDamage = (world: RunWorld): void => {
-  for (const creature of world.creatures) {
+  for (const creature of world.creatures.values()) {
     const def = world.config.content.creatures[creature.defId];
     if (!def) continue;
     const distance = Math.hypot(creature.x - world.player.x, creature.y - world.player.y);
