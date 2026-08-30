@@ -9,21 +9,24 @@ import { englishPlural, russianPlural } from '@core/i18n';
 import type { Locale } from '@core/i18n';
 import { RU } from './ru';
 import { EN } from './en';
+import { RU_GUIDE } from './ru-guide';
+import { EN_GUIDE } from './en-guide';
 
-export type { TextKey } from './ru';
+/** Every key the game may ask for: the interface plus the guidebook. */
+export type TextKey = keyof typeof RU | keyof typeof RU_GUIDE;
 
 export const RUSSIAN: Locale = {
   id: 'ru',
   label: 'Русский',
   plural: russianPlural,
-  strings: RU,
+  strings: { ...RU, ...RU_GUIDE },
 };
 
 export const ENGLISH: Locale = {
   id: 'en',
   label: 'English',
   plural: englishPlural,
-  strings: EN,
+  strings: { ...EN, ...EN_GUIDE },
 };
 
 export const LOCALES: readonly Locale[] = [RUSSIAN, ENGLISH];

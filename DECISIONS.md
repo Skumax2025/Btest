@@ -231,3 +231,22 @@ I went, so the order is roughly chronological.
 - **Dragging shows a ghost** of the footprint, green where the stack may land and
   red where it may not, and every item block is drawn with its cell grid so the
   footprint can be counted at a glance.
+
+## Guidebook (G4)
+
+- **Every number in it is a parameter read from L3.** `content/guide.ts` computes
+  them from the same tuning tables the simulation uses, so re-balancing rewrites
+  the guidebook. A test renders every paragraph and fails if any placeholder is
+  left unfilled or any section forgets to supply a value it asks for.
+- **Distances are given in metres with one decimal.** A tile is about a metre;
+  the fixed decimal is not cosmetic — in Russian a decimal always takes the same
+  case, so "0.9 метра" and "6.6 метра" are both correct without needing a plural
+  rule in the middle of a sentence.
+- **Creatures are described by behaviour, never by numbers.** The section says
+  what each one does and what answers it, so the player learns to recognise them
+  instead of reading a table.
+- **Section 8 is generated from the live bindings**, never written, so it cannot
+  disagree with the settings screen.
+- **Only implemented mechanics are described.** Every claim in the text
+  corresponds to code in this repository; a test checks the keys and the numbers,
+  and the writing was done by reading the modules rather than the design brief.

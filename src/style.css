@@ -694,3 +694,24 @@ body {
   border-color: rgba(210, 110, 90, 0.8);
   background-color: rgba(200, 90, 70, 0.16);
 }
+
+/* The guidebook scrolls its text, not its frame: the way out stays put. */
+.screen-panel--guide {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.screen-panel--guide .guide-columns {
+  flex: 1;
+  min-height: 0;
+}
+
+.screen-panel--guide .guide-body {
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.screen-panel--guide .guide-tabs {
+  overflow-y: auto;
+}

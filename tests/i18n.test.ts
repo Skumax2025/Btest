@@ -9,8 +9,15 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Localizer, englishPlural, interpolate, russianPlural } from '@core/i18n';
 import { DEFAULT_LOCALE, LOCALES } from '@content/locales';
-import { RU } from '@content/locales/ru';
-import { EN } from '@content/locales/en';
+import { GUIDE_SECTIONS } from '@content/guide';
+import { REBINDABLE_ACTIONS } from '@content/tuning';
+import { RU as RU_UI } from '@content/locales/ru';
+import { EN as EN_UI } from '@content/locales/en';
+import { RU_GUIDE } from '@content/locales/ru-guide';
+import { EN_GUIDE } from '@content/locales/en-guide';
+
+const RU = { ...RU_UI, ...RU_GUIDE };
+const EN = { ...EN_UI, ...EN_GUIDE };
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -128,6 +135,60 @@ describe('locale files', () => {
       }
     }
     expect(missing).toEqual([]);
+  });
+});
+
+describe('guidebook', () => {
+  it('references only keys that exist, in both languages', () => {
+    const missing: string[] = [];
+    for (const section of GUIDE_SECTIONS) {
+      for (const key of [section.titleKey, ...section.bodyKeys]) {
+        if (!(key in RU)) missing.push(`ru: ${key}`);
+        if (!(key in EN)) missing.push(`en: ${key}`);
+      }
+    }
+    expect(missing).toEqual([]);
+  });
+
+  it('supplies every number its text asks for', () => {
+    const unresolved: string[] = [];
+    for (const section of GUIDE_SECTIONS) {
+      const params = section.params?.() ?? {};
+      for (const key of section.bodyKeys) {
+        for (const locale of [RU, EN]) {
+          const value = locale[key as keyof typeof RU];
+          const text = typeof value === 'string' ? value : Object.values(value ?? {}).join(' ');
+          for (const match of text.matchAll(/\{(\w+)\}/g)) {
+            if (!(match[1] in params)) unresolved.push(`${key}: {${match[1]}}`);
+          }
+        }
+      }
+    }
+    expect(unresolved).toEqual([]);
+  });
+
+  it('quotes numbers that come from the tuning tables, not from prose', () => {
+    const localizer = new Localizer(LOCALES, 'ru');
+    for (const section of GUIDE_SECTIONS) {
+      const params = section.params?.();
+      if (!params) continue;
+      for (const value of Object.values(params)) {
+        expect(Number.isFinite(Number(value)), String(value)).toBe(true);
+      }
+      for (const key of section.bodyKeys) {
+        // Rendering must leave no placeholder behind in either language.
+        expect(localizer.t(key, params)).not.toMatch(/\{\w+\}/);
+      }
+    }
+  });
+
+  it('lists only actions the game actually binds', () => {
+    for (const section of GUIDE_SECTIONS) {
+      for (const action of section.controls ?? []) {
+        expect(REBINDABLE_ACTIONS, action).toContain(action);
+        expect(`action.${action}` in RU, action).toBe(true);
+      }
+    }
   });
 });
 
