@@ -130,6 +130,9 @@ export const INVENTORY = {
   cellPixels: 52,
   /** Columns the bag grid is drawn in. */
   columns: 6,
+  /** Condition below which an icon reads as worn, and below which it reads as failing. */
+  wornFraction: 0.5,
+  failingFraction: 0.2,
 } as const;
 
 /**

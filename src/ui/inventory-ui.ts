@@ -31,6 +31,9 @@ import { el, setStyle, setText } from './dom';
 export interface InventoryUiOptions {
   readonly cellPixels: number;
   readonly columns: number;
+  /** Condition below which an icon reads as worn, then as failing. */
+  readonly wornFraction: number;
+  readonly failingFraction: number;
 }
 
 /** What the panel cannot do itself, because it changes the world. */
@@ -58,9 +61,6 @@ interface SlotView {
   readonly target: DropTarget;
 }
 
-const CONDITION_WARN = 0.5;
-const CONDITION_BAD = 0.2;
-
 export class InventoryUi {
   private readonly root: HTMLElement;
   private readonly slotArea: HTMLElement;
@@ -81,7 +81,7 @@ export class InventoryUi {
     parent: HTMLElement,
     private state: InventoryState,
     private readonly catalog: ItemCatalog,
-    options: InventoryUiOptions,
+    private readonly options: InventoryUiOptions,
     private readonly ui: UiContext,
     private readonly host: InventoryHost,
   ) {
@@ -274,8 +274,8 @@ export class InventoryUi {
     if (max > 0 && def && fill instanceof HTMLElement) {
       const share = condition(def, stack.durability);
       setStyle(fill, 'width', `${Math.round(share * 100)}%`);
-      node.classList.toggle('bag-item--worn', share <= CONDITION_WARN);
-      node.classList.toggle('bag-item--failing', share <= CONDITION_BAD);
+      node.classList.toggle('bag-item--worn', share <= this.options.wornFraction);
+      node.classList.toggle('bag-item--failing', share <= this.options.failingFraction);
     }
   }
 

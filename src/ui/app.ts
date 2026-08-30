@@ -138,7 +138,12 @@ export class App {
       this.overlay,
       this.run.inventory,
       ITEMS,
-      { cellPixels: INVENTORY.cellPixels, columns: INVENTORY.columns },
+      {
+        cellPixels: INVENTORY.cellPixels,
+        columns: INVENTORY.columns,
+        wornFraction: INVENTORY.wornFraction,
+        failingFraction: INVENTORY.failingFraction,
+      },
       this.ui,
       {
         use: (id) => useStack(this.run, id),
