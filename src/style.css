@@ -255,7 +255,7 @@ body {
 .hud-hand-meta { color: var(--hud-dim); font-size: 13px; margin-top: 10px; min-height: 18px; }
 
 .hud-hand-wear { margin-top: 14px; }
-.hud-hand-wear::before { content: 'CONDITION'; display: block; margin-bottom: 5px; color: var(--hud-dim); font-size: 11px; letter-spacing: 0.14em; }
+.hud-hand-wear-label { display: block; margin-bottom: 5px; color: var(--hud-dim); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; }
 .hud-wear-track { height: 10px; background: rgba(239, 227, 187, 0.12); }
 .hud-wear-fill { height: 100%; background: #c2a866; transition: width 120ms linear; }
 
@@ -522,6 +522,8 @@ body {
 }
 
 .bag-menu-item:hover { background: rgba(239, 227, 187, 0.12); }
+
+.bag-confirm[hidden] { display: none; }
 
 .bag-confirm {
   display: flex;

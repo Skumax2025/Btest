@@ -106,6 +106,7 @@ export class Hud {
     this.handDescription = el('div', 'hud-hand-description', handCopy);
     this.handMeta = el('div', 'hud-hand-meta', handCopy);
     const wear = el('div', 'hud-hand-wear', hand);
+    ui.binder.bind(el('span', 'hud-hand-wear-label', wear), 'hud.wear');
     this.wearFill = el('div', 'hud-wear-fill', el('div', 'hud-wear-track', wear));
 
     const stamina = el('div', 'hud-stamina', this.root);

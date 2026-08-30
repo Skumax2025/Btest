@@ -72,6 +72,7 @@ export class InventoryUi {
   private readonly confirmText: HTMLElement;
   private readonly menu: HTMLElement;
   private readonly slotViews = new Map<string, SlotView>();
+  private readonly nodes = new Map<number, HTMLElement>();
   private drag: DragState | null = null;
   private pending: { id: number; slot: EquipSlot } | null = null;
   private open = false;
@@ -136,6 +137,8 @@ export class InventoryUi {
   /** Points the panel at a different bag — used when a new run starts. */
   setState(state: InventoryState): void {
     this.state = state;
+    for (const node of this.nodes.values()) node.remove();
+    this.nodes.clear();
     this.pending = null;
     this.confirmBar.hidden = true;
     this.closeMenu();
@@ -194,7 +197,13 @@ export class InventoryUi {
 
   // ── drawing ───────────────────────────────────────────────────────────────
 
+  /**
+   * Nodes are reused, never rebuilt: the world keeps running while this panel is
+   * open, so it redraws constantly, and a node replaced under the pointer would
+   * swallow the second half of a double click and drop whatever is being dragged.
+   */
   private render(): void {
+    if (this.drag) return;
     const cells = capacity(this.state, this.catalog);
     const stacks = containerStacks(this.state);
     setText(
@@ -202,49 +211,72 @@ export class InventoryUi {
       this.ui.t('inventory.cellsUsed', { used: stacks.length, total: cells }),
     );
 
-    this.grid.replaceChildren();
+    while (this.grid.childElementCount < cells) el('div', 'bag-cell', this.grid);
+    while (this.grid.childElementCount > cells) this.grid.lastElementChild?.remove();
     for (let index = 0; index < cells; index++) {
-      const cell = el('div', 'bag-cell', this.grid);
-      const stack = stacks[index];
-      if (stack) cell.appendChild(this.itemNode(stack));
+      const cell = this.grid.children[index];
+      if (cell instanceof HTMLElement) this.place(cell, stacks[index] ?? null);
     }
 
     for (const slot of EQUIP_SLOTS) {
-      const view = this.slotViews.get(`slot:${slot}`);
-      if (!view) continue;
-      const body = view.root.querySelector('.bag-slot-body');
-      if (!(body instanceof HTMLElement)) continue;
-      const stack = equippedStack(this.state, slot);
-      body.replaceChildren();
-      if (stack) body.appendChild(this.itemNode(stack));
+      const body = this.slotViews.get(`slot:${slot}`)?.root.querySelector('.bag-slot-body');
+      if (body instanceof HTMLElement) this.place(body, equippedStack(this.state, slot));
+    }
+    for (let index = 0; index < this.state.quick.length; index++) {
+      const body = this.slotViews.get(`quick:${index}`)?.root.querySelector('.bag-quick-body');
+      if (body instanceof HTMLElement) this.place(body, quickStack(this.state, index));
     }
 
-    for (let index = 0; index < this.state.quick.length; index++) {
-      const view = this.slotViews.get(`quick:${index}`);
-      if (!view) continue;
-      const body = view.root.querySelector('.bag-quick-body');
-      if (!(body instanceof HTMLElement)) continue;
-      const stack = quickStack(this.state, index);
-      body.replaceChildren();
-      if (stack) body.appendChild(this.itemNode(stack));
+    for (const [id, node] of this.nodes) {
+      if (findStack(this.state, id)) continue;
+      node.remove();
+      this.nodes.delete(id);
     }
   }
 
-  private itemNode(stack: InventoryStack): HTMLElement {
-    const def = this.catalog[stack.itemId];
+  /** Puts the right node in a holder, or empties it, without touching the rest. */
+  private place(host: HTMLElement, stack: InventoryStack | null): void {
+    if (!stack) {
+      if (host.firstElementChild) host.replaceChildren();
+      return;
+    }
+    const node = this.nodeFor(stack);
+    if (host.firstElementChild !== node) host.replaceChildren(node);
+    this.paint(node, stack);
+  }
+
+  private nodeFor(stack: InventoryStack): HTMLElement {
+    const existing = this.nodes.get(stack.id);
+    if (existing) return existing;
     const node = el('div', 'bag-item');
     node.dataset.stackId = String(stack.id);
-    setText(el('span', 'bag-item-name', node), def ? this.ui.t(def.nameKey) : stack.itemId);
-    if (stack.count > 1) setText(el('span', 'bag-item-count', node), `x${stack.count}`);
-    if (def && (def.durability?.max ?? 0) > 0) {
+    el('span', 'bag-item-name', node);
+    el('span', 'bag-item-count', node);
+    const track = el('div', 'bag-item-wear', node);
+    el('div', 'bag-item-wear-fill', track);
+    this.nodes.set(stack.id, node);
+    return node;
+  }
+
+  /** Wear is always on the icon: a bar, not a number hidden in a panel. */
+  private paint(node: HTMLElement, stack: InventoryStack): void {
+    const def = this.catalog[stack.itemId];
+    const name = node.querySelector('.bag-item-name');
+    const count = node.querySelector('.bag-item-count');
+    const track = node.querySelector('.bag-item-wear');
+    const fill = node.querySelector('.bag-item-wear-fill');
+    if (name instanceof HTMLElement) {
+      setText(name, def ? this.ui.t(def.nameKey) : stack.itemId);
+    }
+    if (count instanceof HTMLElement) setText(count, stack.count > 1 ? `x${stack.count}` : '');
+    const max = def ? (def.durability?.max ?? 0) : 0;
+    if (track instanceof HTMLElement) track.hidden = max <= 0;
+    if (max > 0 && def && fill instanceof HTMLElement) {
       const share = condition(def, stack.durability);
-      const track = el('div', 'bag-item-wear', node);
-      const fill = el('div', 'bag-item-wear-fill', track);
       setStyle(fill, 'width', `${Math.round(share * 100)}%`);
       node.classList.toggle('bag-item--worn', share <= CONDITION_WARN);
       node.classList.toggle('bag-item--failing', share <= CONDITION_BAD);
     }
-    return node;
   }
 
   // ── hit testing ───────────────────────────────────────────────────────────
