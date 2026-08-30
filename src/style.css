@@ -899,8 +899,13 @@ body {
 
 /* Interface scale: each panel scales about the corner it is anchored to. */
 .hud-stats {
-  transform: scale(var(--ui-scale));
-  transform-origin: bottom left;
+  transform: translateX(-50%) scale(var(--ui-scale));
+  transform-origin: top center;
+}
+
+.hud-stats {
+  transform: translateX(-50%) scale(var(--ui-scale));
+  transform-origin: top center;
 }
 
 .hud-hand {
