@@ -24,7 +24,7 @@ export const LEVELS: readonly LevelSpec[] = [
     lampChance: 0.85,
     lampWorkingChance: 0.5,
     lampFlickerChance: 0.28,
-    containerChance: 0.28,
+    containerChance: 0.22,
     containers: [
       { id: 'container.crate', weight: 10 },
       { id: 'container.locker', weight: 6 },

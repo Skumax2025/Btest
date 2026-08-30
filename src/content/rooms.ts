@@ -335,7 +335,7 @@ export const LEVEL0_ROOMS: readonly RoomTemplate[] = [
     weight: 7,
     rows: [
       '###############',
-      '#L..c......cL#',
+      '#L..c.......cL#',
       '#.............#',
       '#.............#',
       '#.............#',
@@ -965,7 +965,8 @@ export const LEVEL1_LANDMARKS: readonly LandmarkTemplate[] = [
       '....,,,,,,,....',
       '....,.....,....',
       '....,.....,....',
-      '....,......', // Intentionally asymmetric as original
+      // Deliberately open on the right: the ring has one way in.
+      '....,..........',
       '....,.....,....',
       '....,.....,....',
       '....,,,,,,,....',
