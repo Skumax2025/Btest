@@ -110,6 +110,8 @@ export const RU = {
   'hud.sanity': 'НЕРВЫ',
   'hud.hand': 'В РУКАХ',
   'hud.empty': 'пустые руки',
+  'hud.ready': 'ГОТОВО',
+  'hud.handEmptyDescription': 'Предмет не выбран',
   'hud.charge': 'заряд',
   'hud.weight': 'вес',
   'hud.wear': 'износ',

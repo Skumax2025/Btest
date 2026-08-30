@@ -61,6 +61,9 @@ export class Hud {
   private readonly root: HTMLElement;
   private readonly bars = new Map<BarKey, Bar>();
   private readonly handName: HTMLElement;
+  private readonly handGlyph: HTMLElement;
+  private readonly handState: HTMLElement;
+  private readonly handDescription: HTMLElement;
   private readonly handMeta: HTMLElement;
   private readonly wearFill: HTMLElement;
   private readonly staminaFill: HTMLElement;
@@ -77,6 +80,8 @@ export class Hud {
     private readonly config: HudConfig,
   ) {
     this.root = el('div', 'hud', parent);
+    this.root.style.setProperty('--hud-scale', String(config.scale));
+    this.root.style.setProperty('--hand-slot-size', `${config.handSlotSize}px`);
     this.levelLabel = el('div', 'hud-level', this.root);
 
     const stats = el('div', 'hud-stats', this.root);
@@ -93,9 +98,15 @@ export class Hud {
 
     const hand = el('div', 'hud-hand', this.root);
     ui.binder.bind(el('span', 'hud-hand-label', hand), 'hud.hand');
-    this.handName = el('div', 'hud-hand-name', hand);
-    this.handMeta = el('div', 'hud-hand-meta', hand);
-    this.wearFill = el('div', 'hud-wear-fill', el('div', 'hud-wear-track', hand));
+    const handBody = el('div', 'hud-hand-body', hand);
+    this.handGlyph = el('div', 'hud-hand-glyph', handBody);
+    const handCopy = el('div', 'hud-hand-copy', handBody);
+    this.handName = el('div', 'hud-hand-name', handCopy);
+    this.handState = el('div', 'hud-hand-state', handCopy);
+    this.handDescription = el('div', 'hud-hand-description', handCopy);
+    this.handMeta = el('div', 'hud-hand-meta', handCopy);
+    const wear = el('div', 'hud-hand-wear', hand);
+    this.wearFill = el('div', 'hud-wear-fill', el('div', 'hud-wear-track', wear));
 
     const stamina = el('div', 'hud-stamina', this.root);
     const staminaIcon = el('span', 'hud-stamina-icon', stamina);
@@ -169,7 +180,11 @@ export class Hud {
     const { t } = this.ui;
     const held = heldStack(run.inventory);
     const def = held ? run.config.content.items[held.itemId] : undefined;
-    setText(this.handName, def ? t(def.nameKey) : t('hud.empty'));
+    const displayName = def ? t(def.nameKey) : t('hud.empty');
+    setText(this.handName, displayName);
+    setText(this.handGlyph, held ? displayName.slice(0, 1).toUpperCase() : '—');
+    setText(this.handState, run.combat.broken ? t('hud.broken') : held ? t('hud.ready') : t('hud.empty'));
+    setText(this.handDescription, def ? t(def.descriptionKey) : t('hud.handEmptyDescription'));
 
     const parts: string[] = [];
     if (held && held.count > 1) parts.push(`x${held.count}`);

@@ -98,6 +98,8 @@ export const EN: Record<TextKey, LocaleString> = {
   'hud.sanity': 'NERVE',
   'hud.hand': 'IN HAND',
   'hud.empty': 'empty hands',
+  'hud.ready': 'READY',
+  'hud.handEmptyDescription': 'No item selected',
   'hud.charge': 'charge',
   'hud.weight': 'load',
   'hud.wear': 'wear',
