@@ -1,7 +1,10 @@
 /**
- * L4: the application. Owns the browser (canvas, DOM, real time), builds a run
- * from content and feeds it input frames. Everything below this file is
- * headless and testable.
+ * L4: the application and its state machine.
+ *
+ * Owns the browser (canvas, DOM, real time) and decides which of the five states
+ * the game is in. The simulation advances in exactly one of them, PLAYING, so a
+ * pause or an open guidebook stops the world completely — stats, timers,
+ * creatures and the ambient hum alike.
  */
 
 import { PlaceholderSpriteProvider, domCanvasFactory } from '@core/assets';
@@ -18,6 +21,7 @@ import { Run, SAVE_VERSION, restoreRun, snapshotRun } from '@game/run';
 import type { RunSave } from '@game/run';
 import { ITEMS } from '@content/items';
 import { DEFAULT_LOCALE, LOCALES } from '@content/locales';
+import { GUIDE_SECTIONS } from '@content/guide';
 import { createRunConfig } from '@content/run-config';
 import { AUDIO } from '@content/audio';
 import { paletteOf } from '@content/palettes';
@@ -39,39 +43,57 @@ import { AudioView } from './audio-view';
 import { createUiContext } from './context';
 import type { UiContext } from './context';
 import { DebugOverlay } from './debug-overlay';
+import { GuidebookScreen } from './guidebook';
 import { Hud } from './hud';
 import { InventoryUi } from './inventory-ui';
+import { MenuScreen } from './menu';
+import { SettingsScreen } from './settings';
 import { SummaryScreen } from './summary';
+import { clearSettings, loadSettings, saveSettings } from './settings-store';
+import type { GameSettings } from './settings-store';
 
 const SAVE_KEY = 'backrooms.run';
 
+export type AppState = 'menu' | 'playing' | 'paused' | 'guide' | 'dead';
+
 export class App {
+  private readonly canvas: HTMLCanvasElement;
   private readonly renderer: Canvas2DRenderer;
   private readonly camera = new Camera();
   private readonly input: InputDevice;
   private readonly worldView: WorldView;
   private readonly loop: GameLoop;
   private readonly overlay: HTMLElement;
-  private readonly hud: Hud;
-  private readonly bag: InventoryUi;
   private readonly storage: StorageLike = bestEffortStorage();
   private readonly localizer = new Localizer(LOCALES, DEFAULT_LOCALE);
   private readonly ui: UiContext;
   private readonly audio = new WebAudio(AUDIO.masterGain);
   private readonly audioView: AudioView;
+  private readonly hud: Hud;
+  private readonly bag: InventoryUi;
   private readonly summary: SummaryScreen;
   private readonly debug: DebugOverlay;
-  private lastHealth = Number.POSITIVE_INFINITY;
+  private readonly menu: MenuScreen;
+  private readonly settingsScreen: SettingsScreen;
+  private readonly guide: GuidebookScreen;
+
+  private settings: GameSettings;
+  private state: AppState = 'menu';
   private run: Run;
+  /** False until a run has actually been entered; the menu reads it. */
+  private runActive = false;
+  private lastHealth = Number.POSITIVE_INFINITY;
 
   constructor(private readonly root: HTMLElement) {
-    const canvas = document.createElement('canvas');
-    canvas.className = 'game-canvas';
-    root.appendChild(canvas);
+    this.settings = loadSettings(this.storage);
 
-    this.renderer = new Canvas2DRenderer(canvas, CAMERA.maxPixelRatio);
-    this.input = new InputDevice(KEY_BINDINGS, AXIS_BINDINGS);
-    this.input.attach(canvas, window);
+    this.canvas = document.createElement('canvas');
+    this.canvas.className = 'game-canvas';
+    root.appendChild(this.canvas);
+
+    this.renderer = new Canvas2DRenderer(this.canvas, CAMERA.maxPixelRatio);
+    this.input = new InputDevice(this.settings.bindings ?? KEY_BINDINGS, AXIS_BINDINGS);
+    this.input.attach(this.canvas, window);
     this.worldView = new WorldView(
       this.renderer,
       new PlaceholderSpriteProvider(SPRITES, domCanvasFactory, FALLBACK_SPRITE),
@@ -79,21 +101,25 @@ export class App {
     );
     this.camera.zoom = CAMERA.zoom;
 
-    this.run = this.resumeOrStart();
+    const restored = this.loadSave();
+    this.run = restored ?? this.freshRun();
+    this.runActive = restored !== null;
     this.camera.snapTo(this.run.player.x, this.run.player.y);
 
     this.overlay = document.createElement('div');
     this.overlay.className = 'overlay';
     root.appendChild(this.overlay);
+
     this.ui = createUiContext(this.localizer, () => this.input.getBindings());
-    this.localizer.onChange(() => this.ui.binder.refresh());
+    this.localizer.onChange(() => {
+      this.ui.binder.refresh();
+      this.menu.refresh();
+      this.guide.refresh();
+    });
+
     this.hud = new Hud(this.overlay, this.ui);
     this.summary = new SummaryScreen(this.overlay, this.ui);
     this.debug = new DebugOverlay(this.overlay);
-    this.audioView = new AudioView(this.audio, LIGHTING);
-    const wake = (): void => this.audio.resume();
-    window.addEventListener('pointerdown', wake);
-    window.addEventListener('keydown', wake);
     this.bag = new InventoryUi(
       this.overlay,
       this.run.inventory,
@@ -101,50 +127,138 @@ export class App {
       { cellPixels: INVENTORY.cellPixels },
       this.ui,
     );
+    this.menu = new MenuScreen(this.overlay, this.ui, {
+      onContinue: () => this.enterRun(),
+      onNewRun: () => this.startNewRun(),
+      onGuide: () => this.setState('guide'),
+      onSettings: () => this.settingsScreen.open(),
+      onResume: () => this.enterRun(),
+      onToMenu: () => this.setState('menu'),
+    });
+    this.settingsScreen = new SettingsScreen(
+      this.overlay,
+      this.ui,
+      this.localizer,
+      this.input,
+      this.settings,
+      {
+        onChange: (settings) => this.applySettings(settings),
+        onWipeRun: () => this.wipeRun(),
+        onWipeSettings: () => this.wipeSettings(),
+        onClose: () => this.settingsScreen.close(),
+      },
+    );
+    this.guide = new GuidebookScreen(this.overlay, this.ui, GUIDE_SECTIONS, () =>
+      this.setState(this.runActive ? 'paused' : 'menu'),
+    );
+    this.audioView = new AudioView(this.audio, LIGHTING);
 
+    const wake = (): void => this.audio.resume();
+    window.addEventListener('pointerdown', wake);
+    window.addEventListener('keydown', wake);
     window.addEventListener('resize', this.resize);
+    window.addEventListener('beforeunload', () => this.persist());
     this.resize();
+
+    this.applySettings(this.settings);
+    this.setState('menu');
 
     this.loop = new GameLoop(browserLoopOptions(SIM.stepMs, SIM.maxFrameMs), {
       fixedUpdate: () => this.fixedUpdate(),
       render: (alpha) => this.render(alpha),
     });
-    window.addEventListener('beforeunload', () => this.persist());
   }
 
-  /** A reload drops the player back exactly where they were, mid-run. */
-  private resumeOrStart(): Run {
-    const saved = loadEnvelope<RunSave>(this.storage, SAVE_KEY, SAVE_VERSION);
-    if (saved && saved.phase === 'alive') {
-      const resumed = new Run(createRunConfig(saved.seed));
-      restoreRun(resumed, saved);
-      return resumed;
-    }
+  start(): void {
+    this.loop.start();
+  }
+
+  // ── state ────────────────────────────────────────────────────────────────
+
+  private setState(next: AppState): void {
+    this.state = next;
+    this.input.releaseAll();
+    this.menu.close();
+    this.guide.close();
+    if (next !== 'menu' && next !== 'paused') this.settingsScreen.close();
+
+    if (next === 'menu') this.menu.open('main', this.runActive || this.hasSave());
+    else if (next === 'paused') this.menu.open('pause', true);
+    else if (next === 'guide') this.guide.open();
+    else if (next === 'playing') this.bag.setOpen(false);
+    // The world only makes noise while it is running.
+    if (next !== 'playing') this.audio.setDrone(AUDIO.droneFrequency, 0, 0);
+  }
+
+  private enterRun(): void {
+    this.runActive = true;
+    this.setState('playing');
+  }
+
+  private startNewRun(): void {
+    clearEnvelope(this.storage, SAVE_KEY);
+    this.swapRun(this.freshRun());
+    this.enterRun();
+  }
+
+  private swapRun(run: Run): void {
+    this.run = run;
+    this.camera.snapTo(run.player.x, run.player.y);
+    this.bag.setState(run.inventory);
+    this.bag.setOpen(false);
+    this.audioView.reset();
+    this.lastHealth = Number.POSITIVE_INFINITY;
+  }
+
+  private freshRun(): Run {
     return new Run(createRunConfig(createRandom(Date.now()).nextUint32()));
   }
 
+  private hasSave(): boolean {
+    return loadEnvelope<RunSave>(this.storage, SAVE_KEY, SAVE_VERSION) !== null;
+  }
+
+  private loadSave(): Run | null {
+    const saved = loadEnvelope<RunSave>(this.storage, SAVE_KEY, SAVE_VERSION);
+    if (!saved || saved.phase !== 'alive') return null;
+    const run = new Run(createRunConfig(saved.seed));
+    restoreRun(run, saved);
+    return run;
+  }
+
   private persist(): void {
-    if (this.run.phase !== 'alive') {
+    if (!this.runActive || this.run.phase !== 'alive') {
       clearEnvelope(this.storage, SAVE_KEY);
       return;
     }
     saveEnvelope(this.storage, SAVE_KEY, SAVE_VERSION, snapshotRun(this.run));
   }
 
-  /** Death is permanent: a new run means a new seed and an empty save slot. */
-  restart(): void {
+  private wipeRun(): void {
     clearEnvelope(this.storage, SAVE_KEY);
-    this.run = new Run(createRunConfig(createRandom(Date.now()).nextUint32()));
-    this.camera.snapTo(this.run.player.x, this.run.player.y);
-    this.bag.setState(this.run.inventory);
-    this.bag.setOpen(false);
-    this.summary.update(this.run);
-    this.audioView.reset();
-    this.lastHealth = Number.POSITIVE_INFINITY;
+    this.runActive = false;
+    this.swapRun(this.freshRun());
   }
 
-  start(): void {
-    this.loop.start();
+  private wipeSettings(): void {
+    clearSettings(this.storage);
+    this.settings = loadSettings(this.storage);
+    for (const [action, codes] of Object.entries(this.settings.bindings)) {
+      this.input.rebind(action, codes);
+    }
+    this.applySettings(this.settings);
+  }
+
+  // ── settings ─────────────────────────────────────────────────────────────
+
+  private applySettings(settings: GameSettings): void {
+    this.settings = settings;
+    this.localizer.setLocale(settings.locale);
+    this.audio.setVolumes(settings.volumeMaster, settings.volumeEffects, settings.volumeAmbient);
+    this.canvas.style.filter = `brightness(${settings.brightness})`;
+    this.overlay.style.setProperty('--ui-scale', String(settings.uiScale));
+    this.debug.setVisible(settings.debugOverlay);
+    saveSettings(this.storage, settings);
   }
 
   private readonly resize = (): void => {
@@ -154,21 +268,34 @@ export class App {
     this.camera.resize(width, height);
   };
 
+  // ── the tick ─────────────────────────────────────────────────────────────
+
   private fixedUpdate(): void {
     const pointer = this.input.pointerScreen;
     const world = this.camera.screenToWorld(pointer.x, pointer.y);
     const frame = this.input.sample(world.x, world.y);
-    if (frame.pressed.includes('inventory')) {
-      this.bag.toggle();
-      // Keys held while the panel opens must not stay held behind it.
-      this.input.releaseAll();
-    }
-    if (frame.pressed.includes('debug')) this.debug.toggle();
-    if (frame.pressed.includes('language')) this.cycleLanguage();
-    if (this.run.phase === 'dead' && frame.pressed.includes('restart')) {
-      this.restart();
+
+    if (this.state !== 'playing') {
+      this.routeToScreens(frame.pressed);
       return;
     }
+
+    if (frame.pressed.includes('pause')) {
+      this.setState('paused');
+      return;
+    }
+    if (frame.pressed.includes('guide')) {
+      this.setState('guide');
+      return;
+    }
+    if (frame.pressed.includes('inventory')) {
+      this.bag.toggle();
+      this.input.releaseAll();
+    }
+    if (frame.pressed.includes('debug')) {
+      this.applySettings({ ...this.settings, debugOverlay: !this.settings.debugOverlay });
+    }
+
     this.run.step(frame);
     // Getting hit is the one thing that shakes the camera; it reads before the
     // health bar does.
@@ -176,12 +303,29 @@ export class App {
     this.lastHealth = this.run.stats.health;
     this.camera.follow(this.run.player.x, this.run.player.y, CAMERA.smoothing);
     if (this.run.tick % SIM.autosaveTicks === 0) this.persist();
+    if (this.run.phase === 'dead') {
+      this.persist();
+      this.setState('dead');
+    }
+  }
+
+  /** Menus are driven by the same actions the player walks with. */
+  private routeToScreens(pressed: readonly string[]): void {
+    for (const action of pressed) {
+      if (this.settingsScreen.visible && this.settingsScreen.handleAction(action)) continue;
+      if (this.guide.visible && this.guide.handleAction(action)) continue;
+      if (this.menu.visible && this.menu.handleAction(action)) continue;
+      if (this.state === 'dead') {
+        if (action === 'restart') this.startNewRun();
+        else if (action === 'pause') this.setState('menu');
+      }
+    }
   }
 
   private render(alpha: number): void {
     this.camera.updateShake(
       CAMERA.shakeDecay,
-      Math.sin(this.run.tick * 12.9898) ,
+      Math.sin(this.run.tick * 12.9898),
       Math.cos(this.run.tick * 78.233),
     );
     const view = this.camera.view(alpha);
@@ -194,22 +338,18 @@ export class App {
       derangement,
       view: VIEW,
     });
-    if (this.debug.isVisible) drawDebug(this.renderer, this.run, view, alpha);
+    if (this.settings.debugOverlay) drawDebug(this.renderer, this.run, view, alpha);
     this.renderer.endFrame();
-    // The run summary replaces the HUD rather than sitting on top of it.
-    this.hud.setVisible(this.run.phase === 'alive');
+
+    const playing = this.state === 'playing';
+    this.overlay.classList.toggle('overlay--dimmed', !playing && this.state !== 'dead');
+    this.hud.setVisible(playing);
     this.hud.update(this.run);
     this.bag.update();
+    this.summary.setVisible(this.state === 'dead');
     this.summary.update(this.run);
     this.debug.update(this.run, this.loop.stats, window.devicePixelRatio || 1);
-    this.audioView.update(this.run, derangement);
-  }
-
-  /** Temporary until the settings screen exists: step through the locales. */
-  private cycleLanguage(): void {
-    const ids = this.localizer.available().map((locale) => locale.id);
-    const next = ids[(ids.indexOf(this.localizer.localeId) + 1) % ids.length];
-    this.localizer.setLocale(next);
+    if (playing) this.audioView.update(this.run, derangement);
   }
 
   /** 0 while the player is composed, rising as nerve runs out. */

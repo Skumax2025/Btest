@@ -86,6 +86,10 @@ export const EN: Record<TextKey, LocaleString> = {
   'key.ArrowDown': '↓',
   'key.ArrowLeft': '←',
   'key.ArrowRight': '→',
+  'key.Mouse': 'Mouse',
+
+  'guide.title': 'GUIDEBOOK',
+  'guide.controls.mouse': 'Where you look; right click in the bag takes an item in hand',
 
   'hud.health': 'BODY',
   'hud.hunger': 'FOOD',

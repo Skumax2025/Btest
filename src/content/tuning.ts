@@ -249,6 +249,43 @@ export const ACTIONS = {
   flashlight: 'flashlight',
 } as const;
 
+/** Starting point for the settings screen; the player's own choices override it. */
+export const SETTINGS_DEFAULTS = {
+  volumeMaster: 0.7,
+  volumeEffects: 0.9,
+  volumeAmbient: 0.7,
+  /** 1 is the palette as authored; the slider exists because monitors differ. */
+  brightness: 1,
+  uiScale: 1,
+  debugOverlay: false,
+} as const;
+
+/** Order the controls are listed in, and which of them may be rebound. */
+export const REBINDABLE_ACTIONS: readonly string[] = [
+  'up',
+  'down',
+  'left',
+  'right',
+  'sprint',
+  'crouch',
+  'interact',
+  'use',
+  'throwItem',
+  'drop',
+  'inventory',
+  'flashlight',
+  'guide',
+  'pause',
+  'debug',
+  'restart',
+];
+
+export const SETTINGS_RANGES = {
+  volume: { min: 0, max: 1, step: 0.05 },
+  brightness: { min: 0.6, max: 1.8, step: 0.05 },
+  uiScale: { min: 0.8, max: 1.6, step: 0.1 },
+} as const;
+
 export const AXIS_BINDINGS = {
   up: 'up',
   down: 'down',

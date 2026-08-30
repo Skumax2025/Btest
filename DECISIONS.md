@@ -182,3 +182,28 @@ I went, so the order is roughly chronological.
   the closing swing timer and the expanding event ring carry no text, so the view
   layer stays free of strings; the sentence naming what happened lives in the HUD
   where the localizer already is.
+
+## States, menu and settings (G2)
+
+- **Five states, one of which ticks.** `PLAYING` is the only state that calls
+  `run.step`, so a pause or an open guidebook freezes stats, timers, creatures
+  and the ambient hum together — there is no list of things to remember to stop.
+  Verified in a real browser by watching the tick counter stand still.
+- **The world keeps rendering behind every screen.** A menu over a real corridor
+  costs nothing (the frame is drawn anyway) and is the cheapest atmosphere in the
+  project.
+- **Menus are navigated with the player's own movement keys.** The screens read
+  the same `InputFrame` actions the game does, so rebinding "forward" rebinds
+  menu navigation too and there is no second input path to keep in sync.
+- **Settings are one instance, opened from two places.** The pause menu and the
+  main menu call `open()` on the same object.
+- **Settings live under their own storage key and their own version.** Erasing a
+  run, or a save-format bump, never costs the player their language, keys or
+  volume — which is why the run's version bump in G1 was safe.
+- **A rebind displaces rather than refuses.** Taking a key that another action
+  holds removes it there and says which action lost it. Refusing would have made
+  the screen a puzzle.
+- **Interface scale is a CSS transform per anchored panel**, not a zoom on the
+  whole overlay: each panel scales about the corner it is pinned to, so nothing
+  drifts off screen at 160%. Brightness is a CSS filter on the canvas, which
+  leaves the palette and the lighting mechanic untouched.

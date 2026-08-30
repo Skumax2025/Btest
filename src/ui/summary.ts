@@ -28,6 +28,7 @@ export class SummaryScreen {
   private visible = true;
 
   private readonly restart: HTMLElement;
+  private readonly toMenu: HTMLElement;
 
   constructor(
     parent: HTMLElement,
@@ -43,6 +44,7 @@ export class SummaryScreen {
       this.rows.set(key, { label, value: el('span', 'summary-value', row) });
     }
     this.restart = el('div', 'summary-restart', this.root);
+    this.toMenu = el('div', 'summary-restart', this.root);
     this.setVisible(false);
   }
 
@@ -53,14 +55,14 @@ export class SummaryScreen {
   }
 
   update(run: Run): void {
-    this.setVisible(run.phase === 'dead');
-    if (run.phase !== 'dead') return;
+    if (!this.visible) return;
     const { t } = this.ui;
     setText(this.cause, t(`cause.${run.stats.cause ?? 'unknown'}`));
     setText(
       this.restart,
       t('summary.restart', { key: actionLabel(t, this.ui.bindings(), 'restart') }),
     );
+    setText(this.toMenu, t('summary.toMenu', { key: actionLabel(t, this.ui.bindings(), 'pause') }));
     this.set('time', formatTime(run.elapsedSeconds));
     this.set('levels', String(run.levelIndex));
     this.set('collected', String(run.collected));

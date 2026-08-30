@@ -134,11 +134,31 @@ describe('locale files', () => {
 describe('no on-screen literals above L3', () => {
   /** A literal with two letters in a row is prose; `x`, ` · `, `%` are not. */
   const PROSE = /[A-Za-zА-Яа-я]{2}/;
+  // The first argument may itself be a call, so allow one level of nesting
+  // before the literal we are actually judging.
   const CALLS = [
-    /setText\([^,]+,\s*'([^']*)'/g,
+    /setText\((?:[^()]|\((?:[^()]|\([^()]*\))*\))*,\s*'([^']*)'\s*\)/g,
     /\.textContent\s*=\s*'([^']*)'/g,
     /drawText\(\s*'([^']*)'/g,
   ];
+
+  it('would actually catch an offender', () => {
+    const samples = [
+      "setText(this.body, 'Press start');",
+      "setText(el('h2', 'guide-heading', root), 'Press start');",
+      "node.textContent = 'Press start';",
+      "renderer.drawText('Press start', 0, 0, style);",
+    ];
+    for (const sample of samples) {
+      const caught = CALLS.some((pattern) =>
+        [...sample.matchAll(pattern)].some((match) => PROSE.test(match[1])),
+      );
+      expect(caught, sample).toBe(true);
+    }
+    // ...and not trip over a class name or a separator.
+    const clean = "setText(el('h2', 'guide-heading', root), this.ui.t('x'));";
+    expect(CALLS.some((p2) => [...clean.matchAll(p2)].some((m) => PROSE.test(m[1])))).toBe(false);
+  });
 
   it('keeps prose out of the ui and view layers', () => {
     const offenders: string[] = [];
