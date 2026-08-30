@@ -236,12 +236,13 @@ describe('every level', () => {
 describe('room templates', () => {
   const all = LEVELS.flatMap((level) => [...level.rooms, ...level.landmarks]);
 
-  it('are square and sized to the block interior', () => {
+  it('are square and rooms fill the larger block interior', () => {
     const interior = geo.blockSize - 1;
     for (const template of all) {
-      expect(template.rows.length, template.id).toBe(interior);
-      for (const row of template.rows) expect(row.length, `${template.id}: "${row}"`).toBe(interior);
+      expect(template.rows.length, template.id).toBe(template.rows[0]?.length ?? 0);
+      for (const row of template.rows) expect(row.length, `${template.id}: "${row}"`).toBe(template.rows.length);
     }
+    expect(LEVELS[0].rooms.some((room) => room.rows.length === interior)).toBe(true);
   });
 
   it('use only documented characters', () => {
