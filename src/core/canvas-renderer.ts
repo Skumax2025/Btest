@@ -190,10 +190,12 @@ export class Canvas2DRenderer implements Renderer {
 
   punchLight(x: number, y: number, radius: number, strength: number): void {
     if (radius <= 0 || strength <= 0) return;
+    const safeStrength = Math.max(0, Math.min(1, strength));
     const gradient = this.darkCtx.createRadialGradient(x, y, 0, x, y, radius);
-    gradient.addColorStop(0, `rgba(0,0,0,${strength})`);
-    gradient.addColorStop(0.65, `rgba(0,0,0,${strength * 0.88})`);
-    gradient.addColorStop(0.85, `rgba(0,0,0,${strength * 0.5})`);
+    gradient.addColorStop(0, `rgba(0,0,0,${safeStrength})`);
+    gradient.addColorStop(0.32, `rgba(0,0,0,${safeStrength * 0.98})`);
+    gradient.addColorStop(0.68, `rgba(0,0,0,${safeStrength * 0.78})`);
+    gradient.addColorStop(0.88, `rgba(0,0,0,${safeStrength * 0.32})`);
     gradient.addColorStop(1, 'rgba(0,0,0,0)');
     this.darkCtx.fillStyle = gradient;
     this.darkCtx.beginPath();
@@ -216,9 +218,11 @@ export class Canvas2DRenderer implements Renderer {
     this.darkCtx.arc(x, y, radius, angle - halfAngle, angle + halfAngle);
     this.darkCtx.closePath();
     this.darkCtx.clip();
+    const safeStrength = Math.max(0, Math.min(1, strength));
     const gradient = this.darkCtx.createRadialGradient(x, y, 0, x, y, radius);
-    gradient.addColorStop(0, `rgba(0,0,0,${strength})`);
-    gradient.addColorStop(0.7, `rgba(0,0,0,${strength * 0.6})`);
+    gradient.addColorStop(0, `rgba(0,0,0,${safeStrength})`);
+    gradient.addColorStop(0.4, `rgba(0,0,0,${safeStrength * 0.88})`);
+    gradient.addColorStop(0.76, `rgba(0,0,0,${safeStrength * 0.48})`);
     gradient.addColorStop(1, 'rgba(0,0,0,0)');
     this.darkCtx.fillStyle = gradient;
     this.darkCtx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
@@ -256,10 +260,12 @@ export class Canvas2DRenderer implements Renderer {
     for (let i = 2; i < points.length; i += 2) this.darkCtx.lineTo(points[i], points[i + 1]);
     this.darkCtx.closePath();
     this.darkCtx.clip();
+    const safeStrength = Math.max(0, Math.min(1, strength));
     const gradient = this.darkCtx.createRadialGradient(x, y, 0, x, y, radius);
-    gradient.addColorStop(0, `rgba(0,0,0,${strength})`);
-    gradient.addColorStop(0.65, `rgba(0,0,0,${strength * 0.88})`);
-    gradient.addColorStop(0.85, `rgba(0,0,0,${strength * 0.5})`);
+    gradient.addColorStop(0, `rgba(0,0,0,${safeStrength})`);
+    gradient.addColorStop(0.32, `rgba(0,0,0,${safeStrength * 0.98})`);
+    gradient.addColorStop(0.68, `rgba(0,0,0,${safeStrength * 0.78})`);
+    gradient.addColorStop(0.88, `rgba(0,0,0,${safeStrength * 0.32})`);
     gradient.addColorStop(1, 'rgba(0,0,0,0)');
     this.darkCtx.fillStyle = gradient;
     this.darkCtx.fillRect(x - radius, y - radius, radius * 2, radius * 2);

@@ -17,6 +17,8 @@ import type { PropSpawn } from '@game/level';
 export interface LightingConfig {
   readonly lampRadius: number;
   readonly lampStrength: number;
+  /** Falloff curve: 1 is linear, higher values keep the center brighter. */
+  readonly falloffExponent: number;
   /** Ticks between flicker decisions for an unstable lamp. */
   readonly flickerPeriod: number;
   readonly flickerOnChance: number;
@@ -66,13 +68,17 @@ export const lightLevelAt = (
   y: number,
   lights: readonly LightSource[],
   ambient: number,
+  config: LightingConfig,
 ): number => {
   let best = ambient;
   for (const light of lights) {
     const distance = Math.hypot(light.x - x, light.y - y);
     if (distance >= light.radius) continue;
-    const value = light.strength * (1 - distance / light.radius);
-    if (value > best) best = value;
+    const normalized = clamp(1 - distance / light.radius, 0, 1);
+    const value = light.strength * Math.pow(normalized, Math.max(0.25, config.falloffExponent));
+    // Multiple lamps blend additively with diminishing returns instead of
+    // allowing order-dependent or overbright gameplay values.
+    best = 1 - (1 - best) * (1 - value);
   }
   return clamp(best, 0, 1);
 };

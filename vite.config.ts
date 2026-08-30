@@ -6,6 +6,9 @@ const resolvePath = (relative: string): string =>
 
 export default defineConfig({
   base: './',
+  server: {
+    allowedHosts: true,
+  },
   resolve: {
     alias: {
       '@core': resolvePath('./src/core'),

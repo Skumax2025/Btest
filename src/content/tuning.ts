@@ -58,7 +58,8 @@ export const PLAYER = {
 
 export const LIGHTING = {
   lampRadius: 150,
-  lampStrength: 0.95,
+  lampStrength: 0.9,
+  falloffExponent: 1.55,
   flickerPeriod: 7,
   flickerOnChance: 0.62,
   visionRadius: 220,
