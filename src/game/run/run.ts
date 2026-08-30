@@ -18,7 +18,15 @@ import { LevelStream, TILE, isSolidTile } from '@game/level';
 import type { LevelSpec, PropSpawn } from '@game/level';
 import { createPlayer, stepPlayer } from '@game/player';
 import type { PlayerState } from '@game/player';
-import { addItem, createInventory, passives, stepWear, tickWear } from '@game/inventory';
+import {
+  addItem,
+  createInventory,
+  evictPockets,
+  passives,
+  stepWear,
+  tickWear,
+  withContents,
+} from '@game/inventory';
 import type { InventoryState } from '@game/inventory';
 import { NEUTRAL_PASSIVE, isLightSource } from '@game/items';
 import type { LightDef, PassiveDef } from '@game/items';
@@ -173,6 +181,21 @@ export class Run implements RunWorld {
     }
   }
 
+  /**
+   * A pack that has worn through loses pockets, and what was in them has to go
+   * somewhere. It goes on the floor, at your feet, loudly enough to notice.
+   */
+  private spillWornPockets(): void {
+    const ejected = evictPockets(this.inventory, this.config.content.items);
+    if (ejected.length === 0) return;
+    for (const stack of ejected) {
+      for (const piece of withContents(stack)) {
+        this.level.drop(piece.itemId, piece.count, this.player.x, this.player.y);
+      }
+    }
+    this.setHint('burst');
+  }
+
   private isSolidAt(x: number, y: number): boolean {
     const { tileSize } = this.config.geometry;
     return this.isSolid(Math.floor(x / tileSize), Math.floor(y / tileSize));
@@ -231,6 +254,7 @@ export class Run implements RunWorld {
     this.perception = this.perceiveNow();
     this.passives = passives(this.inventory, this.config.content.items);
     tickWear(this.inventory, this.config.content.items, this.config.stepSeconds);
+    this.spillWornPockets();
 
     stepPlayer(this.player, {
       input,

@@ -19,7 +19,10 @@ export interface ActionNames {
   readonly sprint: string;
   readonly crouch: string;
   readonly interact: string;
-  readonly use: string;
+  /** Uses whatever is in the main hand. */
+  readonly handMain: string;
+  /** Uses whatever is in the off hand. */
+  readonly handOff: string;
   readonly throwItem: string;
   readonly drop: string;
   readonly flashlight: string;

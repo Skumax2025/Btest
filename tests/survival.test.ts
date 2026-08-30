@@ -8,11 +8,13 @@ import {
   createInventory,
   equip,
   equippedStack,
+  evictPockets,
   heldStack,
   mergeStacks,
   overflowFor,
   removeStack,
   setHand,
+  setQuick,
   splitStack,
   stepWear,
   tickWear,
@@ -143,7 +145,7 @@ describe('inventory slots', () => {
     expect(addItem(state, ITEMS, 'item.medkit', 1)).toBe(1);
   });
 
-  it('grows with a pack and spills what a smaller one cannot hold', () => {
+  it('grows with a pack, and a smaller one costs room rather than things', () => {
     const state = inv();
     addItem(state, ITEMS, 'item.schoolbag', 1);
     const pack = state.stacks[0];
@@ -158,12 +160,83 @@ describe('inventory slots', () => {
     while (containerStacks(state).length < grown) addItem(state, ITEMS, 'item.medkit', 1);
     expect(containerStacks(state)).toHaveLength(grown);
 
+    // The pack coming off has pockets of its own, so the overflow goes into it.
     const preview = overflowFor(state, ITEMS, spare.id, 'back');
-    expect(preview.length).toBeGreaterThan(0);
+    expect(preview.stowed.length).toBeGreaterThan(0);
+    expect(preview.spilled).toHaveLength(0);
     const result = equip(state, ITEMS, spare.id, 'back');
-    expect(result.spilled).toHaveLength(preview.length);
+    expect(result.stowed).toHaveLength(preview.stowed.length);
     expect(capacity(state, ITEMS)).toBeLessThan(grown);
     expect(containerStacks(state).length).toBeLessThanOrEqual(capacity(state, ITEMS));
+    expect(pack.contents.length).toBe(result.stowed.length);
+  });
+
+  it('spills onto the floor only once every pocket is full too', () => {
+    const state = inv();
+    addItem(state, ITEMS, 'item.hikingpack', 1);
+    const big = state.stacks[0];
+    equip(state, ITEMS, big.id, 'back');
+    addItem(state, ITEMS, 'item.satchel', 1);
+    const small = state.stacks[state.stacks.length - 1];
+    while (containerStacks(state).length < capacity(state, ITEMS)) {
+      if (addItem(state, ITEMS, 'item.medkit', 1) > 0) break;
+    }
+    // A pack worn through has fewer pockets to offer, so this swap costs things.
+    big.durability = 0;
+
+    const result = equip(state, ITEMS, small.id, 'back');
+    expect(result.stowed).toHaveLength(ITEMS['item.hikingpack'].carry?.wornCells ?? 0);
+    expect(result.spilled.length).toBeGreaterThan(0);
+    expect(containerStacks(state).length).toBeLessThanOrEqual(capacity(state, ITEMS));
+  });
+
+  it('pours a pack back into the bag when it goes on the back again', () => {
+    const state = inv();
+    addItem(state, ITEMS, 'item.schoolbag', 1);
+    const pack = state.stacks[0];
+    pack.contents.push({
+      id: 900,
+      itemId: 'item.medkit',
+      count: 1,
+      charge: 0,
+      durability: 0,
+      contents: [],
+    });
+    equip(state, ITEMS, pack.id, 'back');
+    expect(pack.contents).toHaveLength(0);
+    expect(containerStacks(state).some((s) => s.itemId === 'item.medkit')).toBe(true);
+  });
+
+  it('throws out what a worn-through pocket can no longer hold', () => {
+    const state = inv();
+    addItem(state, ITEMS, 'item.schoolbag', 1);
+    const pack = state.stacks[0];
+    for (let i = 0; i < (ITEMS['item.schoolbag'].carry?.cells ?? 0); i++) {
+      pack.contents.push({
+        id: 800 + i,
+        itemId: 'item.medkit',
+        count: 1,
+        charge: 0,
+        durability: 0,
+        contents: [],
+      });
+    }
+    expect(evictPockets(state, ITEMS)).toHaveLength(0);
+    pack.durability = 0;
+    const ejected = evictPockets(state, ITEMS);
+    expect(ejected.length).toBeGreaterThan(0);
+    expect(pack.contents.length).toBe(ITEMS['item.schoolbag'].carry?.wornCells ?? 0);
+  });
+
+  it('takes only belt-worthy things onto the belt', () => {
+    const state = inv();
+    addItem(state, ITEMS, 'item.crackers', 1);
+    addItem(state, ITEMS, 'item.wrench', 1);
+    const [food, wrench] = state.stacks;
+    expect(setQuick(state, ITEMS, food.id, 0)).toBe(true);
+    expect(setQuick(state, ITEMS, wrench.id, 1)).toBe(false);
+    expect(state.quick[0]).toBe(food.id);
+    expect(state.quick[1]).toBeNull();
   });
 
   it('will not take a pack off into the bag it was holding open', () => {

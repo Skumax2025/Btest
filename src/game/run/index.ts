@@ -17,6 +17,7 @@ export {
   equipStack,
   nearestInteractable,
   unequipStack,
+  useQuickSlot,
   useStack,
 } from './actions';
 export type { Interactable } from './actions';

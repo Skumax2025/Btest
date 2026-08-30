@@ -49,7 +49,7 @@ const HINT_ACTION: Partial<Record<HintKey, string>> = {
   search: 'interact',
   pickup: 'interact',
   descend: 'interact',
-  useHand: 'use',
+  useHand: 'handMain',
   flashlight: 'flashlight',
 };
 
@@ -80,7 +80,8 @@ interface LegendRow {
 const LEGEND: readonly LegendRow[] = [
   { labelKey: 'hud.action.move', actions: MOVE_ACTIONS, join: 'clump' },
   { labelKey: 'action.interact', actions: ['interact'], join: 'single' },
-  { labelKey: 'action.use', actions: ['use'], join: 'single' },
+  { labelKey: 'action.handMain', actions: ['handMain'], join: 'single' },
+  { labelKey: 'action.handOff', actions: ['handOff'], join: 'single' },
   { labelKey: 'action.inventory', actions: ['inventory'], join: 'single' },
   { labelKey: 'hud.action.belt', actions: ['quick1', 'quick4'], join: 'range' },
   { labelKey: 'action.swapHands', actions: ['swapHands'], join: 'single' },

@@ -57,7 +57,7 @@ describe('input device', () => {
 
   it('reports a press edge exactly once', () => {
     const { device, key } = setup();
-    key('keydown', 'KeyE');
+    key('keydown', 'Space');
     expect(wasPressed(device.sample(0, 0), 'interact')).toBe(true);
     expect(wasPressed(device.sample(0, 0), 'interact')).toBe(false);
     expect(isHeld(device.sample(0, 0), 'interact')).toBe(true);

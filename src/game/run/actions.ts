@@ -15,15 +15,14 @@ import {
   equippedStack,
   findStack,
   heldStack,
-  moveToContainer,
   passives,
   quickStack,
   removeStack,
-  setHand,
   swapHands,
   takeFrom,
   unequip,
   wearStack,
+  withContents,
 } from '@game/inventory';
 import type { InventoryStack } from '@game/inventory';
 import { EQUIP_SLOTS, effectsOf, fitsSlot, isLightSource } from '@game/items';
@@ -229,17 +228,25 @@ export const useStack = (world: RunWorld, id: number): boolean => {
   return true;
 };
 
-const useHeld = (world: RunWorld): void => {
-  const held = heldStack(world.inventory);
-  if (held) useStack(world, held.id);
+/**
+ * Each hand answers to its own key. Two keys instead of one is the whole point:
+ * a torch in the off hand stays a torch you can switch on without putting the
+ * weapon away.
+ */
+const useHand = (world: RunWorld, slot: EquipSlot): void => {
+  const stack = equippedStack(world.inventory, slot);
+  if (stack) useStack(world, stack.id);
 };
 
 /** Wears a stack, dropping whatever the bag can no longer hold. */
 export const equipStack = (world: RunWorld, id: number, slot: EquipSlot): boolean => {
   const result = equip(world.inventory, world.config.content.items, id, slot);
   if (!result.ok) return false;
-  for (const spilled of result.spilled) dropStackOnFloor(world, spilled);
+  for (const spilled of result.spilled) {
+    for (const piece of withContents(spilled)) dropStackOnFloor(world, piece);
+  }
   if (result.spilled.length > 0) world.setHint('spilled');
+  else if (result.stowed.length > 0) world.setHint('stowed');
   return true;
 };
 
@@ -265,11 +272,15 @@ const dropStackOnFloor = (world: RunWorld, stack: InventoryStack): void => {
   world.level.drop(stack.itemId, stack.count, world.player.x, world.player.y);
 };
 
-/** Puts a whole stack on the floor, from anywhere it might be sitting. */
+/**
+ * Puts a whole stack on the floor, from anywhere it might be sitting. A thing
+ * with pockets takes what is in them with it: the floor is a worse place to lose
+ * something than a bag, but silently deleting it would be worse than both.
+ */
 export const dropStack = (world: RunWorld, id: number): boolean => {
   const stack = findStack(world.inventory, id);
   if (!stack) return false;
-  dropStackOnFloor(world, stack);
+  for (const piece of withContents(stack)) dropStackOnFloor(world, piece);
   removeStack(world.inventory, id);
   return true;
 };
@@ -285,25 +296,12 @@ const rechargeLight = (world: RunWorld, amount: number): void => {
 };
 
 /**
- * A belt slot does the obvious thing to whatever is on it: a weapon goes to the
- * hand, everything else is used where it hangs.
+ * A belt slot is used where it hangs. Nothing that needs a hand can be on the
+ * belt in the first place, so there is no case to branch on.
  */
-const useQuickSlot = (world: RunWorld, index: number): void => {
+export const useQuickSlot = (world: RunWorld, index: number): void => {
   const stack = quickStack(world.inventory, index);
-  if (!stack) return;
-  const def = world.config.content.items[stack.itemId];
-  if (!def) return;
-  if (def.melee || isLightSource(def)) {
-    const held = heldStack(world.inventory);
-    if (held?.id === stack.id) {
-      setHand(world.inventory, world.config.content.items, null);
-      return;
-    }
-    if (held) moveToContainer(world.inventory, held.id);
-    equipStack(world, stack.id, 'hand');
-    return;
-  }
-  useStack(world, stack.id);
+  if (stack) useStack(world, stack.id);
 };
 
 const throwHeld = (world: RunWorld, input: InputFrame): void => {
@@ -356,7 +354,8 @@ export const handleActions = (world: RunWorld, input: InputFrame): void => {
     else if (target?.kind === 'container' && target.prop) beginSearch(world, target.prop);
     else if (target?.kind === 'exit') world.descendRequested = true;
   }
-  if (wasPressed(input, actions.use)) useHeld(world);
+  if (wasPressed(input, actions.handMain)) useHand(world, 'hand');
+  if (wasPressed(input, actions.handOff)) useHand(world, 'offhand');
   if (wasPressed(input, actions.flashlight)) toggleLight(world);
   if (wasPressed(input, actions.throwItem)) throwHeld(world, input);
   if (wasPressed(input, actions.drop)) dropHeld(world);

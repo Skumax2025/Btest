@@ -21,6 +21,7 @@ import { FRESHNESS, LIGHTING, WEAPONS, WEAR } from './tuning';
 
 const BASE = {
   slots: [] as ItemDef['slots'],
+  belt: false,
   maxStack: 1,
   tags: [] as ItemDef['tags'],
   use: null,
@@ -103,6 +104,7 @@ export const ITEMS: ItemCatalog = {
   }),
 
   'item.water': item('item.water', {
+    belt: true,
     slots: ['hand', 'offhand'],
     maxStack: 3,
     tags: ['drink'],
@@ -116,6 +118,7 @@ export const ITEMS: ItemCatalog = {
     },
   }),
   'item.soda': item('item.soda', {
+    belt: true,
     slots: ['hand', 'offhand'],
     maxStack: 4,
     tags: ['drink'],
@@ -135,6 +138,7 @@ export const ITEMS: ItemCatalog = {
     },
   }),
   'item.crackers': item('item.crackers', {
+    belt: true,
     slots: ['hand', 'offhand'],
     maxStack: 5,
     tags: ['food'],
@@ -147,6 +151,7 @@ export const ITEMS: ItemCatalog = {
     },
   }),
   'item.canned': item('item.canned', {
+    belt: true,
     slots: ['hand', 'offhand'],
     maxStack: 3,
     tags: ['food'],
@@ -167,12 +172,14 @@ export const ITEMS: ItemCatalog = {
     },
   }),
   'item.medkit': item('item.medkit', {
+    belt: true,
     slots: ['hand', 'offhand'],
     tags: ['medical'],
     noise: 70,
     use: { consumed: true, effects: [{ kind: 'stat', health: 55, sanity: 6 }] },
   }),
   'item.bandage': item('item.bandage', {
+    belt: true,
     slots: ['hand', 'offhand'],
     maxStack: 4,
     tags: ['medical'],
@@ -192,6 +199,7 @@ export const ITEMS: ItemCatalog = {
     },
   }),
   'item.battery': item('item.battery', {
+    belt: true,
     maxStack: 6,
     tags: ['battery'],
     noise: 30,
@@ -215,6 +223,7 @@ export const ITEMS: ItemCatalog = {
     durability: swings(WEAPONS.wrench),
   }),
   'item.noisemaker': item('item.noisemaker', {
+    belt: true,
     slots: ['hand', 'offhand'],
     maxStack: 3,
     tags: ['lure'],
@@ -394,6 +403,7 @@ export const ITEMS: ItemCatalog = {
 
   // ── things with a price ──────────────────────────────────────────────────
   'item.stim': item('item.stim', {
+    belt: true,
     slots: ['hand', 'offhand'],
     maxStack: 3,
     tags: ['medical'],
@@ -412,6 +422,7 @@ export const ITEMS: ItemCatalog = {
     },
   }),
   'item.ducttape': item('item.ducttape', {
+    belt: true,
     slots: ['hand', 'offhand'],
     tags: ['tool'],
     noise: 50,
@@ -425,6 +436,7 @@ export const ITEMS: ItemCatalog = {
     },
   }),
   'item.glowstick': item('item.glowstick', {
+    belt: true,
     slots: ['hand', 'offhand'],
     maxStack: 3,
     tags: ['light'],
@@ -438,6 +450,7 @@ export const ITEMS: ItemCatalog = {
     },
   }),
   'item.radio': item('item.radio', {
+    belt: true,
     slots: ['hand', 'offhand'],
     tags: ['lure'],
     noise: 300,

@@ -11,7 +11,18 @@
  */
 
 import type { EquipSlot, ItemCatalog, ItemDef, PassiveDef, WearOutcome } from './items';
-import { EQUIP_SLOTS, NEUTRAL_PASSIVE, armorOf, carryCells, condition, fitsSlot, maxDurability, passiveOf } from './items';
+import {
+  EQUIP_SLOTS,
+  NEUTRAL_PASSIVE,
+  armorOf,
+  carryCells,
+  condition,
+  fitsBelt,
+  fitsSlot,
+  hasPockets,
+  maxDurability,
+  passiveOf,
+} from './items';
 
 export interface InventoryStack {
   readonly id: number;
@@ -26,6 +37,12 @@ export interface InventoryStack {
    * is data too.
    */
   durability: number;
+  /**
+   * What this one is holding. Only a thing with pockets ever has any: a pack
+   * keeps what the bag could not, so taking a smaller one on does not mean
+   * leaving the difference on the floor.
+   */
+  contents: InventoryStack[];
 }
 
 export interface InventoryLayout {
@@ -122,6 +139,7 @@ const newStack = (state: InventoryState, def: ItemDef, count: number): Inventory
   count,
   charge: def.charge,
   durability: maxDurability(def),
+  contents: [],
 });
 
 /**
@@ -187,6 +205,83 @@ export const moveToContainer = (state: InventoryState, id: number): void => {
   for (let i = 0; i < state.quick.length; i++) if (state.quick[i] === id) state.quick[i] = null;
 };
 
+/** Stacks a container item can still take into its own pockets. */
+export const pocketRoom = (
+  catalog: ItemCatalog,
+  stack: InventoryStack,
+): number => {
+  const def = catalog[stack.itemId];
+  if (!def || !hasPockets(def)) return 0;
+  return Math.max(0, carryCells(def, stack.durability) - stack.contents.length);
+};
+
+/**
+ * Pushes a stack into the pockets of something in the bag. Worn containers are
+ * skipped on purpose: while a pack is on your back its pockets are the bag.
+ */
+const stow = (state: InventoryState, catalog: ItemCatalog, stack: InventoryStack): boolean => {
+  for (const holder of containerStacks(state)) {
+    if (holder.id === stack.id) continue;
+    if (pocketRoom(catalog, holder) <= 0) continue;
+    holder.contents.push(stack);
+    return true;
+  }
+  return false;
+};
+
+/**
+ * Empties a container's pockets back into the bag, as far as the bag will take
+ * it. Whatever will not fit stays where it is rather than hitting the floor.
+ */
+export const unpack = (
+  state: InventoryState,
+  catalog: ItemCatalog,
+  id: number,
+): number => {
+  const holder = findStack(state, id);
+  if (!holder) return 0;
+  let moved = 0;
+  while (holder.contents.length > 0 && freeCells(state, catalog) > 0) {
+    const stack = holder.contents.shift();
+    if (!stack) break;
+    insertStack(state, stack);
+    moved++;
+  }
+  return moved;
+};
+
+/**
+ * Anything a container can no longer hold — because it wore out and its pockets
+ * shrank, or because it was destroyed. The caller drops what comes back.
+ */
+export const evictPockets = (
+  state: InventoryState,
+  catalog: ItemCatalog,
+): InventoryStack[] => {
+  const ejected: InventoryStack[] = [];
+  for (const holder of state.stacks) {
+    if (holder.contents.length === 0) continue;
+    const def = catalog[holder.itemId];
+    const room = def ? carryCells(def, holder.durability) : 0;
+    while (holder.contents.length > room) {
+      const lost = holder.contents.pop();
+      if (lost) ejected.push(lost);
+    }
+  }
+  return ejected;
+};
+
+/** Everything a stack is carrying, itself included — used when it leaves the bag. */
+export const withContents = (stack: InventoryStack): InventoryStack[] => [
+  stack,
+  ...stack.contents,
+];
+
+export const canBelt = (catalog: ItemCatalog, itemId: string): boolean => {
+  const def = catalog[itemId];
+  return def ? fitsBelt(def) : false;
+};
+
 export const canEquip = (catalog: ItemCatalog, itemId: string, slot: EquipSlot): boolean => {
   const def = catalog[itemId];
   return def ? fitsSlot(def, slot) : false;
@@ -194,8 +289,10 @@ export const canEquip = (catalog: ItemCatalog, itemId: string, slot: EquipSlot):
 
 export interface EquipResult {
   readonly ok: boolean;
-  /** Stacks pushed out of the bag by the change. The caller drops them. */
+  /** Stacks the bag could not hold and no pocket would take. The caller drops them. */
   readonly spilled: InventoryStack[];
+  /** Stacks that went into the pockets of something instead of onto the floor. */
+  readonly stowed: InventoryStack[];
 }
 
 /**
@@ -210,12 +307,17 @@ export const equip = (
   slot: EquipSlot,
 ): EquipResult => {
   const stack = findStack(state, id);
-  if (!stack || !canEquip(catalog, stack.itemId, slot)) return { ok: false, spilled: [] };
-  if (state.equipment[slot] === id) return { ok: true, spilled: [] };
+  if (!stack || !canEquip(catalog, stack.itemId, slot)) {
+    return { ok: false, spilled: [], stowed: [] };
+  }
+  if (state.equipment[slot] === id) return { ok: true, spilled: [], stowed: [] };
 
   moveToContainer(state, id);
   state.equipment[slot] = id;
-  return { ok: true, spilled: trimOverflow(state, catalog) };
+  // A pack going onto the back turns its pockets into bag cells, so what it was
+  // holding comes out first; only then is the new, possibly smaller, bag trimmed.
+  unpack(state, catalog, id);
+  return { ok: true, ...trimOverflow(state, catalog) };
 };
 
 /** Takes a piece off. Fails when the bag it was holding open cannot hold it. */
@@ -235,21 +337,27 @@ export const unequip = (
 };
 
 /**
- * Drops bag stacks, newest first, until the bag fits inside its cells again.
+ * Takes bag stacks, newest first, until the bag fits inside its cells again.
  * Newest first is deliberate: the thing you just picked up is the thing you are
- * least attached to.
+ * least attached to. Each one is offered to the pockets of whatever else is in
+ * the bag before it is given up — swapping to a smaller pack costs you the room,
+ * not the things.
  */
-const trimOverflow = (state: InventoryState, catalog: ItemCatalog): InventoryStack[] => {
+const trimOverflow = (
+  state: InventoryState,
+  catalog: ItemCatalog,
+): { spilled: InventoryStack[]; stowed: InventoryStack[] } => {
   const spilled: InventoryStack[] = [];
-  const limit = capacity(state, catalog);
+  const stowed: InventoryStack[] = [];
   let inBag = containerStacks(state);
-  while (inBag.length > limit) {
+  while (inBag.length > capacity(state, catalog)) {
     const victim = inBag[inBag.length - 1];
     removeStack(state, victim.id);
-    spilled.push(victim);
+    if (stow(state, catalog, victim)) stowed.push(victim);
+    else spilled.push(victim);
     inBag = containerStacks(state);
   }
-  return spilled;
+  return { spilled, stowed };
 };
 
 const cloneState = (state: InventoryState): InventoryState =>
@@ -264,11 +372,16 @@ export const overflowFor = (
   catalog: ItemCatalog,
   id: number,
   slot: EquipSlot,
-): InventoryStack[] => equip(cloneState(state), catalog, id, slot).spilled;
+): EquipResult => equip(cloneState(state), catalog, id, slot);
 
-/** Hangs a stack on the belt. Whatever was there goes back into the bag. */
+/**
+ * Hangs a stack on the belt. Whatever was there goes back into the bag. Only
+ * what the catalogue marks as belt-worthy is accepted: the belt is for things
+ * used without looking, not a second weapon rack.
+ */
 export const setQuick = (
   state: InventoryState,
+  catalog: ItemCatalog,
   id: number | null,
   index: number,
 ): boolean => {
@@ -278,7 +391,7 @@ export const setQuick = (
     return true;
   }
   const stack = findStack(state, id);
-  if (!stack || isEquipped(state, id)) return false;
+  if (!stack || isEquipped(state, id) || !canBelt(catalog, stack.itemId)) return false;
   const previous = quickIndexOf(state, id);
   if (previous >= 0) state.quick[previous] = state.quick[index];
   state.quick[index] = id;
@@ -301,6 +414,7 @@ export const splitStack = (
     count,
     charge: stack.charge,
     durability: stack.durability,
+    contents: [],
   };
   stack.count -= count;
   state.stacks.push(half);

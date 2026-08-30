@@ -9,6 +9,7 @@
  */
 
 import {
+  canBelt,
   canEquip,
   capacity,
   containerStacks,
@@ -17,9 +18,11 @@ import {
   mergeStacks,
   moveToContainer,
   overflowFor,
+  pocketRoom,
   quickStack,
   setQuick,
   splitStack,
+  unpack,
 } from '@game/inventory';
 import type { InventoryStack, InventoryState } from '@game/inventory';
 import { EQUIP_SLOTS, condition, effectsOf, isSpoiled } from '@game/items';
@@ -252,6 +255,7 @@ export class InventoryUi {
     node.dataset.stackId = String(stack.id);
     el('span', 'bag-item-name', node);
     el('span', 'bag-item-count', node);
+    el('span', 'bag-item-pocket', node);
     const track = el('div', 'bag-item-wear', node);
     el('div', 'bag-item-wear-fill', track);
     this.nodes.set(stack.id, node);
@@ -269,6 +273,10 @@ export class InventoryUi {
       setText(name, def ? this.ui.t(def.nameKey) : stack.itemId);
     }
     if (count instanceof HTMLElement) setText(count, stack.count > 1 ? `x${stack.count}` : '');
+    const pocket = node.querySelector('.bag-item-pocket');
+    if (pocket instanceof HTMLElement) {
+      setText(pocket, stack.contents.length > 0 ? `+${stack.contents.length}` : '');
+    }
     const max = def ? (def.durability?.max ?? 0) : 0;
     if (track instanceof HTMLElement) track.hidden = max <= 0;
     if (max > 0 && def && fill instanceof HTMLElement) {
@@ -312,7 +320,7 @@ export class InventoryUi {
       case 'slot':
         return canEquip(this.catalog, stack.itemId, target.slot);
       case 'quick':
-        return true;
+        return canBelt(this.catalog, stack.itemId);
       case 'stack': {
         const other = findStack(this.state, target.id);
         const def = this.catalog[stack.itemId];
@@ -378,7 +386,7 @@ export class InventoryUi {
         break;
       case 'quick':
         moveToContainer(this.state, stack.id);
-        setQuick(this.state, stack.id, target.index);
+        setQuick(this.state, this.catalog, stack.id, target.index);
         break;
       case 'stack':
         mergeStacks(this.state, this.catalog, stack.id, target.id);
@@ -387,15 +395,18 @@ export class InventoryUi {
     this.render();
   };
 
-  /** A smaller pack costs whatever no longer fits, and says so first. */
+  /**
+   * A smaller pack costs whatever no longer fits. What another pocket will take
+   * is not a loss and needs no warning; what hits the floor is, and does.
+   */
   private requestEquip(id: number, slot: EquipSlot): void {
-    const spill = overflowFor(this.state, this.catalog, id, slot);
-    if (spill.length === 0) {
+    const preview = overflowFor(this.state, this.catalog, id, slot);
+    if (preview.spilled.length === 0) {
       this.host.equip(id, slot);
       return;
     }
     this.pending = { id, slot };
-    setText(this.confirmText, this.ui.t('inventory.spill', { count: spill.length }));
+    setText(this.confirmText, this.ui.t('inventory.spill', { count: preview.spilled.length }));
     this.confirmBar.hidden = false;
   }
 
@@ -462,17 +473,18 @@ export class InventoryUi {
       if (this.state.equipment[slot] === id) continue;
       add(`inventory.action.equip.${slot}`, () => this.requestEquip(id, slot));
     }
-    if (this.state.equipment.hand !== id && this.state.equipment.offhand !== id) {
-      if (this.state.quick.includes(id)) {
-        add('inventory.action.fromBelt', () => moveToContainer(this.state, id));
-      } else {
-        const free = this.state.quick.findIndex((entry) => entry === null);
-        const index = free >= 0 ? free : 0;
-        add('inventory.action.toBelt', () => {
-          moveToContainer(this.state, id);
-          setQuick(this.state, id, index);
-        });
-      }
+    if (this.state.quick.includes(id)) {
+      add('inventory.action.fromBelt', () => moveToContainer(this.state, id));
+    } else if (canBelt(this.catalog, stack.itemId)) {
+      const free = this.state.quick.findIndex((entry) => entry === null);
+      const index = free >= 0 ? free : 0;
+      add('inventory.action.toBelt', () => {
+        moveToContainer(this.state, id);
+        setQuick(this.state, this.catalog, id, index);
+      });
+    }
+    if (stack.contents.length > 0) {
+      add('inventory.action.unpack', () => unpack(this.state, this.catalog, id));
     }
     for (const slot of EQUIP_SLOTS) {
       if (this.state.equipment[slot] !== id) continue;
@@ -543,7 +555,14 @@ export class InventoryUi {
       const slots = def.slots.map((slot) => t(`inventory.slot.${slot}`)).join(', ');
       lines.push(`${t('inventory.requires')}: ${slots}`);
     }
-    if (def.carry) lines.push(`${t('inventory.pockets')}: +${def.carry.cells}`);
+    if (def.carry) {
+      const room = pocketRoom(this.catalog, stack);
+      lines.push(`${t('inventory.pockets')}: ${stack.contents.length}/${stack.contents.length + room}`);
+      for (const held of stack.contents) {
+        const heldDef = this.catalog[held.itemId];
+        lines.push(`  · ${heldDef ? t(heldDef.nameKey) : held.itemId}`);
+      }
+    }
     const effects = this.effectLines(def, stack);
     if (effects.length > 0) lines.push(effects.join(' · '));
     return lines.join('\n');

@@ -32,6 +32,8 @@ export type HintKey =
   | 'heavy'
   | 'nothing'
   | 'spilled'
+  | 'stowed'
+  | 'burst'
   | 'exhausted'
   | 'darkness'
   | 'listen';

@@ -176,6 +176,12 @@ export interface ItemDef {
   readonly descriptionKey: string;
   /** Slots this item may be equipped into. Empty means it is only carried. */
   readonly slots: readonly EquipSlot[];
+  /**
+   * Whether it may hang on the belt. The belt is for things you use without
+   * thinking — food, water, a bandage, a light stick — never for what you wear
+   * or fight with, which is what the hands and the slots are for.
+   */
+  readonly belt: boolean;
   readonly maxStack: number;
   readonly tags: readonly ItemTag[];
   readonly sprite: string;
@@ -209,6 +215,11 @@ export const isLightSource = (def: ItemDef): boolean => hasTag(def, 'light') && 
 export const isStackable = (def: ItemDef): boolean => def.maxStack > 1;
 
 export const fitsSlot = (def: ItemDef, slot: EquipSlot): boolean => def.slots.includes(slot);
+
+export const fitsBelt = (def: ItemDef): boolean => def.belt;
+
+/** True for anything with pockets of its own: a pack, a satchel, trousers. */
+export const hasPockets = (def: ItemDef): boolean => (def.carry?.cells ?? 0) > 0;
 
 export const maxDurability = (def: ItemDef): number => def.durability?.max ?? 0;
 

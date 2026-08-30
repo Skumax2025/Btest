@@ -77,7 +77,7 @@ describe('a full loop', () => {
     const water = run.inventory.stacks[0];
     equip(run.inventory, ITEMS, water.id, 'hand');
     run.stats.thirst = 20;
-    run.step(press('use'));
+    run.step(press('handMain'));
     expect(run.stats.thirst).toBeGreaterThan(20);
     expect(heldStack(run.inventory)).toBeNull();
   });
@@ -111,13 +111,33 @@ describe('a full loop', () => {
     expect(stale.stats.health).toBeLessThan(100);
   });
 
-  it('puts a weapon in hand from a belt slot on the number key', () => {
+  it('uses what is on the belt from the number key, and takes nothing else', () => {
     const run = new Run(createRunConfig(73));
+    addItem(run.inventory, ITEMS, 'item.crackers', 1);
     addItem(run.inventory, ITEMS, 'item.wrench', 1);
-    const wrench = run.inventory.stacks[0];
-    setQuick(run.inventory, wrench.id, 0);
+    const [food, wrench] = run.inventory.stacks;
+    expect(setQuick(run.inventory, ITEMS, wrench.id, 0)).toBe(false);
+    expect(setQuick(run.inventory, ITEMS, food.id, 0)).toBe(true);
+    run.stats.hunger = 20;
     run.step(press('quick1'));
-    expect(heldStack(run.inventory)?.id).toBe(wrench.id);
+    expect(run.stats.hunger).toBeGreaterThan(20);
+  });
+
+  it('gives each hand its own key', () => {
+    const run = new Run(createRunConfig(75));
+    addItem(run.inventory, ITEMS, 'item.water', 1);
+    addItem(run.inventory, ITEMS, 'item.crackers', 1);
+    const [water, food] = run.inventory.stacks;
+    equip(run.inventory, ITEMS, water.id, 'hand');
+    equip(run.inventory, ITEMS, food.id, 'offhand');
+    run.stats.thirst = 20;
+    run.stats.hunger = 20;
+    run.step(press('handMain'));
+    expect(run.stats.thirst).toBeGreaterThan(20);
+    // The off hand kept its crackers: only the key for it eats them.
+    expect(run.stats.hunger).toBeLessThanOrEqual(20);
+    run.step(press('handOff'));
+    expect(run.stats.hunger).toBeGreaterThan(20);
   });
 
   it('carries the whole bag through a save and back without losing anything', () => {
@@ -129,7 +149,7 @@ describe('a full loop', () => {
     const [pack, pipe, crackers] = run.inventory.stacks;
     equip(run.inventory, ITEMS, pack.id, 'back');
     equip(run.inventory, ITEMS, pipe.id, 'hand');
-    setQuick(run.inventory, crackers.id, 1);
+    setQuick(run.inventory, ITEMS, crackers.id, 1);
     pipe.durability = 7;
     idleFor(run, 30);
 
