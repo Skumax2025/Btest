@@ -7,7 +7,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { castRay } from '@systems/raycast';
-import { castFan, fanAngle, fanPolygon, visibilityPolygon } from '@systems/vision';
+import { castFan, fanAngle, fanPolygon, traceFan, visibilityPolygon } from '@systems/vision';
 import type { FanOptions } from '@systems/vision';
 
 const TILE = 32;
@@ -36,6 +36,15 @@ const options = (overrides: Partial<FanOptions> = {}): FanOptions => ({
   wallPenetration: 0.5,
   ...overrides,
 });
+
+/** Shoelace area of a closed ring of world points. */
+const area = (points: Float32Array): number => {
+  let total = 0;
+  for (let i = 0, j = points.length - 2; i < points.length; j = i, i += 2) {
+    total += points[j] * points[i + 1] - points[i] * points[j + 1];
+  }
+  return Math.abs(total) / 2;
+};
 
 /** Ray-crossing test; the polygon is a closed ring of world points. */
 const contains = (points: Float32Array, x: number, y: number): boolean => {
@@ -139,13 +148,31 @@ describe('visibility fan', () => {
     }
   });
 
-  it('reshapes one cast to a smaller radius exactly', () => {
-    const [ox, oy] = centre(3, 3);
+  it('reshapes one cast down to a smaller radius', () => {
+    // The sight bubble is read off the line-of-sight cast rather than cast
+    // again, so clamping has to be exact where nothing is in the way.
+    const [ox, oy] = centre(2, 2);
+    const far = traceFan(ox, oy, 600, isSolid, options());
+    const near = fanPolygon(ox, oy, far, 12);
+    for (let i = 0; i < near.length; i += 2) {
+      expect(Math.hypot(near[i] - ox, near[i + 1] - oy)).toBeCloseTo(12, 3);
+    }
+  });
+
+  it('slides shadow edges smoothly as the origin moves', () => {
+    // The shimmer this guards against: with the edge rounded to the nearest ray,
+    // walking past a corner makes the lit area jump a whole ray-step at a time
+    // instead of growing evenly, and the shadow visibly ticks sideways.
     const config = options();
-    const far = castFan(ox, oy, 600, isSolid, config);
-    const near = fanPolygon(ox, oy, far, 40, config);
-    const cast = visibilityPolygon(ox, oy, 40, isSolid, config);
-    for (let i = 0; i < cast.length; i++) expect(near[i]).toBeCloseTo(cast[i], 4);
+    const areas: number[] = [];
+    for (let step = 0; step <= 60; step++) {
+      const oy = (1.2 + (step / 60) * 1.6) * TILE;
+      areas.push(area(visibilityPolygon(1.5 * TILE, oy, 600, isSolid, config)));
+    }
+    const deltas = areas.slice(1).map((value, i) => Math.abs(value - areas[i]));
+    const typical = [...deltas].sort((a, b) => a - b)[Math.floor(deltas.length / 2)];
+    expect(typical).toBeGreaterThan(0);
+    expect(Math.max(...deltas)).toBeLessThan(typical * 6);
   });
 
   it('clamps an unblocked ray to the radius it was asked for', () => {

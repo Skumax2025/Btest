@@ -101,6 +101,15 @@ I went, so the order is roughly chronological.
   of seams where their clips overlap — each clip is antialiased, and fourteen of
   them are fourteen visible streaks. Pools have no edge to begin with. One
   visibility cone, cast once, still does the blocking.
+- **Shadow edges are pinned to the corner that casts them, not to the nearest
+  ray.** An even fan can only put an edge on a ray, so walking past a corner
+  moved the drawn edge a whole ray-step at a time while the true one slid
+  smoothly — shadows crawled and shimmered along every wall end. Neighbouring
+  rays that disagree by more than a tile have a corner between them, and a few
+  bisections find its angle; the polygon then pivots about the corner itself.
+  Real levels turn out to have about a dozen silhouettes in view at once, so it
+  costs almost nothing and is far cheaper than the ray count that would be
+  needed to hide the problem.
 - **The player casts one ray fan per frame, not three.** Line of sight, the much
   smaller bubble of vision inside it and the torch's floor spill are all read off
   a single cast at different radii. They cannot disagree about where a wall is,
