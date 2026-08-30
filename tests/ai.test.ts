@@ -23,6 +23,7 @@ const state = (over: Partial<CreatureState> = {}): CreatureState => ({
   modeTicks: 0,
   chaseTicks: 0,
   attackCooldown: 0,
+  blockCooldown: 0,
   health: 10,
   repathIn: 0,
   path: [],

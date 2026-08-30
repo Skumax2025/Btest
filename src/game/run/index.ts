@@ -23,5 +23,13 @@ export type {
   RunConfig,
   RunContent,
 } from './config';
-export type { GroundItem, HintKey, Projectile, RunWorld, SearchProgress } from './world-access';
+export type {
+  CombatEvent,
+  CombatState,
+  GroundItem,
+  HintKey,
+  Projectile,
+  RunWorld,
+  SearchProgress,
+} from './world-access';
 export type { Perception } from './perception';

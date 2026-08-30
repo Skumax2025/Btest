@@ -40,6 +40,7 @@ export class Hud {
   private readonly handName: HTMLElement;
   private readonly handMeta: HTMLElement;
   private readonly hint: HTMLElement;
+  private readonly combatLine: HTMLElement;
   private readonly levelLabel: HTMLElement;
 
   constructor(parent: HTMLElement, private readonly ui: UiContext) {
@@ -62,6 +63,15 @@ export class Hud {
     this.handMeta = el('div', 'hud-hand-meta', hand);
 
     this.hint = el('div', 'hud-hint', this.root);
+    this.combatLine = el('div', 'hud-combat', this.root);
+  }
+
+  /** The last thing melee did, in words, because nobody pressed a key for it. */
+  private combatText(run: Run): string {
+    const { event, eventTicks, eventCount } = run.combat;
+    if (!event || eventTicks <= 0) return '';
+    if (event === 'hit') return this.ui.localizer.plural('combat.hit', eventCount);
+    return this.ui.t(`combat.${event}`);
   }
 
   update(run: Run): void {
@@ -91,8 +101,16 @@ export class Hud {
     if (def && def.charge > 0 && held) {
       parts.unshift(`${t('hud.charge')} ${t('ui.seconds', { value: Math.ceil(held.charge) })}`);
     }
+    if (run.combat.maxDurability > 0) {
+      const share = Math.round((run.combat.durability / run.combat.maxDurability) * 100);
+      parts.unshift(`${t('hud.wear')} ${t('ui.percent', { value: share })}`);
+    } else if (run.combat.broken) {
+      parts.unshift(t('hud.broken'));
+    }
     if (held && held.count > 1) parts.unshift(`x${held.count}`);
     setText(this.handMeta, parts.join('  ·  '));
+    this.root.classList.toggle('hud--worn', run.combat.maxDurability > 0 && run.combat.durability <= 1);
+    setText(this.combatLine, this.combatText(run));
 
     setText(this.levelLabel, t('hud.level', { value: run.levelIndex }));
     setText(this.hint, this.hintText(run));

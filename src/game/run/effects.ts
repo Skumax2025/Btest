@@ -1,12 +1,12 @@
 /**
  * L2: the per-tick consequences of player actions — thrown items in flight, a
- * search in progress, a light burning down and a creature close enough to hurt.
- * Split from `actions.ts` so that file stays about button presses only.
+ * search in progress and a light burning down. Split from `actions.ts` so that
+ * file stays about button presses only; melee lives in `melee.ts` because it no
+ * longer involves a button at all.
  */
 
 import { castRay } from '@systems/raycast';
 import { isLightSource } from '@game/items';
-import { applyDamage } from '@game/stats';
 import { finishSearch } from './actions';
 import type { RunWorld } from './world-access';
 
@@ -72,21 +72,4 @@ export const stepLight = (world: RunWorld): number => {
   }
   if (charge <= 0) world.flashlightOn = false;
   return charge;
-};
-
-export const applyContactDamage = (world: RunWorld): void => {
-  for (const creature of world.creatures.values()) {
-    const def = world.config.content.creatures[creature.defId];
-    if (!def) continue;
-    const distance = Math.hypot(creature.x - world.player.x, creature.y - world.player.y);
-    if (distance > def.attackRange + def.radius) continue;
-    if (creature.attackCooldown > 0) continue;
-    creature.attackCooldown = def.attackCooldownTicks;
-    applyDamage(
-      world.stats,
-      def.killsOnContact ? world.config.stats.maxHealth : def.damage,
-      'injury',
-      world.config.stats,
-    );
-  }
 };

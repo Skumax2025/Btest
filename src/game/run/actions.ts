@@ -180,33 +180,6 @@ const dropHeld = (world: RunWorld): void => {
   removeStack(world.inventory, held.id);
 };
 
-const swing = (world: RunWorld): void => {
-  if (world.meleeCooldown > 0) return;
-  const { interaction } = world.config;
-  const held = heldStack(world.inventory);
-  const def = held ? world.config.content.items[held.itemId] : undefined;
-  const damage = def?.damage ?? interaction.meleeFallbackDamage;
-  world.meleeCooldown = interaction.meleeCooldownTicks;
-  world.stats.stamina = Math.max(0, world.stats.stamina - interaction.meleeStaminaCost);
-  world.emitNoise(world.player.x, world.player.y, world.config.noise.melee, 'melee');
-
-  for (const creature of world.creatures.values()) {
-    const dx = creature.x - world.player.x;
-    const dy = creature.y - world.player.y;
-    const distance = Math.hypot(dx, dy);
-    const creatureDef = world.config.content.creatures[creature.defId];
-    if (!creatureDef || distance > interaction.meleeRange + creatureDef.radius) continue;
-    const angle = Math.atan2(dy, dx);
-    let delta = Math.abs(angle - world.player.facing) % (Math.PI * 2);
-    if (delta > Math.PI) delta = Math.PI * 2 - delta;
-    if (delta > interaction.meleeHalfArc) continue;
-    creature.health -= damage;
-    const push = interaction.shoveImpulse * world.config.stepSeconds;
-    creature.x += (dx / (distance || 1)) * push;
-    creature.y += (dy / (distance || 1)) * push;
-  }
-};
-
 /** R works whether or not the light is the item in hand. */
 const toggleLight = (world: RunWorld): void => {
   for (const stack of world.inventory.stacks) {
@@ -234,5 +207,4 @@ export const handleActions = (world: RunWorld, input: InputFrame): void => {
   if (wasPressed(input, actions.flashlight)) toggleLight(world);
   if (wasPressed(input, actions.throwItem)) throwHeld(world, input);
   if (wasPressed(input, actions.drop)) dropHeld(world);
-  if (wasPressed(input, actions.attack)) swing(world);
 };

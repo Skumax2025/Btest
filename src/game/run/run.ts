@@ -27,11 +27,20 @@ import { NoiseField } from '@systems/sound';
 import type { RunConfig } from './config';
 import { handleActions, nearestInteractable } from './actions';
 import { stepCreatures, syncCreatures } from './creatures';
-import { applyContactDamage, stepLight, stepProjectiles, stepSearch } from './effects';
+import { stepLight, stepProjectiles, stepSearch } from './effects';
+import { applyContactDamage, stepMelee } from './melee';
 import { perceive } from './perception';
 import { PropIndex, groundItemsNear } from './prop-index';
 import type { Perception } from './perception';
-import type { GroundItem, HintKey, Projectile, RunWorld, SearchProgress } from './world-access';
+import { createCombatState } from './world-access';
+import type {
+  CombatState,
+  GroundItem,
+  HintKey,
+  Projectile,
+  RunWorld,
+  SearchProgress,
+} from './world-access';
 
 export type RunPhase = 'alive' | 'dead';
 
@@ -46,6 +55,7 @@ export class Run implements RunWorld {
   readonly creatures: ComponentStore<CreatureState>;
   readonly rng: RandomStream;
   readonly spawnedChunks = new Set<string>();
+  readonly combat: CombatState = createCombatState();
 
   level: LevelStream;
   levelIndex = 0;
@@ -54,7 +64,6 @@ export class Run implements RunWorld {
   flashlightOn = false;
   flashlightCharge = 0;
   search: SearchProgress | null = null;
-  meleeCooldown = 0;
   descendRequested = false;
   collected = 0;
   distance = 0;
@@ -142,10 +151,13 @@ export class Run implements RunWorld {
     stepSearch(this);
     stepProjectiles(this);
     this.flashlightCharge = stepLight(this);
+    // Swing first, then take the hit: a committed swing lands even if it is the
+    // last thing the player does.
+    stepMelee(this);
     applyContactDamage(this);
-    if (this.meleeCooldown > 0) this.meleeCooldown--;
     for (const creature of this.creatures.values()) {
       if (creature.attackCooldown > 0) creature.attackCooldown--;
+      if (creature.blockCooldown > 0) creature.blockCooldown--;
     }
 
     stepStats(

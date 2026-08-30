@@ -26,8 +26,11 @@ import {
   STREAM,
 } from './tuning';
 
+export const HANDS_ITEM_ID = 'item.hands';
+
 export const createRunConfig = (seed: number): RunConfig => ({
   seed,
+  handsItemId: HANDS_ITEM_ID,
   content: {
     levels: LEVELS,
     items: ITEMS,

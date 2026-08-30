@@ -35,6 +35,58 @@ export type HintKey =
   | 'darkness'
   | 'listen';
 
+/** What just happened in melee, for the eye and the ear to report. */
+export type CombatEvent = 'hit' | 'blockedByYou' | 'blockedByThem' | 'miss' | 'broke' | 'tired';
+
+/**
+ * Melee is automatic, so this is the only channel through which the player
+ * learns what their character is doing. Everything a view or the audio needs is
+ * here; nothing here is written outside the melee step.
+ */
+export interface CombatState {
+  /** Ticks until the next swing may begin. */
+  cooldown: number;
+  /** Ticks left of the swing in flight; zero when not swinging. */
+  windup: number;
+  /** Bodies counted when the swing was committed — the price is fixed then. */
+  committedTargets: number;
+  blockCooldown: number;
+  /** Reach of whatever is in hand right now, in world units. */
+  reach: number;
+  /** Full interval, so a view can draw a fraction of it. */
+  interval: number;
+  /** Bodies inside the ring this tick. */
+  targets: number;
+  durability: number;
+  maxDurability: number;
+  /** True when the item in hand has failed and the body is doing the work. */
+  broken: boolean;
+  event: CombatEvent | null;
+  /** Bodies involved in that event, for "caught 3 at once". */
+  eventCount: number;
+  /** Bumped on every event, so two identical events are still two events. */
+  eventSerial: number;
+  /** Ticks the last event stays on screen. */
+  eventTicks: number;
+}
+
+export const createCombatState = (): CombatState => ({
+  cooldown: 0,
+  windup: 0,
+  committedTargets: 0,
+  blockCooldown: 0,
+  reach: 0,
+  interval: 1,
+  targets: 0,
+  durability: 0,
+  maxDurability: 0,
+  broken: false,
+  event: null,
+  eventCount: 0,
+  eventSerial: 0,
+  eventTicks: 0,
+});
+
 export interface GroundItem {
   readonly itemId: string;
   readonly count: number;
@@ -82,7 +134,7 @@ export interface RunWorld {
   readonly spawnedChunks: Set<string>;
   search: SearchProgress | null;
   flashlightOn: boolean;
-  meleeCooldown: number;
+  readonly combat: CombatState;
   /** Set when the player has stepped into an exit this tick. */
   descendRequested: boolean;
   collected: number;

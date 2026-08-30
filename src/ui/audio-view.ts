@@ -10,12 +10,13 @@ import { hashInts } from '@core/rng';
 import { lampIsLit } from '@game/lighting';
 import type { LightingConfig } from '@game/lighting';
 import type { Run } from '@game/run';
-import { AUDIO, AUDIO_CUES, NOISE_CUES } from '@content/audio';
+import { AUDIO, AUDIO_CUES, COMBAT_CUES, NOISE_CUES } from '@content/audio';
 
 export class AudioView {
   private lastTick = 0;
   private lastHealth = Number.POSITIVE_INFINITY;
   private lastWhisper = 0;
+  private lastCombatSerial = 0;
 
   constructor(
     private readonly output: AudioOutput,
@@ -24,6 +25,7 @@ export class AudioView {
 
   update(run: Run, derangement: number): void {
     this.playNoises(run);
+    this.playCombat(run);
     this.playHurt(run);
     this.playWhispers(run, derangement);
     this.updateDrone(run, derangement);
@@ -34,6 +36,15 @@ export class AudioView {
     this.lastTick = 0;
     this.lastHealth = Number.POSITIVE_INFINITY;
     this.lastWhisper = 0;
+    this.lastCombatSerial = 0;
+  }
+
+  /** Every melee event gets a sound, because none of them get a key press. */
+  private playCombat(run: Run): void {
+    if (run.combat.eventSerial === this.lastCombatSerial) return;
+    this.lastCombatSerial = run.combat.eventSerial;
+    const cue = run.combat.event ? AUDIO_CUES[COMBAT_CUES[run.combat.event] ?? ''] : undefined;
+    if (cue) this.output.play(cue, 0, 1);
   }
 
   private playNoises(run: Run): void {

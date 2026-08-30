@@ -79,6 +79,7 @@ describe('a full loop', () => {
       x: 0,
       y: 0,
       charge: 0,
+      durability: 0,
     });
     run.inventory.nextId = 100;
     setHand(run.inventory, 99);
@@ -98,6 +99,7 @@ describe('a full loop', () => {
       x: 0,
       y: 0,
       charge: 2,
+      durability: 0,
     });
     run.inventory.nextId = 6;
     run.step(press('flashlight'));
@@ -117,6 +119,7 @@ describe('a full loop', () => {
       x: 0,
       y: 0,
       charge: 0,
+      durability: 0,
     });
     run.inventory.nextId = 4;
     setHand(run.inventory, 3);
@@ -140,7 +143,7 @@ describe('a full loop', () => {
     if (!exit) return;
     const beforeId = run.spec.id;
     const beforePalette = run.spec.paletteId;
-    run.inventory.stacks.push({ id: 1, itemId: 'item.soda', count: 1, x: 0, y: 0, charge: 0 });
+    run.inventory.stacks.push({ id: 1, itemId: 'item.soda', count: 1, x: 0, y: 0, charge: 0, durability: 0 });
     run.inventory.nextId = 2;
 
     standAt(run, exit.x, exit.y);

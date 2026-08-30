@@ -34,6 +34,13 @@ export interface CreatureDef {
   readonly damage: number;
   readonly attackRange: number;
   readonly attackCooldownTicks: number;
+  /**
+   * Chance to turn aside an incoming melee hit. Zero for everything that lives
+   * here today, but it is data rather than an absence, so a creature that
+   * parries is a table edit.
+   */
+  readonly blockChance: number;
+  readonly blockCooldownTicks: number;
   readonly health: number;
   /** Radius of the noise the creature itself makes while moving. */
   readonly noiseRadius: number;
@@ -71,6 +78,8 @@ export interface CreatureState {
   /** Ticks of continuous chasing; a hunter has to rest when it runs out. */
   chaseTicks: number;
   attackCooldown: number;
+  /** Ticks before this creature may turn a hit aside again. */
+  blockCooldown: number;
   health: number;
   /** Ticks left before the walk path is recomputed. */
   repathIn: number;

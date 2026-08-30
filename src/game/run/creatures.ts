@@ -49,6 +49,7 @@ export const syncCreatures = (world: RunWorld): number => {
         modeTicks: 0,
         chaseTicks: 0,
         attackCooldown: 0,
+        blockCooldown: 0,
         health: def.health,
         repathIn: 0,
         path: [],

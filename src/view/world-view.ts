@@ -13,6 +13,7 @@ import type { Run } from '@game/run';
 import type { Palette } from '@content/palettes';
 import type { ViewConfig } from '@content/view';
 import { LightingView } from './lighting-view';
+import { drawCombat } from './combat-view';
 import { drawCreatures, drawGround, drawPlayer, drawProps, drawTelegraphs } from './props';
 import { drawTiles } from './tiles';
 
@@ -74,6 +75,7 @@ export class WorldView {
       config: options.view,
     });
     drawTelegraphs(renderer, run, options.palette, options.view);
+    drawCombat(renderer, run, px, py, options.view.combat);
 
     renderer.popWorld();
   }

@@ -101,6 +101,51 @@ export const AUDIO_CUES: Readonly<Record<string, AudioCue>> = {
     attack: 0.1,
     cutoff: 500,
   }),
+  combatHit: cue({
+    wave: 'square',
+    frequency: 260,
+    endFrequency: 90,
+    duration: 0.16,
+    gain: 0.34,
+    attack: 0.002,
+    cutoff: 2000,
+  }),
+  combatBlock: cue({
+    wave: 'triangle',
+    frequency: 900,
+    endFrequency: 520,
+    duration: 0.18,
+    gain: 0.32,
+    attack: 0.002,
+    cutoff: 4200,
+  }),
+  combatMiss: cue({
+    wave: 'noise',
+    frequency: 300,
+    endFrequency: 300,
+    duration: 0.13,
+    gain: 0.16,
+    attack: 0.004,
+    cutoff: 1400,
+  }),
+  combatBreak: cue({
+    wave: 'square',
+    frequency: 420,
+    endFrequency: 60,
+    duration: 0.5,
+    gain: 0.4,
+    attack: 0.002,
+    cutoff: 1600,
+  }),
+  combatTired: cue({
+    wave: 'sine',
+    frequency: 200,
+    endFrequency: 130,
+    duration: 0.3,
+    gain: 0.2,
+    attack: 0.03,
+    cutoff: 700,
+  }),
   whisper: cue({
     wave: 'noise',
     frequency: 300,
@@ -125,6 +170,16 @@ export const AUDIO = {
   /** Ticks between whispers when nerve is low. */
   whisperInterval: 150,
 } as const;
+
+/** Combat event -> cue id. Melee is automatic, so it has to be audible. */
+export const COMBAT_CUES: Readonly<Record<string, string>> = {
+  hit: 'combatHit',
+  blockedByYou: 'combatBlock',
+  blockedByThem: 'combatBlock',
+  miss: 'combatMiss',
+  broke: 'combatBreak',
+  tired: 'combatTired',
+};
 
 /** Noise-event source -> cue id. Sources with no entry are silent. */
 export const NOISE_CUES: Readonly<Record<string, string>> = {

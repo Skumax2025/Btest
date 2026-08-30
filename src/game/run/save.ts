@@ -13,9 +13,13 @@ import type { InventoryState } from '@game/inventory';
 import type { WorldSnapshot } from '@core/world';
 import { chunkKey } from '@game/level';
 import type { Run, RunPhase } from './run';
-import type { SearchProgress } from './world-access';
+import type { CombatState, SearchProgress } from './world-access';
 
-export const SAVE_VERSION = 4;
+/**
+ * Bumped whenever the shape changes. A mismatch throws the old run away and
+ * starts a new one — settings live under their own key and are untouched.
+ */
+export const SAVE_VERSION = 5;
 
 export interface RunSave {
   readonly seed: number;
@@ -25,7 +29,7 @@ export interface RunSave {
   readonly collected: number;
   readonly distance: number;
   readonly flashlightOn: boolean;
-  readonly meleeCooldown: number;
+  readonly combat: CombatState;
   readonly lastNoiseTick: number;
   readonly lastFootstepTick: number;
   readonly rngState: number;
@@ -48,7 +52,7 @@ export const snapshotRun = (run: Run): RunSave => ({
   collected: run.collected,
   distance: run.distance,
   flashlightOn: run.flashlightOn,
-  meleeCooldown: run.meleeCooldown,
+  combat: clone(run.combat),
   lastNoiseTick: run.lastNoiseTick,
   lastFootstepTick: run.lastFootstepTick,
   rngState: run.rng.getState(),
@@ -67,7 +71,7 @@ export const restoreRun = (run: Run, save: RunSave): void => {
   run.collected = save.collected;
   run.distance = save.distance;
   run.flashlightOn = save.flashlightOn;
-  run.meleeCooldown = save.meleeCooldown;
+  Object.assign(run.combat, clone(save.combat));
   run.lastNoiseTick = save.lastNoiseTick;
   run.lastFootstepTick = save.lastFootstepTick;
   run.search = save.search ? clone(save.search) : null;

@@ -20,6 +20,9 @@ export interface InventoryStack {
   y: number;
   /** Remaining charge for light sources, in seconds. Zero for everything else. */
   charge: number;
+  /** Remaining condition for weapons. Zero for everything else, and for a
+   * weapon that has failed — a failed weapon swings like bare hands. */
+  durability: number;
 }
 
 export interface InventoryState {
@@ -166,6 +169,7 @@ export const addItem = (
       x: cell.x,
       y: cell.y,
       charge: def.charge,
+      durability: def.melee?.maxDurability ?? 0,
     });
     remaining -= affordable;
   }

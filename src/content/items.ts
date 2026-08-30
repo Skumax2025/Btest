@@ -6,10 +6,32 @@
  */
 
 import type { ItemCatalog, ItemDef } from '@game/items';
+import { WEAPONS } from './tuning';
 
 const item = (def: ItemDef): ItemDef => def;
 
 export const ITEMS: ItemCatalog = {
+  /**
+   * Bare hands are an item like any other, so the combat module never needs a
+   * special case for them. Never spawned, never carried — it is the stat block
+   * a broken weapon and a non-weapon both fall back to.
+   */
+  'item.hands': item({
+    id: 'item.hands',
+    nameKey: 'item.item.hands.name',
+    descriptionKey: 'item.item.hands.desc',
+    width: 1,
+    height: 1,
+    maxStack: 1,
+    weight: 0,
+    tags: [],
+    sprite: 'item.ground',
+    use: null,
+    melee: WEAPONS.hands,
+    noise: 40,
+    throwable: false,
+    charge: 0,
+  }),
   'item.water': item({
     id: 'item.water',
     nameKey: 'item.item.water.name',
@@ -21,7 +43,7 @@ export const ITEMS: ItemCatalog = {
     tags: ['drink'],
     sprite: 'item.water',
     use: { thirst: 46, consumed: true },
-    damage: 1,
+    melee: null,
     noise: 60,
     throwable: true,
     charge: 0,
@@ -37,7 +59,7 @@ export const ITEMS: ItemCatalog = {
     tags: ['drink'],
     sprite: 'item.soda',
     use: { thirst: 24, hunger: 6, stamina: 12, consumed: true },
-    damage: 1,
+    melee: null,
     noise: 80,
     throwable: true,
     charge: 0,
@@ -53,7 +75,7 @@ export const ITEMS: ItemCatalog = {
     tags: ['food'],
     sprite: 'item.crackers',
     use: { hunger: 28, thirst: -4, consumed: true },
-    damage: 0,
+    melee: null,
     noise: 40,
     throwable: false,
     charge: 0,
@@ -69,7 +91,7 @@ export const ITEMS: ItemCatalog = {
     tags: ['food'],
     sprite: 'item.canned',
     use: { hunger: 52, thirst: -6, consumed: true },
-    damage: 2,
+    melee: null,
     noise: 90,
     throwable: true,
     charge: 0,
@@ -85,7 +107,7 @@ export const ITEMS: ItemCatalog = {
     tags: ['medical'],
     sprite: 'item.medkit',
     use: { health: 55, sanity: 6, consumed: true },
-    damage: 1,
+    melee: null,
     noise: 70,
     throwable: false,
     charge: 0,
@@ -101,7 +123,7 @@ export const ITEMS: ItemCatalog = {
     tags: ['medical'],
     sprite: 'item.bandage',
     use: { health: 20, consumed: true },
-    damage: 0,
+    melee: null,
     noise: 20,
     throwable: false,
     charge: 0,
@@ -117,7 +139,7 @@ export const ITEMS: ItemCatalog = {
     tags: ['light'],
     sprite: 'item.flashlight',
     use: null,
-    damage: 3,
+    melee: null,
     noise: 60,
     throwable: false,
     charge: 300,
@@ -133,7 +155,7 @@ export const ITEMS: ItemCatalog = {
     tags: ['battery'],
     sprite: 'item.battery',
     use: { charge: 240, consumed: true },
-    damage: 0,
+    melee: null,
     noise: 30,
     throwable: false,
     charge: 0,
@@ -149,7 +171,7 @@ export const ITEMS: ItemCatalog = {
     tags: ['weapon'],
     sprite: 'item.pipe',
     use: null,
-    damage: 34,
+    melee: WEAPONS.pipe,
     noise: 200,
     throwable: true,
     charge: 0,
@@ -165,7 +187,7 @@ export const ITEMS: ItemCatalog = {
     tags: ['weapon'],
     sprite: 'item.wrench',
     use: null,
-    damage: 24,
+    melee: WEAPONS.wrench,
     noise: 170,
     throwable: true,
     charge: 0,
@@ -181,7 +203,7 @@ export const ITEMS: ItemCatalog = {
     tags: ['lure'],
     sprite: 'item.noisemaker',
     use: null,
-    damage: 0,
+    melee: null,
     noise: 460,
     throwable: true,
     charge: 0,

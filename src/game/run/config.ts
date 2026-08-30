@@ -18,7 +18,6 @@ export interface ActionNames {
   readonly crouch: string;
   readonly interact: string;
   readonly use: string;
-  readonly attack: string;
   readonly throwItem: string;
   readonly drop: string;
   readonly flashlight: string;
@@ -51,7 +50,6 @@ export interface NoiseConfig {
   readonly crouch: number;
   readonly stepInterval: number;
   readonly searchFallback: number;
-  readonly melee: number;
   readonly silenceTicks: number;
   /** Multiplier on footstep noise while standing on wet carpet. */
   readonly wetFactor: number;
@@ -63,11 +61,6 @@ export interface InteractionConfig {
   readonly searchFallbackTicks: number;
   readonly throwSpeed: number;
   readonly throwRange: number;
-  readonly meleeRange: number;
-  readonly meleeHalfArc: number;
-  readonly meleeCooldownTicks: number;
-  readonly meleeFallbackDamage: number;
-  readonly meleeStaminaCost: number;
   readonly shoveImpulse: number;
   /** Radius, in tiles, that loot is scattered over when a container is opened. */
   readonly lootSpread: number;
@@ -86,6 +79,8 @@ export interface InventoryConfig {
 export interface RunConfig {
   readonly seed: number;
   readonly content: RunContent;
+  /** Catalogue id of the bare-hands stat block; melee falls back to it. */
+  readonly handsItemId: string;
   readonly geometry: LevelGeometry;
   readonly stream: StreamOptions;
   readonly player: PlayerConfig;

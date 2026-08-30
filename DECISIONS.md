@@ -149,3 +149,36 @@ I went, so the order is roughly chronological.
   Mono`, `Liberation Mono`) — no web font, because the project ships no external
   asset files. Fixed-width interface elements were widened by roughly a third to
   absorb the longer Russian strings.
+
+## Combat (G1)
+
+- **Bare hands are an item.** `item.hands` sits in the catalogue with the weakest
+  stat block, and `resolveWeapon` falls back to it for a broken weapon and for
+  anything that was never a weapon. There is no "no weapon" branch in the code.
+- **An empty hand slot is the way out, not a weak weapon.** Auto-attack refuses
+  to start with nothing held and refuses while crouching. Those are the two
+  promises that let a player walk past a fight, and both are tested.
+- **A swing has a wind-up.** Without it "miss" could not exist — targets are
+  counted again when the swing lands, so stepping out of the ring during the
+  wind-up costs the attacker stamina and noise and hits nothing. It also gives
+  the reach ring something to mean.
+- **The price of a wide swing is stamina and noise, never damage.** Damage
+  ignores how many bodies are in the ring, because a ring does. What scales is
+  `staminaPerExtraTarget` and `noisePerExtraTarget`: five bodies cost more breath
+  than the bar holds and shout far enough to bring more.
+- **A block swallows one hit whole, once per tick.** Partial mitigation would
+  have made blocking a damage multiplier; all-or-nothing makes it an event the
+  player can see and hear. Everything else landing on the same tick goes through,
+  which is the whole reason being surrounded kills.
+- **Creatures carry `blockChance` even though almost all of them are zero.** It
+  is a column in the data, so a parrying creature is a table edit rather than a
+  branch. The hound has a small non-zero value; it is the one thing the design
+  wants you never to trade with.
+- **The hound got much tougher (45 → 190 health, 22 → 32 damage).** Area attacks
+  made a one-on-one trade winnable, which the design forbids. Raising its health
+  past what a good weapon can chew through in the time it needs to kill you
+  restores "run, do not fight" without touching the player's numbers.
+- **Feedback is split: shapes in the world, words in the HUD.** The reach ring,
+  the closing swing timer and the expanding event ring carry no text, so the view
+  layer stays free of strings; the sentence naming what happened lives in the HUD
+  where the localizer already is.

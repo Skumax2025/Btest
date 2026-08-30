@@ -6,6 +6,8 @@
  * means adding one entry there and nothing else.
  */
 
+import type { WeaponStats } from './combat';
+
 export type ItemTag = 'drink' | 'food' | 'medical' | 'light' | 'battery' | 'weapon' | 'lure';
 
 /** What one unit does when used. Absent fields mean "no change". */
@@ -33,8 +35,11 @@ export interface ItemDef {
   readonly tags: readonly ItemTag[];
   readonly sprite: string;
   readonly use: ItemEffect | null;
-  /** Melee damage when this item is the one in hand. */
-  readonly damage: number;
+  /**
+   * How this item fights when it is the one in hand. `null` means it is not a
+   * weapon: swinging it falls back to the bare-hands stat block.
+   */
+  readonly melee: WeaponStats | null;
   /** Radius of the noise the item makes when it lands, in world units. */
   readonly noise: number;
   readonly throwable: boolean;

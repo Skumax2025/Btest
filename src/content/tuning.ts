@@ -6,6 +6,7 @@
 import type { LevelGeometry, StreamOptions } from '@game/level';
 import type { StatsConfig } from '@game/stats';
 import type { SoundConfig } from '@systems/sound';
+import type { WeaponStats } from '@game/combat';
 
 export const SIM = {
   /** Fixed simulation step. The only clock the game logic ever sees. */
@@ -122,12 +123,70 @@ export const NOISE = {
   /** Ticks between footstep noises while moving. */
   stepInterval: 22,
   searchFallback: 180,
-  melee: 210,
   /** Ticks of quiet before the silence starts eating at the player's nerve. */
   silenceTicks: 300,
   /** Wet carpet squelches. */
   wetFactor: 1.4,
 } as const;
+
+/**
+ * Melee is automatic, so these numbers are the whole difficulty curve.
+ *
+ * Target, verified by tests and by hand: two or three drifters are survivable
+ * and expensive, five kill you, and trading blows with a hound never works. The
+ * lever is not damage — a swing hits everything in the ring, so damage does not
+ * care how many there are — it is `staminaPerExtraTarget` and `noisePerExtraTarget`.
+ */
+export const WEAPONS: Readonly<Record<string, WeaponStats>> = {
+  hands: {
+    reach: 30,
+    damage: 5,
+    intervalTicks: 30,
+    windupTicks: 8,
+    staminaCost: 4,
+    staminaPerExtraTarget: 3,
+    noise: 90,
+    noisePerExtraTarget: 30,
+    wearPerHit: 0,
+    maxDurability: 0,
+    wornDamageFactor: 1,
+    blockChance: 0.1,
+    blockStaminaCost: 8,
+    blockCooldownTicks: 120,
+  },
+  wrench: {
+    reach: 40,
+    damage: 30,
+    intervalTicks: 30,
+    windupTicks: 9,
+    staminaCost: 7,
+    staminaPerExtraTarget: 7,
+    noise: 170,
+    noisePerExtraTarget: 55,
+    wearPerHit: 1,
+    maxDurability: 40,
+    wornDamageFactor: 0.45,
+    blockChance: 0.18,
+    blockStaminaCost: 10,
+    blockCooldownTicks: 120,
+  },
+  pipe: {
+    reach: 50,
+    damage: 46,
+    intervalTicks: 40,
+    windupTicks: 12,
+    staminaCost: 10,
+    staminaPerExtraTarget: 9,
+    noise: 210,
+    noisePerExtraTarget: 70,
+    wearPerHit: 1,
+    maxDurability: 55,
+    wornDamageFactor: 0.45,
+    blockChance: 0.22,
+    blockStaminaCost: 12,
+    blockCooldownTicks: 120,
+  },
+};
 
 export const INTERACTION = {
   interactRange: 40,
@@ -136,11 +195,6 @@ export const INTERACTION = {
   searchFallbackTicks: 40,
   throwSpeed: 430,
   throwRange: 460,
-  meleeRange: 40,
-  meleeHalfArc: 0.85,
-  meleeCooldownTicks: 34,
-  meleeFallbackDamage: 6,
-  meleeStaminaCost: 12,
   /** Force applied to a creature that is shoved. */
   shoveImpulse: 240,
   /** How long the opening movement line stays up, in ticks. */
@@ -173,7 +227,6 @@ export const KEY_BINDINGS = {
   crouch: ['ControlLeft', 'KeyC'],
   interact: ['KeyE'],
   use: ['KeyF'],
-  attack: ['Space'],
   throwItem: ['KeyQ'],
   drop: ['KeyG'],
   inventory: ['Tab'],
@@ -191,7 +244,6 @@ export const ACTIONS = {
   crouch: 'crouch',
   interact: 'interact',
   use: 'use',
-  attack: 'attack',
   throwItem: 'throwItem',
   drop: 'drop',
   flashlight: 'flashlight',

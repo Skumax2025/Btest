@@ -37,6 +37,7 @@ const crowd = (run: Run, count: number): void => {
       modeTicks: 0,
       chaseTicks: 0,
       attackCooldown: 10_000,
+      blockCooldown: 0,
       health: 1_000_000,
       repathIn: 0,
       path: [],

@@ -292,3 +292,19 @@ body {
   color: #9ff0c0;
   white-space: pre;
 }
+
+.hud-combat {
+  position: absolute;
+  left: 50%;
+  bottom: 104px;
+  transform: translateX(-50%);
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  color: #e8d6a8;
+  text-shadow: 0 0 10px #000;
+  min-height: 16px;
+}
+
+.hud--worn .hud-hand {
+  border-color: rgba(200, 90, 70, 0.55);
+}
