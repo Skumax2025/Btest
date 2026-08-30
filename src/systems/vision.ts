@@ -61,6 +61,17 @@ export const fanAngle = (index: number, options: FanOptions): number => {
 };
 
 /** How far one ray reaches, in world units. */
+
+// Scratch variables for zero-allocation corner topology
+let lastHitTx = 0;
+let lastHitTy = 0;
+let lastHitAxis: 0 | 1 = 0;
+
+const MAX_RAYS = 2048; // С запасом под плотные лучи
+const scratchTx = new Int16Array(MAX_RAYS);
+const scratchTy = new Int16Array(MAX_RAYS);
+const scratchAxis = new Int8Array(MAX_RAYS);
+
 export const rayReach = (
   originX: number,
   originY: number,
@@ -80,7 +91,13 @@ export const rayReach = (
     isSolid,
     true,
   );
+
+  lastHitTx = hit.tx;
+  lastHitTy = hit.ty;
+  lastHitAxis = hit.axis;
+
   if (!hit.blocked) return radius;
+
   const penetration = Math.min(Math.max(options.wallPenetration, 0), 1);
   return Math.min(
     wallReach(originX, originY, dirX, dirY, hit, options.tileSize, penetration, isSolid),
@@ -129,9 +146,12 @@ const wallReach = (
   isSolid: SolidSampler,
 ): number => {
   if (penetration <= 0) return hit.distance;
-  const component = Math.abs(hit.axis === 0 ? dirX : dirY);
-  if (component === 0) return hit.distance;
-  const target = hit.distance + Math.min((tileSize * penetration) / component, tileSize);
+
+  // Ограничиваем путь внутри стены так, чтобы луч никогда не проникал глубже, 
+  // чем на `penetration` по ЛЮБОЙ из осей. Это не дает скользящим лучам
+  // работать как оптоволокно и вылезать с обратной стороны стен толщиной в 1 тайл.
+  const maxInside = (tileSize * penetration) / Math.max(Math.abs(dirX), Math.abs(dirY));
+  const target = hit.distance + maxInside;
 
   let tx = hit.tx;
   let ty = hit.ty;
@@ -139,6 +159,7 @@ const wallReach = (
   const stepY = dirY > 0 ? 1 : -1;
   const deltaX = dirX === 0 ? Infinity : Math.abs(tileSize / dirX);
   const deltaY = dirY === 0 ? Infinity : Math.abs(tileSize / dirY);
+
   let sideX =
     dirX === 0
       ? Infinity
@@ -152,7 +173,7 @@ const wallReach = (
         ? ((ty + 1) * tileSize - originY) / dirY
         : (originY - ty * tileSize) / -dirY;
 
-  // At most one tile of travel, so at most a handful of boundaries to cross.
+  // Максимум один тайл пути, так что пересекаем лишь пару границ.
   for (let step = 0; step < 4; step++) {
     const boundary = Math.min(sideX, sideY);
     if (boundary >= target) return target;
@@ -215,52 +236,138 @@ export const traceFan = (
   const rays = rayCountOf(options);
   const fan = into;
   if (fan.reach.length !== rays) fan.reach = new Float32Array(rays);
-  const capacity = (rays + REFINE_LIMIT * 2) * 2;
+
+  // Layout: (angle, reach) pairs. (low, corner, high)
+  const capacity = (rays + REFINE_LIMIT * 3) * 2;
   if (fan.samples.length !== capacity) fan.samples = new Float32Array(capacity);
-  const reach = castFan(originX, originY, radius, isSolid, options, fan.reach);
+
+  const reach = fan.reach;
+  for (let i = 0; i < rays; i++) {
+    reach[i] = rayReach(originX, originY, fanAngle(i, options), radius, isSolid, options);
+    scratchTx[i] = lastHitTx;
+    scratchTy[i] = lastHitTy;
+    scratchAxis[i] = lastHitAxis;
+  }
 
   const { samples } = fan;
   const gap = options.tileSize * (1 + SILHOUETTE);
   const wraps = options.halfAngle >= Math.PI;
+
   let at = 0;
   let refined = 0;
+  const pen = Math.min(Math.max(options.wallPenetration, 0), 1);
 
   for (let i = 0; i < rays; i++) {
     const angle = fanAngle(i, options);
-    // The pair before this ray straddles a corner: split it before either lands.
     const previous = i === 0 ? (wraps ? rays - 1 : -1) : i - 1;
-    if (previous >= 0 && refined < REFINE_LIMIT && Math.abs(reach[i] - reach[previous]) > gap) {
+
+    let needsRefinement = false;
+    if (previous >= 0 && refined < REFINE_LIMIT) {
+      const distGap = Math.abs(reach[i] - reach[previous]) > gap;
+      // Is it a continuous flat wall section?
+      const isFlatWall =
+        scratchAxis[i] === scratchAxis[previous] &&
+        (scratchAxis[i] === 0 ? scratchTx[i] === scratchTx[previous] : scratchTy[i] === scratchTy[previous]);
+      if (distGap || !isFlatWall) {
+        needsRefinement = true;
+      }
+    }
+
+    if (needsRefinement) {
       refined++;
       let lowAngle = i === 0 ? angle - (fanAngle(1, options) - angle) : fanAngle(previous, options);
-      let lowReach = reach[previous];
       let highAngle = angle;
+
+      let lowReach = reach[previous];
+      let lowTx = scratchTx[previous];
+      let lowTy = scratchTy[previous];
+      let lowAxis = scratchAxis[previous];
+
       let highReach = reach[i];
+      let highTx = scratchTx[i];
+      let highTy = scratchTy[i];
+      let highAxis = scratchAxis[i];
+
       for (let step = 0; step < REFINE_STEPS; step++) {
         const midAngle = (lowAngle + highAngle) / 2;
         const midReach = rayReach(originX, originY, midAngle, radius, isSolid, options);
-        if (Math.abs(midReach - lowReach) <= Math.abs(midReach - highReach)) {
+        const midTx = lastHitTx;
+        const midTy = lastHitTy;
+        const midAxis = lastHitAxis;
+
+        let midIsLow: boolean;
+        const sameSurfaceAsLow = midAxis === lowAxis && (lowAxis === 0 ? midTx === lowTx : midTy === lowTy);
+        const sameSurfaceAsHigh = midAxis === highAxis && (highAxis === 0 ? midTx === highTx : midTy === highTy);
+
+        if (sameSurfaceAsLow && !sameSurfaceAsHigh) {
+          midIsLow = true;
+        } else if (sameSurfaceAsHigh && !sameSurfaceAsLow) {
+          midIsLow = false;
+        } else {
+          const threshold = (lowReach + highReach) / 2;
+          midIsLow = (midReach < threshold) === (lowReach < highReach);
+        }
+
+        if (midIsLow) {
           lowAngle = midAngle;
           lowReach = midReach;
+          lowTx = midTx;
+          lowTy = midTy;
+          lowAxis = midAxis;
         } else {
           highAngle = midAngle;
           highReach = midReach;
+          highTx = midTx;
+          highTy = midTy;
+          highAxis = midAxis;
         }
       }
+
       samples[at * 2] = lowAngle;
       samples[at * 2 + 1] = lowReach;
       at++;
+
+      // Вставляем идеальный 90-градусный угол ТОЛЬКО если оба луча ударили
+      // в смежные поверхности, образуя непрерывный угол. 
+      // Если это край силуэта (разрыв по дальности), не пытаемся их сшивать.
+      const isConnected = 
+        Math.abs(lowTx - highTx) <= 1 && 
+        Math.abs(lowTy - highTy) <= 1 && 
+        Math.abs(lowReach - highReach) <= options.tileSize * 1.5;
+
+      if (lowAxis !== highAxis && isConnected) {
+        let cx = 0;
+        let cy = 0;
+        if (lowAxis === 0) {
+          const dirX = Math.cos(lowAngle);
+          cx = (dirX > 0 ? lowTx : lowTx + 1) * options.tileSize + (dirX > 0 ? pen : -pen) * options.tileSize;
+          const dirY = Math.sin(highAngle);
+          cy = (dirY > 0 ? highTy : highTy + 1) * options.tileSize + (dirY > 0 ? pen : -pen) * options.tileSize;
+        } else {
+          const dirY = Math.sin(lowAngle);
+          cy = (dirY > 0 ? lowTy : lowTy + 1) * options.tileSize + (dirY > 0 ? pen : -pen) * options.tileSize;
+          const dirX = Math.cos(highAngle);
+          cx = (dirX > 0 ? highTx : highTx + 1) * options.tileSize + (dirX > 0 ? pen : -pen) * options.tileSize;
+        }
+
+        samples[at * 2] = (lowAngle + highAngle) / 2;
+        samples[at * 2 + 1] = Math.hypot(cx - originX, cy - originY);
+        at++;
+      }
+
       samples[at * 2] = highAngle;
       samples[at * 2 + 1] = highReach;
       at++;
+    } else {
+      samples[at * 2] = angle;
+      samples[at * 2 + 1] = reach[i];
+      at++;
     }
-    samples[at * 2] = angle;
-    samples[at * 2 + 1] = reach[i];
-    at++;
   }
+
   fan.count = at;
   return fan;
 };
-
 /**
  * Flat [x0, y0, x1, y1, ...] ring of the area a fan covers, in world units,
  * clamped to `radius`. Passing a radius smaller than the one the fan was cast at
