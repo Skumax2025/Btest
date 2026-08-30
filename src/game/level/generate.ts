@@ -91,6 +91,8 @@ const isStrideChunk = (
 /** Certainty for the opening block: lit lamp, real containers, no creature. */
 const startSpec = (spec: LevelSpec): LevelSpec => ({
   ...spec,
+  rooms: spec.rooms,
+  landmarks: spec.landmarks,
   lampChance: 1,
   lampWorkingChance: 1,
   lampFlickerChance: 0,
@@ -159,6 +161,9 @@ export const generateChunk = ({ seed, levelIndex, cx, cy, spec, geo }: GenerateP
       // The opening block never rolls dice: its lamp is lit and its containers
       // are there, so the first thirty seconds teach reliably.
       const blockPropCtx = isStart ? { ...propCtx, spec: startSpec(spec) } : propCtx;
+      // Keep a deterministic teaching cache in the opening block; elsewhere
+      // containers remain intentionally rare.
+      const isOpeningBlock = isStart && blockIndex === 0;
 
       const marks: Array<{ char: string; ox: number; oy: number }> = [];
       for (let oy = 1; oy <= interior; oy++) {
@@ -195,8 +200,9 @@ export const generateChunk = ({ seed, levelIndex, cx, cy, spec, geo }: GenerateP
       const propRng = streamFor(seed, levelIndex, gx, gy, TOPIC.PROP);
       for (const mark of marks) {
         if (isSolidTile(tiles[at(mark.ox, mark.oy)])) continue;
+        if (isOpeningBlock && mark.char === 'c' && props.some((prop) => prop.kind === 'container')) continue;
         const spawn = makeProp(
-          mark.char,
+          isOpeningBlock && mark.char === 'c' ? 'c' : mark.char,
           cx * size + originX + mark.ox,
           cy * size + originY + mark.oy,
           propRng,

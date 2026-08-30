@@ -82,7 +82,7 @@ export const CONTAINERS: ContainerCatalog = {
     id: 'container.bag',
     nameKey: 'container.container.bag.name',
     lootTableId: 'loot.bag',
-    searchNoise: 120,
+    searchNoise: 180,
     searchTicks: 30,
   },
 };

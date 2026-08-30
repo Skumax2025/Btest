@@ -20,7 +20,9 @@ export const SIM = {
 
 export const GEOMETRY: LevelGeometry = {
   tileSize: 32,
-  blockSize: 8,
+  // Larger blocks create long, quiet sightlines and roughly four times the
+  // walkable interior area without changing chunk streaming boundaries.
+  blockSize: 16,
   chunkBlocks: 4,
   doorWidth: 2,
 };
@@ -123,7 +125,7 @@ export const NOISE = {
   crouch: 0,
   /** Ticks between footstep noises while moving. */
   stepInterval: 22,
-  searchFallback: 180,
+  searchFallback: 260,
   /** Ticks of quiet before the silence starts eating at the player's nerve. */
   silenceTicks: 300,
   /** Wet carpet squelches. */

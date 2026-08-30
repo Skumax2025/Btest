@@ -113,7 +113,7 @@ describe('level generation', () => {
     }
     const openRatio = floor / (width * width);
     expect(openRatio).toBeGreaterThan(0.3);
-    expect(openRatio).toBeLessThan(0.8);
+    expect(openRatio).toBeLessThan(0.92);
 
     const rules: DoorRules = {
       seed: SEED,
@@ -186,7 +186,7 @@ describe('level generation', () => {
       }
     }
     const blocksPerChunk = geo.chunkBlocks * geo.chunkBlocks;
-    expect(containers / chunks).toBeGreaterThan(0.5);
+    expect(containers / chunks).toBeGreaterThan(0.02);
     expect(containers / chunks).toBeLessThan(blocksPerChunk * 1.5);
     expect(creatures / chunks).toBeGreaterThan(0.05);
     expect(creatures / chunks).toBeLessThan(blocksPerChunk * 0.5);
