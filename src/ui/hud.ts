@@ -12,7 +12,7 @@
 
 import type { Run } from '@game/run';
 import type { HintKey } from '@game/run';
-import { heldStack, totalWeight } from '@game/inventory';
+import { capacity, heldStack, usedCells } from '@game/inventory';
 import { isLowSanity } from '@game/stats';
 import type { HudConfig } from '@content/view';
 import type { UiContext } from './context';
@@ -106,6 +106,7 @@ export class Hud {
     this.handDescription = el('div', 'hud-hand-description', handCopy);
     this.handMeta = el('div', 'hud-hand-meta', handCopy);
     const wear = el('div', 'hud-hand-wear', hand);
+    ui.binder.bind(el('span', 'hud-hand-wear-label', wear), 'hud.wear');
     this.wearFill = el('div', 'hud-wear-fill', el('div', 'hud-wear-track', wear));
 
     const stamina = el('div', 'hud-stamina', this.root);
@@ -192,8 +193,8 @@ export class Hud {
       parts.push(`${t('hud.charge')} ${t('ui.seconds', { value: Math.ceil(held.charge) })}`);
     }
     if (run.combat.broken) parts.push(t('hud.broken'));
-    const weight = totalWeight(run.inventory, run.config.content.items);
-    parts.push(`${t('hud.weight')} ${weight.toFixed(1)}/${run.inventory.capacity}`);
+    const cells = capacity(run.inventory, run.config.content.items);
+    parts.push(`${t('hud.cells')} ${usedCells(run.inventory)}/${cells}`);
     setText(this.handMeta, parts.join('  ·  '));
 
     // Wear is a bar, not a percentage: it is a state, not a measurement.

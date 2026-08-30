@@ -55,6 +55,10 @@ export interface StatsState {
 }
 
 export interface StatsInput {
+  /** Multiplier on how fast breath comes back, from what is worn. */
+  readonly staminaRegenFactor?: number;
+  /** Multiplier on nerve lost to the dark, the quiet and the creatures. */
+  readonly nerveFactor?: number;
   readonly stepSeconds: number;
   readonly sprinting: boolean;
   readonly crouching: boolean;
@@ -104,7 +108,9 @@ export const stepStats = (state: StatsState, input: StatsInput, config: StatsCon
     if (state.stamina <= 0) state.exhausted = true;
   } else {
     const regen =
-      config.staminaRegenPerSecond * (input.crouching ? config.staminaCrouchRegenFactor : 1);
+      config.staminaRegenPerSecond *
+      (input.crouching ? config.staminaCrouchRegenFactor : 1) *
+      (input.staminaRegenFactor ?? 1);
     state.stamina = clamp(state.stamina + regen * dt, 0, config.maxStamina);
     if (state.exhausted && state.stamina >= config.sprintRecoveryStamina) state.exhausted = false;
   }
@@ -113,6 +119,7 @@ export const stepStats = (state: StatsState, input: StatsInput, config: StatsCon
   if (input.inDark) sanityDelta -= config.sanityDarkPerSecond;
   if (input.inSilence) sanityDelta -= config.sanitySilencePerSecond;
   sanityDelta -= config.sanityCreaturePerSecond * clamp(input.creaturePressure, 0, 1);
+  if (sanityDelta < 0) sanityDelta *= input.nerveFactor ?? 1;
   // Nerve comes back wherever nothing is eating it, but standing still helps most.
   if (sanityDelta === 0) {
     sanityDelta += config.sanityRegenPerSecond * (input.resting ? 1 : config.movingRegenFactor);

@@ -5,9 +5,10 @@
 import { describe, expect, it } from 'vitest';
 import type { InputFrame } from '@core/input';
 import { EMPTY_INPUT } from '@core/input';
-import { Run, nearestInteractable } from '@game/run';
-import { heldStack, setHand } from '@game/inventory';
+import { Run, nearestInteractable, restoreRun, snapshotRun, useStack } from '@game/run';
+import { addItem, capacity, equip, findStack, heldStack, setQuick } from '@game/inventory';
 import { createRunConfig } from '@content/run-config';
+import { ITEMS } from '@content/items';
 import { CONTAINERS } from '@content/loot-tables';
 
 const press = (action: string): InputFrame => ({ ...EMPTY_INPUT, pressed: [action] });
@@ -72,36 +73,83 @@ describe('a full loop', () => {
 
   it('uses a drink and moves the water bar', () => {
     const run = new Run(createRunConfig(7));
-    run.inventory.stacks.push({
-      id: 99,
-      itemId: 'item.water',
-      count: 1,
-      x: 0,
-      y: 0,
-      charge: 0,
-      durability: 0,
-    });
-    run.inventory.nextId = 100;
-    setHand(run.inventory, 99);
+    addItem(run.inventory, ITEMS, 'item.water', 1);
+    const water = run.inventory.stacks[0];
+    equip(run.inventory, ITEMS, water.id, 'hand');
     run.stats.thirst = 20;
     run.step(press('use'));
     expect(run.stats.thirst).toBeGreaterThan(20);
     expect(heldStack(run.inventory)).toBeNull();
   });
 
+  it('drinks straight out of the bag, with nothing in hand', () => {
+    const run = new Run(createRunConfig(71));
+    addItem(run.inventory, ITEMS, 'item.water', 1);
+    const water = run.inventory.stacks[0];
+    run.stats.thirst = 20;
+    expect(useStack(run, water.id)).toBe(true);
+    expect(run.stats.thirst).toBeGreaterThan(20);
+    expect(findStack(run.inventory, water.id)).toBeUndefined();
+  });
+
+  it('lets spoiled food be eaten, for less and at a price', () => {
+    const fresh = new Run(createRunConfig(72));
+    addItem(fresh.inventory, ITEMS, 'item.canned', 1);
+    fresh.stats.hunger = 10;
+    useStack(fresh, fresh.inventory.stacks[0].id);
+    const fed = fresh.stats.hunger;
+
+    const stale = new Run(createRunConfig(72));
+    addItem(stale.inventory, ITEMS, 'item.canned', 1);
+    stale.inventory.stacks[0].durability = 0;
+    stale.stats.hunger = 10;
+    stale.stats.health = 100;
+    useStack(stale, stale.inventory.stacks[0].id);
+    expect(stale.stats.hunger).toBeLessThan(fed);
+    expect(stale.lasting.length).toBeGreaterThan(0);
+    idleFor(stale, 120);
+    expect(stale.stats.health).toBeLessThan(100);
+  });
+
+  it('puts a weapon in hand from a belt slot on the number key', () => {
+    const run = new Run(createRunConfig(73));
+    addItem(run.inventory, ITEMS, 'item.wrench', 1);
+    const wrench = run.inventory.stacks[0];
+    setQuick(run.inventory, wrench.id, 0);
+    run.step(press('quick1'));
+    expect(heldStack(run.inventory)?.id).toBe(wrench.id);
+  });
+
+  it('carries the whole bag through a save and back without losing anything', () => {
+    const run = new Run(createRunConfig(74));
+    addItem(run.inventory, ITEMS, 'item.schoolbag', 1);
+    addItem(run.inventory, ITEMS, 'item.pipe', 1);
+    addItem(run.inventory, ITEMS, 'item.crackers', 3);
+    addItem(run.inventory, ITEMS, 'item.bandage', 2);
+    const [pack, pipe, crackers] = run.inventory.stacks;
+    equip(run.inventory, ITEMS, pack.id, 'back');
+    equip(run.inventory, ITEMS, pipe.id, 'hand');
+    setQuick(run.inventory, crackers.id, 1);
+    pipe.durability = 7;
+    idleFor(run, 30);
+
+    const save = snapshotRun(run);
+    const round = JSON.parse(JSON.stringify(save)) as typeof save;
+    const restored = new Run(createRunConfig(74));
+    restoreRun(restored, round);
+
+    expect(restored.inventory.stacks).toEqual(run.inventory.stacks);
+    expect(restored.inventory.equipment).toEqual(run.inventory.equipment);
+    expect(restored.inventory.quick).toEqual(run.inventory.quick);
+    expect(heldStack(restored.inventory)?.durability).toBe(7);
+    expect(capacity(restored.inventory, ITEMS)).toBe(capacity(run.inventory, ITEMS));
+  });
+
   it('switches a flashlight on, burns it down and switches it off again', () => {
     const config = createRunConfig(8);
     const run = new Run(config);
-    run.inventory.stacks.push({
-      id: 5,
-      itemId: 'item.flashlight',
-      count: 1,
-      x: 0,
-      y: 0,
-      charge: 2,
-      durability: 0,
-    });
-    run.inventory.nextId = 6;
+    addItem(run.inventory, ITEMS, 'item.flashlight', 1);
+    run.inventory.stacks[0].charge = 2;
     run.step(press('flashlight'));
     expect(run.flashlightOn).toBe(true);
     expect(run.perception.inDark).toBe(false);
@@ -112,17 +160,8 @@ describe('a full loop', () => {
 
   it('throws an item, which lands somewhere else and makes noise there', () => {
     const run = new Run(createRunConfig(9));
-    run.inventory.stacks.push({
-      id: 3,
-      itemId: 'item.noisemaker',
-      count: 1,
-      x: 0,
-      y: 0,
-      charge: 0,
-      durability: 0,
-    });
-    run.inventory.nextId = 4;
-    setHand(run.inventory, 3);
+    addItem(run.inventory, ITEMS, 'item.noisemaker', 1);
+    equip(run.inventory, ITEMS, run.inventory.stacks[0].id, 'hand');
     const startX = run.player.x;
     run.step({ ...press('throwItem'), pointerX: startX + 400, pointerY: run.player.y });
     expect(run.projectiles.size).toBe(1);
@@ -143,8 +182,7 @@ describe('a full loop', () => {
     if (!exit) return;
     const beforeId = run.spec.id;
     const beforePalette = run.spec.paletteId;
-    run.inventory.stacks.push({ id: 1, itemId: 'item.soda', count: 1, x: 0, y: 0, charge: 0, durability: 0 });
-    run.inventory.nextId = 2;
+    addItem(run.inventory, ITEMS, 'item.soda', 1);
 
     standAt(run, exit.x, exit.y);
     run.step(press('interact'));

@@ -31,6 +31,7 @@ export type HintKey =
   | 'full'
   | 'heavy'
   | 'nothing'
+  | 'spilled'
   | 'exhausted'
   | 'darkness'
   | 'listen';
@@ -105,6 +106,31 @@ export interface GroundItem {
   readonly index: number;
 }
 
+/**
+ * A stat change spread over time — the shape a side effect takes. Bad food and
+ * anything that promises to help now writes one of these.
+ */
+export interface LastingEffect {
+  ticksLeft: number;
+  /** Total change, delivered evenly across `seconds`. */
+  seconds: number;
+  health: number;
+  hunger: number;
+  thirst: number;
+  stamina: number;
+  sanity: number;
+}
+
+/** A thrown thing that keeps calling attention to itself where it landed. */
+export interface Beacon {
+  x: number;
+  y: number;
+  radius: number;
+  ticksLeft: number;
+  intervalTicks: number;
+  sinceLast: number;
+}
+
 export interface Projectile {
   itemId: string;
   x: number;
@@ -134,7 +160,10 @@ export interface RunWorld {
   readonly level: LevelStream;
   readonly noise: NoiseField;
   readonly projectiles: ComponentStore<Projectile>;
+  readonly beacons: ComponentStore<Beacon>;
   readonly creatures: ComponentStore<CreatureState>;
+  /** Effects still being delivered, from something swallowed a while ago. */
+  readonly lasting: LastingEffect[];
   /** Gameplay randomness. Its state is part of the save, so a reload replays. */
   readonly rng: RandomStream;
   /** Chunks whose creature spawns have already been turned into creatures. */

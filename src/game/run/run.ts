@@ -18,8 +18,10 @@ import { LevelStream, TILE, isSolidTile } from '@game/level';
 import type { LevelSpec, PropSpawn } from '@game/level';
 import { createPlayer, stepPlayer } from '@game/player';
 import type { PlayerState } from '@game/player';
-import { createInventory } from '@game/inventory';
+import { createInventory, passives, stepWear, tickWear } from '@game/inventory';
 import type { InventoryState } from '@game/inventory';
+import { NEUTRAL_PASSIVE, isLightSource } from '@game/items';
+import type { LightDef, PassiveDef } from '@game/items';
 import { canSprint, createStats, isDead, stepStats } from '@game/stats';
 import type { StatsState } from '@game/stats';
 import type { CreatureState } from '@game/ai';
@@ -27,16 +29,18 @@ import { NoiseField } from '@systems/sound';
 import type { RunConfig } from './config';
 import { handleActions, nearestInteractable } from './actions';
 import { stepCreatures, syncCreatures } from './creatures';
-import { stepLight, stepProjectiles, stepSearch } from './effects';
+import { stepBeacons, stepLasting, stepLight, stepProjectiles, stepSearch } from './effects';
 import { applyContactDamage, stepMelee } from './melee';
 import { perceive } from './perception';
 import { PropIndex, groundItemsNear } from './prop-index';
 import type { Perception } from './perception';
 import { createCombatState } from './world-access';
 import type {
+  Beacon,
   CombatState,
   GroundItem,
   HintKey,
+  LastingEffect,
   Projectile,
   RunWorld,
   SearchProgress,
@@ -52,7 +56,9 @@ export class Run implements RunWorld {
   readonly inventory: InventoryState;
   readonly noise: NoiseField;
   readonly projectiles: ComponentStore<Projectile>;
+  readonly beacons: ComponentStore<Beacon>;
   readonly creatures: ComponentStore<CreatureState>;
+  readonly lasting: LastingEffect[] = [];
   readonly rng: RandomStream;
   readonly spawnedChunks = new Set<string>();
   readonly combat: CombatState = createCombatState();
@@ -71,6 +77,8 @@ export class Run implements RunWorld {
   /** Where the thing the hint is about is standing, for an in-world prompt. */
   hintTarget: { x: number; y: number } | null = null;
   perception: Perception;
+  /** Everything worn, folded into one set of multipliers. Recomputed per tick. */
+  passives: PassiveDef = NEUTRAL_PASSIVE;
 
   /** Public because the save file owns them; nothing else should write them. */
   lastNoiseTick = 0;
@@ -82,15 +90,12 @@ export class Run implements RunWorld {
     this.config = config;
     this.creatures = this.world.store<CreatureState>('creature');
     this.projectiles = this.world.store<Projectile>('projectile');
+    this.beacons = this.world.store<Beacon>('beacon');
     this.rng = createRandom(config.seed);
     this.propIndex = new PropIndex(config.propCellSize);
     this.noise = new NoiseField(config.sound);
     this.stats = createStats(config.stats);
-    this.inventory = createInventory(
-      config.inventory.width,
-      config.inventory.height,
-      config.inventory.capacity,
-    );
+    this.inventory = createInventory(config.inventory);
     this.level = this.createLevel(0);
     const spawn = this.spawnPoint();
     this.player = createPlayer(spawn.x, spawn.y);
@@ -133,6 +138,8 @@ export class Run implements RunWorld {
 
     this.noise.prune(this.tick);
     this.perception = this.perceiveNow();
+    this.passives = passives(this.inventory, this.config.content.items);
+    tickWear(this.inventory, this.config.content.items, this.config.stepSeconds);
 
     stepPlayer(this.player, {
       input,
@@ -143,6 +150,7 @@ export class Run implements RunWorld {
       isSolid: this.isSolid,
       isWet: this.isWet,
       canSprint: canSprint(this.stats),
+      speedFactor: this.passives.speedFactor,
     });
     this.distance += this.player.moved;
     this.emitFootstep();
@@ -152,6 +160,8 @@ export class Run implements RunWorld {
     stepCreatures(this);
     stepSearch(this);
     stepProjectiles(this);
+    stepBeacons(this);
+    stepLasting(this);
     this.flashlightCharge = stepLight(this);
     // Swing first, then take the hit: a committed swing lands even if it is the
     // last thing the player does.
@@ -172,6 +182,8 @@ export class Run implements RunWorld {
         inDark: this.perception.inDark,
         inSilence: this.perception.inSilence,
         creaturePressure: this.perception.creaturePressure,
+        staminaRegenFactor: this.passives.staminaRegenFactor,
+        nerveFactor: this.passives.nerveFactor,
       },
       this.config.stats,
     );
@@ -198,6 +210,7 @@ export class Run implements RunWorld {
     this.player.vy = 0;
     this.creatures.clear();
     this.projectiles.clear();
+    this.beacons.clear();
     this.world.clear();
     this.search = null;
     this.spawnedChunks.clear();
@@ -205,6 +218,19 @@ export class Run implements RunWorld {
     this.level.prime(spawn.x, spawn.y);
     syncCreatures(this);
     this.rebuildPropIndex();
+  }
+
+  /**
+   * The shape of the light actually burning right now. A head torch throws a
+   * wider, shorter cone than a hand torch and a glow stick throws none at all —
+   * the difference is in the catalogue, not here.
+   */
+  get lightShape(): LightDef | null {
+    for (const stack of this.inventory.stacks) {
+      const def = this.config.content.items[stack.itemId];
+      if (def && isLightSource(def) && stack.charge > 0) return def.light;
+    }
+    return null;
   }
 
   /** Seconds the run has lasted, from the only clock the simulation has. */
@@ -239,8 +265,10 @@ export class Run implements RunWorld {
         : this.player.stance === 'crouch'
           ? noise.crouch
           : noise.walk;
-    const wet = this.player.onWet ? noise.wetFactor : 1;
-    if (radius > 0) this.emitNoise(this.player.x, this.player.y, radius * wet, 'step');
+    const wet = this.player.onWet ? noise.wetFactor * this.passives.wetNoiseFactor : 1;
+    stepWear(this.inventory, this.config.content.items);
+    const worn = radius * wet * this.passives.noiseFactor;
+    if (worn > 0) this.emitNoise(this.player.x, this.player.y, worn, 'step');
   }
 
   private updateHint(input: InputFrame): void {

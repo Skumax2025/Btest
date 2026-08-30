@@ -64,6 +64,51 @@ export const resolveWeapon = (
   return { stats: melee, broken: false, damage: melee.damage * factor };
 };
 
+/** One worn piece, reduced to what it takes out of a hit. */
+export interface ArmorPiece {
+  readonly flat: number;
+  readonly share: number;
+}
+
+/** Ceilings on protection, so a full set can never make a player untouchable. */
+export interface ArmorLimits {
+  /** Largest share of a hit all the pieces together may remove. */
+  readonly maxShare: number;
+  /** Smallest share of a hit that always gets through. */
+  readonly minDamageFraction: number;
+}
+
+export interface AbsorbResult {
+  /** Damage that reaches the body. */
+  readonly damage: number;
+  /** Damage the armour took instead, which is what wears it down. */
+  readonly absorbed: number;
+}
+
+/**
+ * Shares come off first and are capped together; flat points come off what is
+ * left. `minDamageFraction` is the promise that armour slows a death down and
+ * never prevents one.
+ */
+export const absorbDamage = (
+  pieces: readonly ArmorPiece[],
+  damage: number,
+  limits: ArmorLimits,
+): AbsorbResult => {
+  if (damage <= 0) return { damage: 0, absorbed: 0 };
+  let share = 0;
+  let flat = 0;
+  for (const piece of pieces) {
+    share += Math.max(0, piece.share);
+    flat += Math.max(0, piece.flat);
+  }
+  share = clamp(share, 0, clamp(limits.maxShare, 0, 1));
+  const afterShare = damage * (1 - share);
+  const floor = damage * clamp(limits.minDamageFraction, 0, 1);
+  const taken = Math.max(floor, afterShare - flat);
+  return { damage: taken, absorbed: damage - taken };
+};
+
 export interface Combatant {
   readonly id: number;
   readonly x: number;
@@ -147,3 +192,12 @@ export const rollBlock = (input: BlockInput, rng: RandomStream): boolean =>
 /** Durability left after a swing; a weapon at zero becomes bare hands. */
 export const wearAfterSwing = (stats: WeaponStats, durability: number): number =>
   stats.maxDurability > 0 ? Math.max(0, durability - stats.wearPerHit) : durability;
+
+/**
+ * A block is offered by whichever hand is better at it, so a secondary held for
+ * nothing but its guard is a real choice rather than a spare weapon.
+ */
+export const bestBlock = (
+  primary: WeaponStats,
+  secondary: WeaponStats | null,
+): WeaponStats => (secondary && secondary.blockChance > primary.blockChance ? secondary : primary);

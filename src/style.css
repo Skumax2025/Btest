@@ -255,7 +255,7 @@ body {
 .hud-hand-meta { color: var(--hud-dim); font-size: 13px; margin-top: 10px; min-height: 18px; }
 
 .hud-hand-wear { margin-top: 14px; }
-.hud-hand-wear::before { content: 'CONDITION'; display: block; margin-bottom: 5px; color: var(--hud-dim); font-size: 11px; letter-spacing: 0.14em; }
+.hud-hand-wear-label { display: block; margin-bottom: 5px; color: var(--hud-dim); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; }
 .hud-wear-track { height: 10px; background: rgba(239, 227, 187, 0.12); }
 .hud-wear-fill { height: 100%; background: #c2a866; transition: width 120ms linear; }
 
@@ -335,75 +335,222 @@ body {
   font-size: 11px;
   color: var(--hud-dim);
   letter-spacing: 0.2em;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
 }
 
-.bag-grid {
+.bag-columns {
+  display: flex;
+  gap: 26px;
+  align-items: flex-start;
+}
+
+.bag-section {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  color: var(--hud-dim);
+  margin-bottom: 6px;
+  display: block;
+}
+
+.bag-section-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.bag-cells {
+  font-size: 11px;
+  color: var(--hud-dim);
+}
+
+/* The silhouette: head at the top, feet at the bottom, hands to the sides. */
+.bag-slots {
+  display: grid;
+  grid-template-columns: repeat(3, 84px);
+  grid-template-areas:
+    ".      head   ."
+    ".      face   ."
+    "hand   body   offhand"
+    "back   vest   ."
+    ".      legs   ."
+    ".      feet   .";
+  gap: 6px;
+}
+
+.bag-slot { grid-area: var(--slot-area); }
+.bag-slot--head { --slot-area: head; }
+.bag-slot--face { --slot-area: face; }
+.bag-slot--body { --slot-area: body; }
+.bag-slot--vest { --slot-area: vest; }
+.bag-slot--legs { --slot-area: legs; }
+.bag-slot--feet { --slot-area: feet; }
+.bag-slot--back { --slot-area: back; }
+.bag-slot--hand { --slot-area: hand; }
+.bag-slot--offhand { --slot-area: offhand; }
+
+.bag-slot,
+.bag-quick,
+.bag-cell {
   position: relative;
-  background-image:
-    linear-gradient(to right, rgba(239, 227, 187, 0.12) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(239, 227, 187, 0.12) 1px, transparent 1px);
-  background-color: rgba(0, 0, 0, 0.35);
-  touch-action: none;
+  border: 1px solid rgba(239, 227, 187, 0.16);
+  background: rgba(0, 0, 0, 0.35);
+  min-height: 52px;
+}
+
+.bag-slot-label {
+  position: absolute;
+  top: 3px;
+  left: 5px;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: rgba(239, 227, 187, 0.35);
+  pointer-events: none;
+}
+
+.bag-slot-body,
+.bag-quick-body {
+  position: absolute;
+  inset: 0;
+}
+
+.bag-slot--allowed { border-color: rgba(160, 220, 160, 0.85); background: rgba(120, 200, 120, 0.16); }
+.bag-slot--blocked { border-color: rgba(210, 110, 90, 0.85); background: rgba(200, 90, 70, 0.16); }
+
+.bag-grid {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+
+.bag-belt {
+  display: flex;
+  gap: 4px;
+}
+
+.bag-quick { width: 52px; }
+
+.bag-quick-key {
+  position: absolute;
+  top: 2px;
+  left: 4px;
+  font-size: 9px;
+  color: rgba(239, 227, 187, 0.4);
+  pointer-events: none;
+  z-index: 1;
 }
 
 .bag-item {
   position: absolute;
+  inset: 2px;
   background: #4a4227;
   border: 1px solid #7d7047;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 8px;
-  font-size: 12px;
+  padding: 4px;
+  font-size: 10px;
   line-height: 1.1;
   cursor: grab;
   overflow: hidden;
 }
 
-.bag-item-tooltip {
-  position: absolute;
-  left: calc(100% + 12px);
-  top: 0;
-  z-index: 20;
-  display: none;
-  width: 230px;
-  padding: 12px;
-  white-space: pre-line;
-  background: #0d0b08;
-  border: 1px solid rgba(239, 227, 187, 0.35);
-  color: var(--hud-text);
-  line-height: 1.5;
-  pointer-events: none;
-  box-shadow: 0 12px 30px rgba(0,0,0,0.5);
-}
-
-.bag-item:hover,
-.bag-item:focus-visible { z-index: 10; }
-.bag-item:hover .bag-item-tooltip,
-.bag-item:focus-visible .bag-item-tooltip { display: block; }
-
-.bag-item--held {
-  border-color: #efe3bb;
-  box-shadow: inset 0 0 0 1px rgba(239, 227, 187, 0.4);
-}
+.bag-item--worn { border-color: #a08a4e; }
+.bag-item--failing { border-color: #d2725c; }
 
 .bag-item--dragging {
-  opacity: 0.75;
+  opacity: 0.6;
   cursor: grabbing;
-  z-index: 2;
 }
 
 .bag-item-count {
   align-self: flex-end;
-  color: var(--hud-dim);
+  color: var(--hud-text);
+}
+
+/* Wear is always visible: a bar on the icon, not a number in a panel. */
+.bag-item-wear {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.bag-item-wear-fill {
+  height: 100%;
+  background: #b8a066;
+}
+
+.bag-item--worn .bag-item-wear-fill { background: #c9a24a; }
+.bag-item--failing .bag-item-wear-fill { background: #d2725c; }
+
+.bag-tooltip,
+.bag-menu {
+  position: absolute;
+  z-index: 30;
+  background: #0d0b08;
+  border: 1px solid rgba(239, 227, 187, 0.35);
+  color: var(--hud-text);
+  font-size: 12px;
+  line-height: 1.5;
+  box-shadow: 0 12px 30px rgba(0,0,0,0.5);
+}
+
+.bag-tooltip {
+  width: 240px;
+  padding: 10px;
+  white-space: pre-line;
+  pointer-events: none;
+}
+
+.bag-menu {
+  display: flex;
+  flex-direction: column;
+  min-width: 160px;
+  padding: 4px;
+}
+
+.bag-menu-item {
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  padding: 5px 8px;
+  cursor: pointer;
+}
+
+.bag-menu-item:hover { background: rgba(239, 227, 187, 0.12); }
+
+.bag-confirm[hidden] { display: none; }
+
+.bag-confirm {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 8px 10px;
+  border: 1px solid rgba(210, 114, 92, 0.6);
+  background: rgba(120, 50, 40, 0.25);
+  font-size: 12px;
+}
+
+.bag-confirm-button {
+  background: none;
+  border: 1px solid rgba(239, 227, 187, 0.35);
+  color: inherit;
+  font: inherit;
+  padding: 3px 12px;
+  cursor: pointer;
 }
 
 .bag-help {
-  margin-top: 8px;
+  margin-top: 12px;
   font-size: 10px;
   color: var(--hud-dim);
-  max-width: 380px;
+  max-width: 520px;
+  line-height: 1.6;
 }
 
 .summary {
@@ -795,32 +942,6 @@ body {
 
 .hud--worn .hud-wear-fill {
   background: #d2725c;
-}
-
-.bag-item {
-  background-image:
-    linear-gradient(to right, rgba(0, 0, 0, 0.35) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(0, 0, 0, 0.35) 1px, transparent 1px);
-}
-
-.bag-ghost {
-  position: absolute;
-  pointer-events: none;
-  z-index: 1;
-  border: 1px solid;
-  background-image:
-    linear-gradient(to right, rgba(255, 255, 255, 0.14) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(255, 255, 255, 0.14) 1px, transparent 1px);
-}
-
-.bag-ghost--allowed {
-  border-color: rgba(160, 220, 160, 0.8);
-  background-color: rgba(120, 200, 120, 0.16);
-}
-
-.bag-ghost--blocked {
-  border-color: rgba(210, 110, 90, 0.8);
-  background-color: rgba(200, 90, 70, 0.16);
 }
 
 /* The guidebook scrolls its text, not its frame: the way out stays put. */

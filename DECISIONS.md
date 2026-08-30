@@ -303,3 +303,54 @@ I went, so the order is roughly chronological.
   rebind from E to K propagating to every hint, volume and brightness applying
   live, a run wipe leaving language, keys and volume intact, an automatic fight
   against three at once, and a sweep of every screen for untranslated keys.
+
+## Slots, cells and wear (G6)
+
+- **Weight is gone; cells replaced it.** A weight budget and a footprint grid
+  were two limits doing one job, and neither produced an interesting decision —
+  the answer was always "drop the pipe". Four cells with nothing on your back is
+  one limit, and it is about variety rather than mass.
+- **One stack is one cell, whatever the count.** It makes a full stack of
+  crackers strictly better than a partial one, which is the point: it rewards
+  consolidating, and it makes the number on the icon worth reading.
+- **Quick slots do not cost bag cells.** The belt is a separate place, not a
+  reserved corner of the bag. Charging cells for it would have made the number
+  keys a trap rather than a convenience.
+- **One condition field, nine meanings, all of them data.** `DurabilityDef` says
+  what wears an item down (time, footsteps, damage, uses) and what zero does
+  (`break`, `destroy`, `keep`). Nothing in L2 branches on item category; the
+  categories live entirely in the catalogue.
+- **`wornPassive` interpolates against `passive`.** Rather than thresholds, every
+  worn effect is two blocks and a lerp by condition, so "boots get louder as they
+  go" is two numbers instead of a rule.
+- **Weapon condition still belongs to `WeaponStats`.** The combat module owns
+  `maxDurability` and `wearPerHit` and is tested without an inventory; the
+  catalogue derives the item's `DurabilityDef` from the same block so the two can
+  never disagree.
+- **Merged stacks take the worse condition.** Dropping a fresh tin onto an old
+  one averaging them upward would have been a free repair; taking the minimum is
+  the honest reading and keeps stacking usable.
+- **Taking a pack off into the bag it was holding open fails.** It is not a
+  special case — capacity is recomputed and the item simply does not fit. The
+  player drops it instead, which is the true answer.
+- **Overflow drops newest first.** The thing picked up last is the thing least
+  planned for. The preview runs the same code on a clone of the state, so the
+  warning and the outcome cannot drift apart.
+- **Armour caps are ceilings, not curves.** A full set removes at most 55% of a
+  blow and at least 20% always lands. Armour has to make a mauling survivable
+  without making the creatures ignorable.
+- **Blocks come from whichever hand is better at it.** That is what makes an off
+  hand a decision rather than a spare weapon rack, and it is why the cafeteria
+  tray exists at all.
+- **The bag does not pause the world.** Sorting is a risk, which is the only
+  reason sorting is interesting.
+- **Splitting always halves.** A number picker is three more widgets for a
+  decision nobody agonises over.
+- **Consumables and throwables can be held.** Not because it is needed — food is
+  eaten from the bag — but because throwing means throwing what is in your hand,
+  and a can that cannot be held could not be thrown.
+- **Creatures drop loot from their own table.** A drifter was a person and has
+  their pockets; a hound never was. It is the same `rollLoot` the containers use.
+- **The light cone comes from the item.** A head torch is wider and shorter than
+  a hand torch and a glow stick lights all around; the view overrides the three
+  lighting numbers from the burning item rather than owning a lamp type.

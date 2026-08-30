@@ -10,11 +10,13 @@
  * view and the audio read it.
  */
 
-import { heldStack } from '@game/inventory';
+import { armorPieces, equippedStack, heldStack, wearStack } from '@game/inventory';
 import type { InventoryStack } from '@game/inventory';
 import type { ItemDef } from '@game/items';
 import {
+  absorbDamage,
   attackVeto,
+  bestBlock,
   resolveWeapon,
   rollBlock,
   swingCost,
@@ -59,6 +61,37 @@ const heldWeapon = (world: RunWorld, hands: WeaponStats): HeldWeapon => {
   const def = stack ? world.config.content.items[stack.itemId] : undefined;
   const resolved = resolveWeapon(def?.melee, stack?.durability ?? 0, hands);
   return { stack, def, stats: resolved.stats, damage: resolved.damage, broken: resolved.broken };
+};
+
+/**
+ * The guard the player is actually holding up. A secondary that blocks better
+ * than the weapon does is the whole reason to carry one.
+ */
+const guardStats = (world: RunWorld, primary: WeaponStats, hands: WeaponStats): WeaponStats => {
+  const stack = equippedStack(world.inventory, 'offhand');
+  const def = stack ? world.config.content.items[stack.itemId] : undefined;
+  if (!stack || !def?.melee) return primary;
+  return bestBlock(primary, resolveWeapon(def.melee, stack.durability, hands).stats);
+};
+
+/**
+ * Worn armour steps in front of the hit and takes the wear for it. A piece that
+ * runs out of condition here is gone — that is what zero means for armour.
+ */
+const throughArmor = (world: RunWorld, damage: number): number => {
+  const catalog = world.config.content.items;
+  const pieces = armorPieces(world.inventory, catalog);
+  if (pieces.length === 0) return damage;
+  const result = absorbDamage(pieces, damage, world.config.combat.armor);
+  if (result.absorbed <= 0) return result.damage;
+  const share = result.absorbed / pieces.length;
+  for (const piece of pieces) {
+    const stack = world.inventory.stacks.find((candidate) => candidate.id === piece.id);
+    const def = stack ? catalog[stack.itemId] : undefined;
+    const perDamage = def?.durability?.perDamage ?? 0;
+    if (perDamage > 0) wearStack(world.inventory, catalog, piece.id, share * perDamage);
+  }
+  return result.damage;
 };
 
 /**
@@ -181,6 +214,7 @@ export const applyContactDamage = (world: RunWorld): void => {
   const hands = handsStats(world);
   if (!hands) return;
   const weapon = heldWeapon(world, hands);
+  const guard = guardStats(world, weapon.stats, hands);
   let blockedThisTick = false;
 
   for (const creature of world.creatures.values()) {
@@ -197,24 +231,20 @@ export const applyContactDamage = (world: RunWorld): void => {
         {
           cooldown: world.combat.blockCooldown,
           stamina: world.stats.stamina,
-          chance: weapon.stats.blockChance,
-          staminaCost: weapon.stats.blockStaminaCost,
+          chance: guard.blockChance,
+          staminaCost: guard.blockStaminaCost,
         },
         world.rng,
       )
     ) {
       blockedThisTick = true;
-      world.combat.blockCooldown = weapon.stats.blockCooldownTicks;
-      world.stats.stamina = Math.max(0, world.stats.stamina - weapon.stats.blockStaminaCost);
+      world.combat.blockCooldown = guard.blockCooldownTicks;
+      world.stats.stamina = Math.max(0, world.stats.stamina - guard.blockStaminaCost);
       note(world, 'blockedByYou');
       continue;
     }
 
-    applyDamage(
-      world.stats,
-      def.killsOnContact ? world.config.stats.maxHealth : def.damage,
-      'injury',
-      world.config.stats,
-    );
+    const raw = def.killsOnContact ? world.config.stats.maxHealth : def.damage;
+    applyDamage(world.stats, throughArmor(world, raw), 'injury', world.config.stats);
   }
 };

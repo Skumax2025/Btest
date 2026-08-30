@@ -13,13 +13,13 @@ import type { InventoryState } from '@game/inventory';
 import type { WorldSnapshot } from '@core/world';
 import { chunkKey } from '@game/level';
 import type { Run, RunPhase } from './run';
-import type { CombatState, SearchProgress } from './world-access';
+import type { CombatState, LastingEffect, SearchProgress } from './world-access';
 
 /**
  * Bumped whenever the shape changes. A mismatch throws the old run away and
  * starts a new one — settings live under their own key and are untouched.
  */
-export const SAVE_VERSION = 5;
+export const SAVE_VERSION = 6;
 
 export interface RunSave {
   readonly seed: number;
@@ -36,6 +36,8 @@ export interface RunSave {
   readonly player: PlayerState;
   readonly stats: StatsState;
   readonly inventory: InventoryState;
+  /** Effects still being delivered — a bad tin outlives the tin. */
+  readonly lasting: readonly LastingEffect[];
   /** Entities and their components, exactly as the store holds them. */
   readonly world: WorldSnapshot;
   readonly search: SearchProgress | null;
@@ -59,6 +61,7 @@ export const snapshotRun = (run: Run): RunSave => ({
   player: clone(run.player),
   stats: clone(run.stats),
   inventory: clone(run.inventory),
+  lasting: clone(run.lasting),
   world: clone(run.world.serialize()),
   search: run.search ? clone(run.search) : null,
   level: clone(run.level.save()),
@@ -82,7 +85,10 @@ export const restoreRun = (run: Run, save: RunSave): void => {
   const inventory = clone(save.inventory);
   run.inventory.stacks = inventory.stacks;
   run.inventory.nextId = inventory.nextId;
-  run.inventory.hand = inventory.hand;
+  run.inventory.equipment = inventory.equipment;
+  run.inventory.quick = inventory.quick;
+  run.lasting.length = 0;
+  run.lasting.push(...clone(save.lasting ?? []));
 
   run.world.restore(clone(save.world));
 

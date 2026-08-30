@@ -14,6 +14,7 @@ import { CONTAINERS, LOOT_TABLES } from './loot-tables';
 import {
   ACTIONS,
   AI,
+  ARMOR,
   COMBAT,
   GEOMETRY,
   INTERACTION,
@@ -48,7 +49,7 @@ export const createRunConfig = (seed: number): RunConfig => ({
   sound: SOUND,
   noise: NOISE,
   interaction: INTERACTION,
-  combat: COMBAT,
+  combat: { ...COMBAT, armor: ARMOR },
   ai: AI,
   actions: ACTIONS,
   stepSeconds: SIM.stepMs / 1000,

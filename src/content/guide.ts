@@ -8,7 +8,7 @@
  */
 
 import type { TextParams } from '@core/i18n';
-import { GEOMETRY, INVENTORY, LIGHTING, NOISE, STATS, WEAPONS } from './tuning';
+import { ARMOR, FRESHNESS, GEOMETRY, INVENTORY, LIGHTING, NOISE, STATS, WEAPONS } from './tuning';
 import { ITEMS } from './items';
 import { SIM } from './tuning';
 
@@ -44,9 +44,17 @@ const statParams = (): TextParams => ({
   silenceSeconds: seconds(NOISE.silenceTicks),
 });
 
+/** Seconds of burn time one unit of an item pours into a lamp, read from L3. */
+const chargeOf = (id: string): number => {
+  for (const effect of ITEMS[id]?.use?.effects ?? []) {
+    if (effect.kind === 'charge') return effect.seconds;
+  }
+  return 0;
+};
+
 const lightParams = (): TextParams => ({
   torchMinutes: minutes(ITEMS['item.flashlight'].charge, 1),
-  batteryMinutes: minutes(ITEMS['item.battery'].use?.charge ?? 0, 1),
+  batteryMinutes: minutes(chargeOf('item.battery'), 1),
   litTiles: tiles(LIGHTING.visionRadius),
   darkTiles: tiles(LIGHTING.darkVisionRadius),
 });
@@ -68,9 +76,13 @@ const combatParams = (): TextParams => ({
 });
 
 const bagParams = (): TextParams => ({
-  width: INVENTORY.width,
-  height: INVENTORY.height,
-  capacity: INVENTORY.capacity,
+  baseCells: INVENTORY.baseCells,
+  quickSlots: INVENTORY.quickSlots,
+  packCells: ITEMS['item.schoolbag'].carry?.cells ?? 0,
+  waterMinutes: minutes(FRESHNESS.scale, ITEMS['item.water'].durability?.perSecond ?? 1),
+  crackerMinutes: minutes(FRESHNESS.scale, ITEMS['item.crackers'].durability?.perSecond ?? 1),
+  armorPercent: Math.round(ARMOR.maxShare * 100),
+  throughPercent: Math.round(ARMOR.minDamageFraction * 100),
 });
 
 const paragraphs = (section: string, count: number): string[] =>
@@ -99,6 +111,8 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
       'throwItem',
       'drop',
       'inventory',
+      'quick1',
+      'swapHands',
       'flashlight',
       'guide',
       'pause',

@@ -133,17 +133,23 @@ export const EN_GUIDE: Record<GuideKey, LocaleString> = {
 
   'guide.items.title': '7. Things',
   'guide.items.p1':
-    'The bag is a {width} by {height} grid. Things take up different numbers of cells: a pipe ' +
-    'lies in a long strip, a battery is one square. Identical things stack.',
+    'There is no weight. There are cells. With nothing on your back you have {baseCells}, ' +
+    'and that is the whole arithmetic of carrying. One thing is one cell; a stack of any size ' +
+    'is also one cell. A pack adds {packCells}; trouser and coat pockets add one or two.',
   'guide.items.p2':
-    'There is a weight limit: {capacity}. You hit it before you run out of room. A pipe is ' +
-    'heavy. Decide what you need more — to hit things, or to get there.',
+    'Nine slots: head, face, body, vest, legs, feet, back and two hands. The belt holds ' +
+    '{quickSlots} more under the number keys — you eat and change weapons from there without ' +
+    'opening the bag. The world does not stop while the bag is open.',
   'guide.items.p3':
-    'The hand slot is separate. You eat, drink, light, swing and throw out of it. Right click ' +
-    'an item in the bag to put it in hand. Empty hands means no fighting at all.',
+    'Everything has a condition, and it means something different each time. A worn weapon ' +
+    'hits softer and at zero swings like bare hands. Armour never takes more than {armorPercent} ' +
+    'percent out of a blow and at least {throughPercent} always reaches you; at zero it falls ' +
+    'apart. Worn clothes get loud and their pockets tear. A pack ages slowly and never dies.',
   'guide.items.p4':
-    'Crates are not searched instantly. What is inside spills onto the floor and has to be ' +
-    'picked up one piece at a time. Often there is nothing in them. That is normal too.',
+    'For food and water the condition is freshness, and it drops on its own. Water keeps ' +
+    'for about {waterMinutes} minutes, crackers about {crackerMinutes}. Spoiled supplies can ' +
+    'still be eaten: they give less, then take the difference out of your health or your nerve. ' +
+    'Crates are not searched instantly, and often hold nothing at all.',
 
   'guide.controls.title': '8. Controls',
   'guide.controls.p1': 'Keys can be changed in the settings. What is shown here is current.',

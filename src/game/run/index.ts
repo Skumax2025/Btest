@@ -11,23 +11,31 @@
 
 export { Run } from './run';
 export type { RunPhase } from './run';
-export { nearestInteractable } from './actions';
+export {
+  defaultSlotFor,
+  dropStack,
+  equipStack,
+  nearestInteractable,
+  unequipStack,
+  useStack,
+} from './actions';
 export type { Interactable } from './actions';
 export { SAVE_VERSION, restoreRun, snapshotRun } from './save';
 export type { RunSave } from './save';
 export type {
   ActionNames,
   InteractionConfig,
-  InventoryConfig,
   NoiseConfig,
   RunConfig,
   RunContent,
 } from './config';
 export type {
+  Beacon,
   CombatEvent,
   CombatState,
   GroundItem,
   HintKey,
+  LastingEffect,
   Projectile,
   RunWorld,
   SearchProgress,

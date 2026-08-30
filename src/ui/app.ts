@@ -17,7 +17,16 @@ import { Localizer } from '@core/i18n';
 import { createRandom } from '@core/rng';
 import { bestEffortStorage, clearEnvelope, loadEnvelope, saveEnvelope } from '@core/serialize';
 import type { StorageLike } from '@core/serialize';
-import { Run, SAVE_VERSION, restoreRun, snapshotRun } from '@game/run';
+import {
+  Run,
+  SAVE_VERSION,
+  dropStack,
+  equipStack,
+  restoreRun,
+  snapshotRun,
+  unequipStack,
+  useStack,
+} from '@game/run';
 import type { RunSave } from '@game/run';
 import { ITEMS } from '@content/items';
 import { DEFAULT_LOCALE, LOCALES } from '@content/locales';
@@ -129,8 +138,19 @@ export class App {
       this.overlay,
       this.run.inventory,
       ITEMS,
-      { cellPixels: INVENTORY.cellPixels },
+      {
+        cellPixels: INVENTORY.cellPixels,
+        columns: INVENTORY.columns,
+        wornFraction: INVENTORY.wornFraction,
+        failingFraction: INVENTORY.failingFraction,
+      },
       this.ui,
+      {
+        use: (id) => useStack(this.run, id),
+        equip: (id, slot) => equipStack(this.run, id, slot),
+        unequip: (id) => unequipStack(this.run, id),
+        drop: (id) => dropStack(this.run, id),
+      },
     );
     this.menu = new MenuScreen(this.overlay, this.ui, {
       onContinue: () => this.enterRun(),
@@ -377,7 +397,7 @@ export class App {
     }
     const name = this.localizer.t(def.nameKey);
     const desc = this.localizer.t(def.descriptionKey);
-    this.worldTooltip.textContent = `${name}\n${desc}\n${this.localizer.t('inventory.tooltipWeight', { value: def.weight.toFixed(1) })}`;
+    this.worldTooltip.textContent = `${name}\n${desc}`;
     this.worldTooltip.style.left = `${pointer.x + 18}px`;
     this.worldTooltip.style.top = `${pointer.y + 18}px`;
     this.worldTooltip.hidden = false;
