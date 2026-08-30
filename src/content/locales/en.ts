@@ -27,6 +27,7 @@ export const EN: Record<TextKey, LocaleString> = {
   'menu.subtitle': 'You are already inside. All that is left is how long.',
   'menu.continue': 'Continue run',
   'menu.newRun': 'New run',
+  'menu.sandbox': 'Test level',
   'menu.guide': 'Guidebook',
   'menu.settings': 'Settings',
   'menu.resume': 'Back to the run',

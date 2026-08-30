@@ -73,3 +73,23 @@ export const LEVELS: readonly LevelSpec[] = [
     startRoomId: null,
   },
 ];
+
+/**
+ * The test level: Level 0's geometry with everything turned up. Lamps almost
+ * always work so the start reads clearly, containers are common enough to search
+ * several in a row, and the corners are still dark — a workshop has to be able to
+ * show the dark as well as the light.
+ */
+export const SANDBOX_LEVEL: LevelSpec = {
+  ...LEVELS[0],
+  id: 'sandbox',
+  title: 'Sandbox',
+  rooms: [...LEVEL0_ROOMS, LEVEL0_START_ROOM],
+  lampChance: 0.95,
+  lampWorkingChance: 0.85,
+  lampFlickerChance: 0.2,
+  containerChance: 0.55,
+  creatureChance: 0.18,
+  ambientLight: 0.22,
+  exitStride: 2,
+};

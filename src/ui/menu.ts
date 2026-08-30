@@ -12,6 +12,7 @@ import { el, setText } from './dom';
 export interface MenuHandlers {
   readonly onContinue: () => void;
   readonly onNewRun: () => void;
+  readonly onSandbox: () => void;
   readonly onGuide: () => void;
   readonly onSettings: () => void;
   readonly onResume: () => void;
@@ -28,6 +29,7 @@ export class MenuScreen {
   private readonly continueItem;
   private readonly resumeItem;
   private readonly toMenuItem;
+  private readonly sandboxItem;
   private mode: MenuMode = 'main';
 
   constructor(
@@ -46,6 +48,7 @@ export class MenuScreen {
     this.resumeItem = this.list.add(ui, 'menu.resume', handlers.onResume);
     this.continueItem = this.list.add(ui, 'menu.continue', handlers.onContinue);
     this.list.add(ui, 'menu.newRun', handlers.onNewRun);
+    this.sandboxItem = this.list.add(ui, 'menu.sandbox', handlers.onSandbox);
     this.list.add(ui, 'menu.guide', handlers.onGuide);
     this.list.add(ui, 'menu.settings', handlers.onSettings);
     this.toMenuItem = this.list.add(ui, 'menu.toMenu', handlers.onToMenu);
@@ -62,6 +65,7 @@ export class MenuScreen {
     this.resumeItem.element.hidden = !paused;
     this.toMenuItem.element.hidden = !paused;
     this.continueItem.element.hidden = paused;
+    this.sandboxItem.element.hidden = paused;
     this.list.setEnabled(this.resumeItem, paused);
     this.list.setEnabled(this.toMenuItem, paused);
     this.list.setEnabled(this.continueItem, !paused && canContinue);

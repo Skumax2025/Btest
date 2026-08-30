@@ -18,7 +18,7 @@ import { LevelStream, TILE, isSolidTile } from '@game/level';
 import type { LevelSpec, PropSpawn } from '@game/level';
 import { createPlayer, stepPlayer } from '@game/player';
 import type { PlayerState } from '@game/player';
-import { createInventory, passives, stepWear, tickWear } from '@game/inventory';
+import { addItem, createInventory, passives, stepWear, tickWear } from '@game/inventory';
 import type { InventoryState } from '@game/inventory';
 import { NEUTRAL_PASSIVE, isLightSource } from '@game/items';
 import type { LightDef, PassiveDef } from '@game/items';
@@ -26,8 +26,8 @@ import { canSprint, createStats, isDead, stepStats } from '@game/stats';
 import type { StatsState } from '@game/stats';
 import type { CreatureState } from '@game/ai';
 import { NoiseField } from '@systems/sound';
-import type { RunConfig } from './config';
-import { handleActions, nearestInteractable } from './actions';
+import type { RunConfig, SandboxConfig } from './config';
+import { defaultSlotFor, equipStack, handleActions, nearestInteractable } from './actions';
 import { stepCreatures, syncCreatures } from './creatures';
 import { stepBeacons, stepLasting, stepLight, stepProjectiles, stepSearch } from './effects';
 import { applyContactDamage, stepMelee } from './melee';
@@ -102,7 +102,98 @@ export class Run implements RunWorld {
     this.level.prime(spawn.x, spawn.y);
     syncCreatures(this);
     this.rebuildPropIndex();
+    if (config.sandbox) this.stockSandbox(config.sandbox);
     this.perception = this.perceiveNow();
+  }
+
+  /**
+   * The test level, and only the test level: every item in the catalogue laid
+   * out on the floor in several copies, a sample of every creature on a ring
+   * around it, and enough worn kit to be able to pick any of it up. It uses the
+   * same drop and spawn paths a real run does, so what is being looked at is the
+   * real thing rather than a display case.
+   */
+  private stockSandbox(sandbox: SandboxConfig): void {
+    for (const itemId of sandbox.startingKit) {
+      if (addItem(this.inventory, this.config.content.items, itemId, 1) > 0) continue;
+      const stack = this.inventory.stacks[this.inventory.stacks.length - 1];
+      const slot = defaultSlotFor(this, stack.id);
+      if (slot) equipStack(this, stack.id, slot);
+    }
+
+    const ids = Object.keys(this.config.content.items).filter(
+      (id) => id !== this.config.handsItemId,
+    );
+    const spots = this.sandboxSpots(sandbox.spacing, ids.length * sandbox.copies);
+    let index = 0;
+    for (const itemId of ids) {
+      const def = this.config.content.items[itemId];
+      for (let copy = 0; copy < sandbox.copies; copy++) {
+        const spot = spots[index++];
+        if (!spot) return;
+        this.level.drop(itemId, def.maxStack, spot.x, spot.y);
+      }
+    }
+
+    const spawn = this.spawnPoint();
+    const kinds = Object.keys(this.config.content.creatures);
+    const total = Math.max(1, kinds.length * sandbox.creatureCopies);
+    let placed = 0;
+    for (const defId of kinds) {
+      const def = this.config.content.creatures[defId];
+      for (let copy = 0; copy < sandbox.creatureCopies; copy++) {
+        const angle = (placed++ / total) * Math.PI * 2;
+        const x = spawn.x + Math.cos(angle) * sandbox.creatureRadius;
+        const y = spawn.y + Math.sin(angle) * sandbox.creatureRadius;
+        if (this.isSolidAt(x, y)) continue;
+        this.spawn(this.creatures, {
+          defId,
+          spawnKey: `sandbox:${defId}:${copy}`,
+          homeCx: 0,
+          homeCy: 0,
+          x,
+          y,
+          prevX: x,
+          prevY: y,
+          facing: angle,
+          mode: 'idle',
+          targetX: x,
+          targetY: y,
+          modeTicks: 0,
+          chaseTicks: 0,
+          attackCooldown: 0,
+          blockCooldown: 0,
+          health: def.health,
+          repathIn: 0,
+          path: [],
+          pathIndex: 0,
+          noiseIn: 0,
+        });
+      }
+    }
+  }
+
+  private isSolidAt(x: number, y: number): boolean {
+    const { tileSize } = this.config.geometry;
+    return this.isSolid(Math.floor(x / tileSize), Math.floor(y / tileSize));
+  }
+
+  /** Walkable cells in expanding rings around the spawn, so the display stays tidy. */
+  private sandboxSpots(spacing: number, count: number): Array<{ x: number; y: number }> {
+    const spawn = this.spawnPoint();
+    const spots: Array<{ x: number; y: number }> = [];
+    const limit = Math.ceil(Math.sqrt(count)) + 2;
+    for (let ring = 1; ring <= limit && spots.length < count; ring++) {
+      for (let dx = -ring; dx <= ring && spots.length < count; dx++) {
+        for (let dy = -ring; dy <= ring && spots.length < count; dy++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== ring) continue;
+          const x = spawn.x + dx * spacing;
+          const y = spawn.y + dy * spacing;
+          if (!this.isSolidAt(x, y)) spots.push({ x, y });
+        }
+      }
+    }
+    return spots;
   }
 
   get spec(): LevelSpec {

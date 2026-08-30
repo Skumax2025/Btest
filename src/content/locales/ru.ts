@@ -38,6 +38,7 @@ export const RU = {
   'menu.subtitle': 'Ты уже внутри. Осталось решить, надолго ли.',
   'menu.continue': 'Продолжить забег',
   'menu.newRun': 'Новый забег',
+  'menu.sandbox': 'Тестовый уровень',
   'menu.guide': 'Справочник',
   'menu.settings': 'Настройки',
   'menu.resume': 'Вернуться в игру',
