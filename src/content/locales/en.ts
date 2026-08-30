@@ -127,6 +127,7 @@ export const EN: Record<TextKey, LocaleString> = {
   'inventory.title': 'BAG',
   'inventory.help': 'Drag with the mouse. Right click puts it in hand. {drop} puts it down.',
   'inventory.cells': { one: '{count} cell', other: '{count} cells' },
+  'inventory.tooltipWeight': 'Weight: {value}',
   'inventory.count': { one: '{count} piece', other: '{count} pieces' },
 
   'summary.title': 'THE BUILDING KEEPS YOU',

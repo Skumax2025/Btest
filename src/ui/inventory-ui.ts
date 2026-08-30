@@ -120,6 +120,7 @@ export class InventoryUi {
     node.dataset.stackId = String(stack.id);
     el('span', 'bag-item-name', node);
     el('span', 'bag-item-count', node);
+    el('span', 'bag-item-tooltip', node);
     this.nodes.set(stack.id, node);
     return node;
   }
@@ -137,8 +138,15 @@ export class InventoryUi {
     node.classList.toggle('bag-item--held', this.state.hand === stack.id);
     const name = node.querySelector('.bag-item-name');
     const count = node.querySelector('.bag-item-count');
-    if (name instanceof HTMLElement) setText(name, def ? this.ui.t(def.nameKey) : stack.itemId);
+    const tooltip = node.querySelector('.bag-item-tooltip');
+    const displayName = def ? this.ui.t(def.nameKey) : stack.itemId;
+    const description = def ? this.ui.t(def.descriptionKey) : '';
+    const effect = def?.use ? Object.entries(def.use).filter(([key]) => key !== 'consumed').map(([key, value]) => `${key} ${value}`).join(' · ') : '';
+    if (name instanceof HTMLElement) setText(name, displayName);
     if (count instanceof HTMLElement) setText(count, stack.count > 1 ? `x${stack.count}` : '');
+    if (tooltip instanceof HTMLElement) setText(tooltip, `${displayName}\n${description}\n${this.ui.t('inventory.tooltipWeight', { value: (def?.weight ?? 0).toFixed(1) })}${effect ? `\n${effect}` : ''}`);
+    node.title = description;
+    node.setAttribute('aria-label', displayName);
   }
 
   private cellFromEvent(event: PointerEvent | MouseEvent): { x: number; y: number } {

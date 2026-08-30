@@ -70,6 +70,7 @@ export class App {
   private readonly audio = new WebAudio(AUDIO.masterGain);
   private readonly audioView: AudioView;
   private readonly hud: Hud;
+  private readonly worldTooltip: HTMLElement;
   private readonly bag: InventoryUi;
   private readonly summary: SummaryScreen;
   private readonly debug: DebugOverlay;
@@ -118,6 +119,10 @@ export class App {
     });
 
     this.hud = new Hud(this.overlay, this.ui, VIEW.hud);
+    this.worldTooltip = document.createElement('div');
+    this.worldTooltip.className = 'world-tooltip';
+    this.worldTooltip.hidden = true;
+    this.overlay.appendChild(this.worldTooltip);
     this.summary = new SummaryScreen(this.overlay, this.ui);
     this.debug = new DebugOverlay(this.overlay);
     this.bag = new InventoryUi(
@@ -349,11 +354,33 @@ export class App {
     this.overlay.classList.toggle('overlay--dimmed', !playing && this.state !== 'dead');
     this.hud.setVisible(playing);
     this.hud.update(this.run);
+    this.updateWorldTooltip();
     this.bag.update();
     this.summary.setVisible(this.state === 'dead');
     this.summary.update(this.run);
     this.debug.update(this.run, this.loop.stats, window.devicePixelRatio || 1);
     if (playing) this.audioView.update(this.run, derangement);
+  }
+
+  private updateWorldTooltip(): void {
+    if (this.state !== 'playing' || this.bag.isOpen) {
+      this.worldTooltip.hidden = true;
+      return;
+    }
+    const pointer = this.input.pointerScreen;
+    const world = this.camera.screenToWorld(pointer.x, pointer.y);
+    const nearest = this.run.groundItemsNear(world.x, world.y, 22).sort((a, b) => Math.hypot(a.x - world.x, a.y - world.y) - Math.hypot(b.x - world.x, b.y - world.y))[0];
+    const def = nearest ? this.run.config.content.items[nearest.itemId] : undefined;
+    if (!nearest || !def || Math.hypot(nearest.x - world.x, nearest.y - world.y) > 14) {
+      this.worldTooltip.hidden = true;
+      return;
+    }
+    const name = this.localizer.t(def.nameKey);
+    const desc = this.localizer.t(def.descriptionKey);
+    this.worldTooltip.textContent = `${name}\n${desc}\n${this.localizer.t('inventory.tooltipWeight', { value: def.weight.toFixed(1) })}`;
+    this.worldTooltip.style.left = `${pointer.x + 18}px`;
+    this.worldTooltip.style.top = `${pointer.y + 18}px`;
+    this.worldTooltip.hidden = false;
   }
 
   /** 0 while the player is composed, rising as nerve runs out. */

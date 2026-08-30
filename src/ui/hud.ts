@@ -24,9 +24,15 @@ interface Bar {
   readonly fill: HTMLElement;
 }
 
-const PRIMARY = ['health', 'stamina'] as const;
+const PRIMARY = ['health'] as const;
 const SECONDARY = ['hunger', 'thirst', 'sanity'] as const;
 const BAR_KEYS = [...PRIMARY, ...SECONDARY];
+const BAR_ICONS: Record<BarKey, string> = {
+  health: '♥',
+  hunger: '◇',
+  thirst: '≈',
+  sanity: '◉',
+};
 type BarKey = (typeof BAR_KEYS)[number];
 
 /** Which action's key a hint is talking about, if any. */
@@ -57,6 +63,8 @@ export class Hud {
   private readonly handName: HTMLElement;
   private readonly handMeta: HTMLElement;
   private readonly wearFill: HTMLElement;
+  private readonly staminaFill: HTMLElement;
+  private readonly staminaValue: HTMLElement;
   private readonly hint: HTMLElement;
   private readonly combatLine: HTMLElement;
   private readonly levelLabel: HTMLElement;
@@ -75,6 +83,9 @@ export class Hud {
     for (const key of BAR_KEYS) {
       const tier = PRIMARY.includes(key as (typeof PRIMARY)[number]) ? 'primary' : 'secondary';
       const row = el('div', `hud-bar hud-bar--${key} hud-bar--${tier}`, stats);
+      const icon = el('span', 'hud-bar-icon', row);
+      icon.textContent = BAR_ICONS[key];
+      icon.setAttribute('aria-hidden', 'true');
       ui.binder.bind(el('span', 'hud-bar-label', row), `hud.${key}`);
       const track = el('div', 'hud-bar-track', row);
       this.bars.set(key, { row, fill: el('div', 'hud-bar-fill', track) });
@@ -86,6 +97,15 @@ export class Hud {
     this.handMeta = el('div', 'hud-hand-meta', hand);
     this.wearFill = el('div', 'hud-wear-fill', el('div', 'hud-wear-track', hand));
 
+    const stamina = el('div', 'hud-stamina', this.root);
+    const staminaIcon = el('span', 'hud-stamina-icon', stamina);
+    staminaIcon.textContent = '↯';
+    staminaIcon.setAttribute('aria-hidden', 'true');
+    const staminaInfo = el('div', 'hud-stamina-info', stamina);
+    ui.binder.bind(el('span', 'hud-stamina-label', staminaInfo), 'hud.stamina');
+    this.staminaValue = el('span', 'hud-stamina-value', staminaInfo);
+    this.staminaFill = el('div', 'hud-stamina-fill', el('div', 'hud-stamina-track', stamina));
+
     this.hint = el('div', 'hud-hint', this.root);
     this.combatLine = el('div', 'hud-combat', this.root);
   }
@@ -96,7 +116,6 @@ export class Hud {
     const config = run.config.stats;
     const maxima: Record<BarKey, number> = {
       health: config.maxHealth,
-      stamina: config.maxStamina,
       hunger: config.maxHunger,
       thirst: config.maxThirst,
       sanity: config.maxSanity,
@@ -117,6 +136,10 @@ export class Hud {
       this.previous.set(key, value);
     }
 
+    const staminaRatio = Math.max(0, Math.min(1, run.stats.stamina / config.maxStamina));
+    setStyle(this.staminaFill, 'width', `${(staminaRatio * 100).toFixed(1)}%`);
+    setText(this.staminaValue, `${Math.ceil(run.stats.stamina)}/${config.maxStamina}`);
+    this.staminaFill.parentElement?.parentElement?.classList.toggle('hud-stamina--critical', staminaRatio < this.config.criticalFraction);
     this.updateHand(run);
     setText(this.levelLabel, t('hud.level', { value: run.levelIndex }));
     setText(this.hint, this.hintText(run));

@@ -145,6 +145,7 @@ export const RU = {
     few: '{count} ячейки',
     many: '{count} ячеек',
   },
+  'inventory.tooltipWeight': 'Вес: {value}',
   'inventory.count': {
     one: '{count} штука',
     few: '{count} штуки',
