@@ -23,7 +23,8 @@ export interface Interactable {
   readonly prop?: PropSpawn;
   readonly ground?: GroundItem;
   readonly distance: number;
-  readonly label: string;
+  /** Localization key; the simulation never holds a string a player reads. */
+  readonly labelKey: string;
 }
 
 /** The single thing E would act on right now, or null. */
@@ -40,7 +41,7 @@ export const nearestInteractable = (world: RunWorld): Interactable | null => {
       kind: 'ground',
       ground,
       distance: Math.hypot(ground.x - x, ground.y - y),
-      label: world.config.content.items[ground.itemId]?.name ?? ground.itemId,
+      labelKey: world.config.content.items[ground.itemId]?.nameKey ?? ground.itemId,
     });
   }
   for (const prop of world.propsNear(x, y, interaction.interactRange)) {
@@ -50,10 +51,12 @@ export const nearestInteractable = (world: RunWorld): Interactable | null => {
         kind: 'container',
         prop,
         distance,
-        label: world.config.content.containers[prop.defId]?.name ?? prop.defId,
+        labelKey: world.config.content.containers[prop.defId]?.nameKey ?? prop.defId,
       });
     }
-    if (prop.kind === 'exit') consider({ kind: 'exit', prop, distance, label: 'way down' });
+    if (prop.kind === 'exit') {
+      consider({ kind: 'exit', prop, distance, labelKey: 'container.exit.name' });
+    }
   }
   return best;
 };

@@ -11,7 +11,7 @@ import type { CreatureCatalog } from '@game/ai';
 export const CREATURES: CreatureCatalog = {
   'creature.drifter': {
     id: 'creature.drifter',
-    name: 'Drifter',
+    nameKey: 'creature.creature.drifter.name',
     archetype: 'wanderer',
     sprite: 'creature.drifter',
     radius: 13,
@@ -36,7 +36,7 @@ export const CREATURES: CreatureCatalog = {
   },
   'creature.hound': {
     id: 'creature.hound',
-    name: 'Hound',
+    nameKey: 'creature.creature.hound.name',
     archetype: 'hunter',
     sprite: 'creature.hound',
     radius: 12,
@@ -63,7 +63,7 @@ export const CREATURES: CreatureCatalog = {
   },
   'creature.bloom': {
     id: 'creature.bloom',
-    name: 'Bloom',
+    nameKey: 'creature.creature.bloom.name',
     archetype: 'sentinel',
     sprite: 'creature.bloom',
     radius: 17,

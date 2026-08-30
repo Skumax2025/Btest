@@ -72,6 +72,16 @@ export class InputDevice {
     this.rebuild();
   }
 
+  /** The live table, so the UI can name the key an action is bound to today. */
+  getBindings(): KeyBindings {
+    return this.bindings;
+  }
+
+  /** Every action currently bound to a code — used to spot conflicts. */
+  actionsFor(code: string): readonly string[] {
+    return this.codeToActions.get(code) ?? [];
+  }
+
   attach(target: HTMLElement, windowLike: Window): void {
     const onKeyDown = (event: KeyboardEvent): void => {
       const actions = this.codeToActions.get(event.code);

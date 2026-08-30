@@ -2,14 +2,16 @@
  * L4: the heads-up display.
  *
  * Bars, the hand slot and one contextual line. Deliberately no map, no compass
- * and no coordinates — being lost is the game.
+ * and no coordinates — being lost is the game. Every string comes from the
+ * localizer, and every key named in a hint comes from the live bindings.
  */
 
 import type { Run } from '@game/run';
-import { heldStack } from '@game/inventory';
-import { totalWeight } from '@game/inventory';
+import type { HintKey } from '@game/run';
+import { heldStack, totalWeight } from '@game/inventory';
 import { isLowSanity } from '@game/stats';
-import { TEXTS } from '@content/texts';
+import type { UiContext } from './context';
+import { actionLabel, movementLabel } from './keys';
 import { el, setStyle, setText } from './dom';
 
 interface Bar {
@@ -17,16 +19,19 @@ interface Bar {
   readonly value: HTMLElement;
 }
 
-const BAR_KEYS = ['health', 'hunger', 'thirst', 'stamina', 'sanity'] as const;
+const BAR_KEYS = ['health', 'stamina', 'hunger', 'thirst', 'sanity'] as const;
 type BarKey = (typeof BAR_KEYS)[number];
 
-const BAR_LABELS: Record<BarKey, string> = {
-  health: TEXTS.hud.health,
-  hunger: TEXTS.hud.hunger,
-  thirst: TEXTS.hud.thirst,
-  stamina: TEXTS.hud.stamina,
-  sanity: TEXTS.hud.sanity,
+/** Which action's key a hint is talking about, if any. */
+const HINT_ACTION: Partial<Record<HintKey, string>> = {
+  search: 'interact',
+  pickup: 'interact',
+  descend: 'interact',
+  useHand: 'use',
+  flashlight: 'flashlight',
 };
+
+const MOVE_ACTIONS = ['up', 'left', 'down', 'right'];
 
 export class Hud {
   private visible = true;
@@ -37,15 +42,14 @@ export class Hud {
   private readonly hint: HTMLElement;
   private readonly levelLabel: HTMLElement;
 
-  constructor(parent: HTMLElement) {
+  constructor(parent: HTMLElement, private readonly ui: UiContext) {
     this.root = el('div', 'hud', parent);
-
     this.levelLabel = el('div', 'hud-level', this.root);
 
     const stats = el('div', 'hud-stats', this.root);
     for (const key of BAR_KEYS) {
       const row = el('div', `hud-bar hud-bar--${key}`, stats);
-      el('span', 'hud-bar-label', row).textContent = BAR_LABELS[key];
+      ui.binder.bind(el('span', 'hud-bar-label', row), `hud.${key}`);
       const track = el('div', 'hud-bar-track', row);
       const fill = el('div', 'hud-bar-fill', track);
       const value = el('span', 'hud-bar-value', row);
@@ -53,7 +57,7 @@ export class Hud {
     }
 
     const hand = el('div', 'hud-hand', this.root);
-    el('span', 'hud-hand-label', hand).textContent = TEXTS.hud.hand;
+    ui.binder.bind(el('span', 'hud-hand-label', hand), 'hud.hand');
     this.handName = el('div', 'hud-hand-name', hand);
     this.handMeta = el('div', 'hud-hand-meta', hand);
 
@@ -62,12 +66,13 @@ export class Hud {
 
   update(run: Run): void {
     if (!this.visible) return;
+    const { t } = this.ui;
     const config = run.config.stats;
     const maxima: Record<BarKey, number> = {
       health: config.maxHealth,
+      stamina: config.maxStamina,
       hunger: config.maxHunger,
       thirst: config.maxThirst,
-      stamina: config.maxStamina,
       sanity: config.maxSanity,
     };
     for (const key of BAR_KEYS) {
@@ -80,18 +85,28 @@ export class Hud {
 
     const held = heldStack(run.inventory);
     const def = held ? run.config.content.items[held.itemId] : undefined;
-    setText(this.handName, def ? def.name : TEXTS.hud.empty);
+    setText(this.handName, def ? t(def.nameKey) : t('hud.empty'));
     const weight = totalWeight(run.inventory, run.config.content.items);
-    const parts = [`${TEXTS.hud.weight} ${weight.toFixed(1)}/${run.inventory.capacity}`];
+    const parts = [`${t('hud.weight')} ${weight.toFixed(1)}/${run.inventory.capacity}`];
     if (def && def.charge > 0 && held) {
-      parts.unshift(`${TEXTS.hud.charge} ${Math.ceil(held.charge)}s`);
+      parts.unshift(`${t('hud.charge')} ${t('ui.seconds', { value: Math.ceil(held.charge) })}`);
     }
     if (held && held.count > 1) parts.unshift(`x${held.count}`);
     setText(this.handMeta, parts.join('  ·  '));
 
-    setText(this.levelLabel, `${TEXTS.hud.level} ${run.levelIndex}`);
-    setText(this.hint, run.hint ? TEXTS.hints[run.hint] : '');
+    setText(this.levelLabel, t('hud.level', { value: run.levelIndex }));
+    setText(this.hint, this.hintText(run));
     this.root.classList.toggle('hud--strained', isLowSanity(run.stats, config));
+  }
+
+  private hintText(run: Run): string {
+    if (!run.hint) return '';
+    const { t, bindings } = this.ui;
+    if (run.hint === 'move') {
+      return t('hint.move', { move: movementLabel(t, bindings(), MOVE_ACTIONS) });
+    }
+    const action = HINT_ACTION[run.hint];
+    return t(`hint.${run.hint}`, action ? { key: actionLabel(t, bindings(), action) } : undefined);
   }
 
   setVisible(visible: boolean): void {

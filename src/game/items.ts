@@ -23,7 +23,8 @@ export interface ItemEffect {
 
 export interface ItemDef {
   readonly id: string;
-  readonly name: string;
+  /** Localization key for the display name; the string itself lives in L3 locales. */
+  readonly nameKey: string;
   /** Footprint in inventory cells. */
   readonly width: number;
   readonly height: number;
@@ -39,7 +40,7 @@ export interface ItemDef {
   readonly throwable: boolean;
   /** Seconds of light this item can provide while switched on. */
   readonly charge: number;
-  readonly description: string;
+  readonly descriptionKey: string;
 }
 
 export type ItemCatalog = Readonly<Record<string, ItemDef>>;

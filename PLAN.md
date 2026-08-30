@@ -43,3 +43,42 @@ tests/performance.test.ts
 README.md, DECISIONS.md, balance pass, dead-code sweep,
 src/game/run/prop-index.ts (split out of run.ts), src/content/view.ts
 tests/input.test.ts
+
+---
+
+# Second pass: localization, auto-combat, menus, UI, guidebook
+
+## G0 — localization layer
+new  src/core/i18n.ts                       (L0: dictionary, active locale, params, plurals)
+new  src/content/locales/{ru,en,index}.ts   (L3: all strings, ru is the source of key truth)
+new  src/ui/i18n-dom.ts                     (L4: text bindings that re-render on locale change)
+new  src/ui/keys.ts                         (L4: key code -> localized label)
+del  src/content/texts.ts
+mod  src/ui/{hud,inventory-ui,summary,app}.ts, src/style.css
+new  tests/i18n.test.ts                     (key parity, no on-screen literals in L2/L4)
+
+## G1 — combat
+new  src/game/combat.ts                     (L2: pure reach/damage/cost/block logic)
+mod  src/game/items.ts                      (weapon stat block on ItemDef)
+mod  src/game/inventory.ts                  (durability on a stack)
+mod  src/game/ai.ts                         (blockChance on CreatureDef)
+mod  src/game/run/{config,world-access,actions,effects,run,save}.ts
+mod  src/content/{items,entities,tuning}.ts
+new  src/view/combat-view.ts                (reach ring, cooldown arc, hit/block marks)
+mod  src/ui/audio-view.ts, src/content/audio.ts
+new  tests/combat.test.ts
+
+## G2 — state machine, menu, settings
+new  src/ui/{screen,menu,settings,settings-store}.ts
+mod  src/core/audio.ts                      (separate effect and ambient gain)
+mod  src/ui/app.ts                          (AppState; simulation ticks only in PLAYING)
+
+## G3 — HUD rework
+mod  src/ui/hud.ts, src/ui/inventory-ui.ts, src/style.css
+
+## G4 — guidebook
+new  src/ui/guidebook.ts, src/content/guide.ts
+mod  src/content/locales/*
+
+## G5 — polish
+README.md, DECISIONS.md, balance pass over the numbers in L3

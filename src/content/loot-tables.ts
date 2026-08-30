@@ -66,21 +66,21 @@ export const LOOT_TABLES: LootTables = {
 export const CONTAINERS: ContainerCatalog = {
   'container.crate': {
     id: 'container.crate',
-    name: 'Supply crate',
+    nameKey: 'container.container.crate.name',
     lootTableId: 'loot.crate',
     searchNoise: 200,
     searchTicks: 48,
   },
   'container.locker': {
     id: 'container.locker',
-    name: 'Steel locker',
+    nameKey: 'container.container.locker.name',
     lootTableId: 'loot.locker',
     searchNoise: 260,
     searchTicks: 66,
   },
   'container.bag': {
     id: 'container.bag',
-    name: 'Left bag',
+    nameKey: 'container.container.bag.name',
     lootTableId: 'loot.bag',
     searchNoise: 120,
     searchTicks: 30,

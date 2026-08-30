@@ -16,7 +16,7 @@ export type CreatureArchetype = 'wanderer' | 'hunter' | 'sentinel';
 
 export interface CreatureDef {
   readonly id: string;
-  readonly name: string;
+  readonly nameKey: string;
   readonly archetype: CreatureArchetype;
   readonly sprite: string;
   readonly radius: number;

@@ -68,7 +68,7 @@ export const expectedStacks = (table: LootTable): number => {
 
 export interface ContainerDef {
   readonly id: string;
-  readonly name: string;
+  readonly nameKey: string;
   readonly lootTableId: string;
   /** Radius of the noise searching it makes, in world units. */
   readonly searchNoise: number;

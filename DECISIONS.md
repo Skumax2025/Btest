@@ -122,3 +122,30 @@ I went, so the order is roughly chronological.
 - **Placeholder sprites are procedural shape stacks** described in L3 and built
   into offscreen canvases at first use. Swapping in an atlas means writing one
   more `SpriteProvider` and changing one line in `app.ts`.
+
+---
+
+# Second pass
+
+## Localization (G0)
+
+- **Flat dotted keys, Russian as the source of truth.** `ru.ts` is a plain
+  object; `en.ts` is typed `Record<TextKey, LocaleString>` against it, so a
+  missing English key is a compile error rather than a blank on screen. The test
+  covers the other direction (no extra English keys) and parameter parity.
+- **Static labels go through a `TextBinder`; live text is re-read every frame.**
+  Switching language calls `refresh()`, which rewrites every registered element
+  in place. Dropped: rebuilding the DOM on a language change, which would have
+  lost drag state and scroll position.
+- **No key name ever appears inside a locale string.** Hints take `{key}` and the
+  UI fills it from the live bindings, so rebinding a key rewrites every hint that
+  mentions it. There is a test that fails if a hint hard-codes one.
+- **Display names of items, containers and creatures became keys** (`nameKey`),
+  so even the L3 data tables hold no prose. Prose lives only in locale files.
+- **Plural rules live in L0**, the locale picks one. Russian needs one/few/many
+  with the 11-14 exception, which is exactly the case a naive implementation
+  gets wrong, so it has its own test.
+- **The font stack is system monospace with Cyrillic fallbacks** (`DejaVu Sans
+  Mono`, `Liberation Mono`) — no web font, because the project ships no external
+  asset files. Fixed-width interface elements were widened by roughly a third to
+  absorb the longer Russian strings.

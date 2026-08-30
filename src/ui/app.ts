@@ -10,12 +10,14 @@ import { Camera } from '@core/camera';
 import { InputDevice } from '@core/input';
 import { GameLoop, browserLoopOptions } from '@core/loop';
 import { Canvas2DRenderer } from '@core/canvas-renderer';
+import { Localizer } from '@core/i18n';
 import { createRandom } from '@core/rng';
 import { bestEffortStorage, clearEnvelope, loadEnvelope, saveEnvelope } from '@core/serialize';
 import type { StorageLike } from '@core/serialize';
 import { Run, SAVE_VERSION, restoreRun, snapshotRun } from '@game/run';
 import type { RunSave } from '@game/run';
 import { ITEMS } from '@content/items';
+import { DEFAULT_LOCALE, LOCALES } from '@content/locales';
 import { createRunConfig } from '@content/run-config';
 import { AUDIO } from '@content/audio';
 import { paletteOf } from '@content/palettes';
@@ -34,6 +36,8 @@ import {
 import { WorldView } from '@view/world-view';
 import { drawDebug } from '@view/debug-view';
 import { AudioView } from './audio-view';
+import { createUiContext } from './context';
+import type { UiContext } from './context';
 import { DebugOverlay } from './debug-overlay';
 import { Hud } from './hud';
 import { InventoryUi } from './inventory-ui';
@@ -51,6 +55,8 @@ export class App {
   private readonly hud: Hud;
   private readonly bag: InventoryUi;
   private readonly storage: StorageLike = bestEffortStorage();
+  private readonly localizer = new Localizer(LOCALES, DEFAULT_LOCALE);
+  private readonly ui: UiContext;
   private readonly audio = new WebAudio(AUDIO.masterGain);
   private readonly audioView: AudioView;
   private readonly summary: SummaryScreen;
@@ -79,16 +85,22 @@ export class App {
     this.overlay = document.createElement('div');
     this.overlay.className = 'overlay';
     root.appendChild(this.overlay);
-    this.hud = new Hud(this.overlay);
-    this.summary = new SummaryScreen(this.overlay);
+    this.ui = createUiContext(this.localizer, () => this.input.getBindings());
+    this.localizer.onChange(() => this.ui.binder.refresh());
+    this.hud = new Hud(this.overlay, this.ui);
+    this.summary = new SummaryScreen(this.overlay, this.ui);
     this.debug = new DebugOverlay(this.overlay);
     this.audioView = new AudioView(this.audio, LIGHTING);
     const wake = (): void => this.audio.resume();
     window.addEventListener('pointerdown', wake);
     window.addEventListener('keydown', wake);
-    this.bag = new InventoryUi(this.overlay, this.run.inventory, ITEMS, {
-      cellPixels: INVENTORY.cellPixels,
-    });
+    this.bag = new InventoryUi(
+      this.overlay,
+      this.run.inventory,
+      ITEMS,
+      { cellPixels: INVENTORY.cellPixels },
+      this.ui,
+    );
 
     window.addEventListener('resize', this.resize);
     this.resize();
@@ -152,6 +164,7 @@ export class App {
       this.input.releaseAll();
     }
     if (frame.pressed.includes('debug')) this.debug.toggle();
+    if (frame.pressed.includes('language')) this.cycleLanguage();
     if (this.run.phase === 'dead' && frame.pressed.includes('restart')) {
       this.restart();
       return;
@@ -190,6 +203,13 @@ export class App {
     this.summary.update(this.run);
     this.debug.update(this.run, this.loop.stats, window.devicePixelRatio || 1);
     this.audioView.update(this.run, derangement);
+  }
+
+  /** Temporary until the settings screen exists: step through the locales. */
+  private cycleLanguage(): void {
+    const ids = this.localizer.available().map((locale) => locale.id);
+    const next = ids[(ids.indexOf(this.localizer.localeId) + 1) % ids.length];
+    this.localizer.setLocale(next);
   }
 
   /** 0 while the player is composed, rising as nerve runs out. */

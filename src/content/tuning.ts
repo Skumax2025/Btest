@@ -180,6 +180,9 @@ export const KEY_BINDINGS = {
   flashlight: ['KeyR'],
   debug: ['F3', 'Backquote'],
   restart: ['Enter'],
+  guide: ['KeyH'],
+  pause: ['Escape'],
+  language: ['F2'],
 } as const;
 
 /** Action names the simulation reacts to; they must exist in KEY_BINDINGS. */

@@ -16,7 +16,9 @@ body {
   overflow: hidden;
   background: #05040a;
   color: var(--hud-text);
-  font-family: ui-monospace, 'SFMono-Regular', 'Menlo', 'Consolas', monospace;
+  /* Every entry here ships Cyrillic; the last two cover Linux without one. */
+  font-family: ui-monospace, 'SF Mono', 'Menlo', 'Consolas', 'DejaVu Sans Mono',
+    'Liberation Mono', monospace;
   user-select: none;
 }
 
@@ -68,7 +70,7 @@ body {
 
 .hud-bar {
   display: grid;
-  grid-template-columns: 52px 132px 28px;
+  grid-template-columns: 78px 130px 30px;
   align-items: center;
   gap: 8px;
 }
@@ -117,7 +119,7 @@ body {
   background: var(--hud-panel);
   padding: 10px 12px;
   border: 1px solid rgba(239, 227, 187, 0.12);
-  min-width: 190px;
+  min-width: 250px;
   text-align: right;
 }
 
@@ -223,7 +225,7 @@ body {
   margin-top: 8px;
   font-size: 10px;
   color: var(--hud-dim);
-  max-width: 300px;
+  max-width: 380px;
 }
 
 .summary {
@@ -253,7 +255,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  min-width: 260px;
+  min-width: 340px;
 }
 
 .summary-row {

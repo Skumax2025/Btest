@@ -9,7 +9,8 @@
 import { moveStack, setHand, stackAt } from '@game/inventory';
 import type { InventoryState, InventoryStack } from '@game/inventory';
 import type { ItemCatalog } from '@game/items';
-import { TEXTS } from '@content/texts';
+import type { UiContext } from './context';
+import { actionLabel } from './keys';
 import { el, setStyle, setText } from './dom';
 
 export interface InventoryUiOptions {
@@ -36,9 +37,10 @@ export class InventoryUi {
     private state: InventoryState,
     private readonly catalog: ItemCatalog,
     private readonly options: InventoryUiOptions,
+    private readonly ui: UiContext,
   ) {
     this.root = el('div', 'bag', parent);
-    el('div', 'bag-title', this.root).textContent = TEXTS.inventory.title;
+    ui.binder.bind(el('div', 'bag-title', this.root), 'inventory.title');
     this.grid = el('div', 'bag-grid', this.root);
     setStyle(this.grid, 'width', `${state.width * options.cellPixels}px`);
     setStyle(this.grid, 'height', `${state.height * options.cellPixels}px`);
@@ -47,7 +49,9 @@ export class InventoryUi {
       'background-size',
       `${options.cellPixels}px ${options.cellPixels}px`,
     );
-    el('div', 'bag-help', this.root).textContent = TEXTS.inventory.dropHint;
+    ui.binder.bind(el('div', 'bag-help', this.root), 'inventory.help', () => ({
+      drop: actionLabel(ui.t, ui.bindings(), 'drop'),
+    }));
     this.setOpen(false);
 
     this.grid.addEventListener('pointerdown', this.onPointerDown);
@@ -124,7 +128,7 @@ export class InventoryUi {
     node.classList.toggle('bag-item--held', this.state.hand === stack.id);
     const name = node.querySelector('.bag-item-name');
     const count = node.querySelector('.bag-item-count');
-    if (name instanceof HTMLElement) setText(name, def?.name ?? stack.itemId);
+    if (name instanceof HTMLElement) setText(name, def ? this.ui.t(def.nameKey) : stack.itemId);
     if (count instanceof HTMLElement) setText(count, stack.count > 1 ? `x${stack.count}` : '');
   }
 
