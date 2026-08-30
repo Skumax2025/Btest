@@ -20,8 +20,8 @@ import { createPlayer, stepPlayer } from '@game/player';
 import type { PlayerState } from '@game/player';
 import { createInventory, passives, stepWear, tickWear } from '@game/inventory';
 import type { InventoryState } from '@game/inventory';
-import { NEUTRAL_PASSIVE } from '@game/items';
-import type { PassiveDef } from '@game/items';
+import { NEUTRAL_PASSIVE, isLightSource } from '@game/items';
+import type { LightDef, PassiveDef } from '@game/items';
 import { canSprint, createStats, isDead, stepStats } from '@game/stats';
 import type { StatsState } from '@game/stats';
 import type { CreatureState } from '@game/ai';
@@ -218,6 +218,19 @@ export class Run implements RunWorld {
     this.level.prime(spawn.x, spawn.y);
     syncCreatures(this);
     this.rebuildPropIndex();
+  }
+
+  /**
+   * The shape of the light actually burning right now. A head torch throws a
+   * wider, shorter cone than a hand torch and a glow stick throws none at all —
+   * the difference is in the catalogue, not here.
+   */
+  get lightShape(): LightDef | null {
+    for (const stack of this.inventory.stacks) {
+      const def = this.config.content.items[stack.itemId];
+      if (def && isLightSource(def) && stack.charge > 0) return def.light;
+    }
+    return null;
   }
 
   /** Seconds the run has lasted, from the only clock the simulation has. */

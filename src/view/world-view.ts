@@ -64,10 +64,20 @@ export class WorldView {
     drawCreatures(renderer, this.sprites, run, alpha, options.palette, options);
     drawPlayer(renderer, this.sprites, run.player, alpha, options.palette, options.view);
 
+    // The lamp in hand decides the cone, so a head torch and a glow stick are
+    // not the hand torch with a different battery.
+    const shape = run.lightShape;
     this.lightingView.draw(renderer, {
       view,
       palette: options.palette,
-      lighting: options.lighting,
+      lighting: shape
+        ? {
+            ...options.lighting,
+            flashlightRadius: shape.radius,
+            flashlightHalfAngle: shape.halfAngle,
+            flashlightStrength: shape.strength,
+          }
+        : options.lighting,
       isSolid: run.isSolid,
       tileSize: run.config.geometry.tileSize,
       geometryKey: run.level.geometryKey,

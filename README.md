@@ -31,7 +31,9 @@ npm run check      # typecheck + lint + tests
 | `R` | Switch the flashlight on or off |
 | `Q` | Throw what is in your hand |
 | `G` | Put down what is in your hand |
-| `Tab` | Bag. Drag to move a stack, right click to put one in hand |
+| `1` – `4` | Belt slots: use what hangs there, or take a weapon in hand |
+| `X` | Swap main hand and off hand |
+| `Tab` | Bag. Drag between the bag, the slots and the belt |
 | `H` | Guidebook |
 | `Esc` | Pause; from a screen, back |
 | `F3` / `` ` `` | Debug overlay |
@@ -52,6 +54,24 @@ here listens for. Sprinting is the loudest thing you can do; crouching is free.
 Landmarks are the only navigation there is: no map, no compass, no coordinates.
 The generator guarantees one memorable room every few chunks and one way down
 every few chunks after that.
+
+### Carrying
+
+There is no weight. There are cells, and nine equipment slots — head, face,
+body, vest, legs, feet, back, and two hands. With nothing on your back the bag
+is four cells; a pack is worth four to nine more and trouser and coat pockets
+one or two. One thing is one cell, and a stack of any size is also one cell, so
+what limits you is variety, not mass. Swapping to a smaller pack while the bag
+is full drops what no longer fits, and says how much before you agree to it.
+
+Four belt slots sit under the number keys: food is eaten and weapons are drawn
+from there without opening anything. The bag does not pause the world.
+
+Every item carries one condition value, and what it means is written in the item
+rather than in the code: swing damage for a weapon, damage soaked for armour,
+footstep noise and pocket count for clothes, cells for a pack, freshness for
+food. Zero means something different in each case — bare hands, destroyed, merely
+tired, or edible and regrettable. The bar under every icon is that one number.
 
 ### Fighting
 
@@ -158,9 +178,11 @@ and world generation derived from stateless coordinate hashes.
 
 ### Add an item
 
-1. Add an entry to `ITEMS` in `src/content/items.ts` — footprint in cells, stack
-   size, weight, tags, what using one does, how loud it is when it lands, and
-   `melee: null` or one of the `WEAPONS` stat blocks in `src/content/tuning.ts`.
+1. Add an entry to `ITEMS` in `src/content/items.ts` — which slots it fits,
+   stack size, tags, its `durability` block (what condition means and what zero
+   does), its `use` effects, and any of `armor`, `carry`, `passive`, `light` or
+   `beacon` it needs. Behaviour is a combination of effects the item module
+   already executes; an item never gets code of its own.
 2. Add `item.<id>.name` and `item.<id>.desc` to both locale files.
 3. Add a sprite spec under the same `sprite` id in `src/content/sprites.ts`.
 4. Put it in a loot table in `src/content/loot-tables.ts`.
@@ -247,6 +269,10 @@ Nothing on either brief's cut list was cut. These are the honest gaps:
   discarded along with its deltas.
 - **The tutorial is the opening room plus one contextual line.** No text screen,
   as asked, but a player who never presses `Tab` will never find the bag.
+- **Splitting a stack always halves it.** There is no number picker; the context
+  menu splits down the middle and that is the whole of it.
+- **Equipment has no silhouette art.** The slot panel is a labelled body layout,
+  not a drawn figure.
 - **Low-nerve effects are modest**: false silhouettes at the edge of sight, a
   souring hum, whispers, and a colour shift on the HUD. No screen-space
   distortion.
