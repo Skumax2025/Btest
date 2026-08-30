@@ -2,17 +2,12 @@
  * L3: how big things are drawn and how the darkness behaves.
  *
  * Rendering proportions are game numbers too — how large a creature looks and
- * how far light bleeds past a wall both change how the game plays — so they live
- * here with everything else rather than as literals inside the view.
+ * how far into a wall light reaches both change how the game plays — so they
+ * live here with everything else rather than as literals inside the view.
  */
 
 export interface ViewConfig {
-  /** How far past a blocking tile a light ray reaches, in tiles. */
-  readonly overshootTiles: number;
-  /** Strength of the player's own bubble of sight. */
-  readonly playerLightStrength: number;
-  /** Cached lamp visibility polygons kept before the cache is dropped. */
-  readonly lightCacheLimit: number;
+  readonly light: LightViewConfig;
   /** Height of a wall's lit cap and dark skirt, as a share of a tile. */
   readonly wallFaceHeight: number;
   /** One floor tile in this many gets the alternate shade. */
@@ -40,6 +35,56 @@ export interface ViewConfig {
   readonly phantomCount: number;
   readonly combat: CombatViewConfig;
   readonly hud: HudConfig;
+}
+
+/**
+ * The darkness pass. These are the numbers that decide whether the game reads as
+ * a lit place with dark corners or as a torch in a void, so they belong with the
+ * balance numbers rather than as literals inside the view.
+ */
+export interface LightViewConfig {
+  /**
+   * Share of a blocking tile that light is allowed to enter. At 0.5 a lamp lights
+   * the near half of a wall and stops dead in the middle of it, which is the only
+   * setting that both makes walls look solid and keeps light out of the next room.
+   * Anything at or above 1 leaks through.
+   */
+  readonly wallPenetration: number;
+  /** Points used to turn the falloff curve into a canvas gradient. */
+  readonly profileSamples: number;
+  /** Lamp shadow polygons held before the oldest is dropped. */
+  readonly cacheLimit: number;
+  /** Strength of the player's own bubble of sight. */
+  readonly playerLightStrength: number;
+  /** Share of the sight radius that stays at full brightness before the vignette. */
+  readonly sightCore: number;
+  /** Warm bloom a lamp adds on top of merely being visible. */
+  readonly lampGlow: number;
+  /** Exponent tightening the bloom into the middle of a light. Higher is tighter. */
+  readonly glowConcentration: number;
+  /**
+   * The beam is a string of soft pools laid along the aim line, not a wedge.
+   * A wedge is a polygon, and a polygon has a hard edge wherever it is not a
+   * wall — stacking wedges to fake a soft one only trades that edge for a fan of
+   * seams where their clips overlap. Pools have no edge to begin with: they fall
+   * off through the same curve a lamp does, and their union is the beam.
+   */
+  readonly beamSegments: number;
+  /**
+   * Widest half-angle the pools are clipped to, as a multiple of the beam's own.
+   * Only wall shadows should ever reach it; if the pools do, it has a visible
+   * edge again.
+   */
+  readonly beamClip: number;
+  /** Pool radius at the torch itself, in world units; it widens with the beam after that. */
+  readonly beamNear: number;
+  /** How much dimmer the end of the beam is than its root. A torch does not fall
+   *  off like a bare bulb, so this stays modest. */
+  readonly beamFade: number;
+  readonly flashlightGlow: number;
+  /** Light bouncing back off the floor at the player's feet, in world units. */
+  readonly flashlightSpill: number;
+  readonly flashlightSpillStrength: number;
 }
 
 /**
@@ -84,9 +129,22 @@ export interface CombatViewConfig {
 }
 
 export const VIEW: ViewConfig = {
-  overshootTiles: 1.4,
-  playerLightStrength: 0.92,
-  lightCacheLimit: 512,
+  light: {
+    wallPenetration: 0.5,
+    profileSamples: 12,
+    cacheLimit: 512,
+    playerLightStrength: 0.88,
+    sightCore: 0.5,
+    lampGlow: 0.3,
+    glowConcentration: 2.1,
+    beamSegments: 12,
+    beamClip: 2.4,
+    beamNear: 30,
+    beamFade: 0.3,
+    flashlightGlow: 0.26,
+    flashlightSpill: 96,
+    flashlightSpillStrength: 0.34,
+  },
   wallFaceHeight: 0.22,
   floorVariationEvery: 5,
   markerTiles: 3,

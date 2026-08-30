@@ -89,6 +89,32 @@ I went, so the order is roughly chronological.
   player's line of sight so a lit room behind a wall is not visible from the
   other side. Without the second clip the game had x-ray vision; with it, a lit
   corridor seen through a doorway is the only navigation aid there is.
+- **Light stops on the midplane of a wall, measured against the face it crossed.**
+  Stopping at the face leaves the wall black, which reads as a hole in the floor;
+  going past it puts light in the next room. Measuring the depth along the ray
+  instead of against the face was worse than either: a ray clipping a corner
+  travels almost nothing inside the tile and one going straight through travels a
+  full one, which put a sawtooth on every wall in the game.
+- **The flashlight is a string of soft pools down the aim line, not a wedge.** A
+  wedge is a polygon and a polygon has a hard edge wherever it is not a wall.
+  Stacking narrowing wedges to fake a soft edge only trades that edge for a fan
+  of seams where their clips overlap — each clip is antialiased, and fourteen of
+  them are fourteen visible streaks. Pools have no edge to begin with. One
+  visibility cone, cast once, still does the blocking.
+- **The player casts one ray fan per frame, not three.** Line of sight, the much
+  smaller bubble of vision inside it and the torch's floor spill are all read off
+  a single cast at different radii. They cannot disagree about where a wall is,
+  and the rays that used to be split between them buy a far smoother edge.
+- **Lamp shadows are cached against the level's geometry, not just its lamps.**
+  An unloaded chunk reads as solid, so a lamp traced beside one keeps the shadow
+  of a wall that was never there once the chunk arrives. The cache is keyed on
+  the level index and a revision the stream bumps whenever a chunk appears or
+  disappears.
+- **An unstable lamp browns out rather than strobing.** It used to switch between
+  full and black in a single tick, eight times a second. It now interpolates
+  between the same flicker decisions, so the sequence and its statistics are
+  unchanged and still a pure function of seed and tick — it is only the shape
+  between two decisions that is different.
 - **Facing follows the mouse, movement is eight-way on WASD.** The flashlight
   cone needs to be aimable independently of where you are walking.
 - **The hunter is faster than a sprint, but only for seven seconds.** Racing it
