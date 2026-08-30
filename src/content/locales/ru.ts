@@ -123,6 +123,13 @@ export const RU = {
   'hud.wear': 'износ',
   'hud.level': 'УРОВЕНЬ {value}',
   'hud.broken': 'сломано',
+  'hud.controls': 'УПРАВЛЕНИЕ',
+  'hud.key': '{key}',
+  'hud.action.move': 'Идти',
+  'hud.action.belt': 'Пояс',
+  'hud.armor': 'БРОНЯ',
+  'hud.noise': 'ШАГИ',
+  'hud.failing': '{name} — на исходе',
 
   // ── подсказки: {key} подставляется из текущей раскладки ──────────────────
   'hint.move': '{move} — идти. Мышь — куда смотришь.',

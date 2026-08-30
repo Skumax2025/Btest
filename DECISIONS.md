@@ -354,3 +354,34 @@ I went, so the order is roughly chronological.
 - **The light cone comes from the item.** A head torch is wider and shorter than
   a hand torch and a glow stick lights all around; the view overrides the three
   lighting numbers from the burning item rather than owning a lamp type.
+
+## The test level and the hotbar (G7)
+
+- **The test level is a run, not a viewer.** It uses `level.drop` and the ordinary
+  creature spawn, so picking something up off its floor exercises exactly the code
+  a real run does. A display case that showed items some other way would prove
+  nothing about the game.
+- **It is one flag on `RunConfig`, not a mode.** `sandbox` is either a block of
+  numbers or `null`; no system below asks whether it is running in a test. The
+  level itself is Level 0's spec with the lamps, containers and exits turned up.
+- **It is never persisted.** Walking into the workshop must not cost the player
+  the run they had going, so `persist()` returns early and the saved run is left
+  untouched. That also means the test level cannot be resumed, which is right: it
+  is meant to be entered fresh.
+- **It starts you dressed.** Four cells cannot hold a catalogue, so the kit is
+  part of the level's data — and ordering it so the pipe takes the hand and the
+  torch the off hand means both hands are demonstrated from the first frame.
+- **The hotbar shows wear and which slot is in hand.** The belt was the one part
+  of the inventory that mattered without the bag open and had no representation
+  at all; a name and a count would have been half the information, because what
+  makes a belt slot worth pressing is whether the thing on it still works.
+- **The HUD gained armour and footstep-noise readouts rather than more bars.**
+  Both are what worn equipment actually does, both move as it wears down, and
+  neither was visible anywhere outside the bag. A worn-slot pip row would have
+  said what was worn without saying what wearing it was worth.
+- **One failing-gear warning at a time.** A list of everything below half
+  condition is a list nobody reads; the worst piece, named, is a decision.
+- **The key legend is generated from the bindings, not written.** Same rule the
+  guidebook's control table already follows, and `applySettings` now refreshes
+  the binder so a rebind rewrites the legend, the bag's help line and every hint
+  at once — that was stale before.

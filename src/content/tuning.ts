@@ -201,8 +201,8 @@ export const SANDBOX = {
     'item.cargopants',
     'item.boots',
     'item.hardhat',
-    'item.flashlight',
     'item.pipe',
+    'item.flashlight',
   ],
 } as const;
 

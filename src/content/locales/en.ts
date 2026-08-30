@@ -111,6 +111,13 @@ export const EN: Record<TextKey, LocaleString> = {
   'hud.wear': 'wear',
   'hud.level': 'LEVEL {value}',
   'hud.broken': 'broken',
+  'hud.controls': 'CONTROLS',
+  'hud.key': '{key}',
+  'hud.action.move': 'Move',
+  'hud.action.belt': 'Belt',
+  'hud.armor': 'ARMOUR',
+  'hud.noise': 'STEPS',
+  'hud.failing': '{name} is going',
 
   'hint.move': '{move} to walk. The mouse is where you look.',
   'hint.search': '{key} — search',

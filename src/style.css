@@ -80,7 +80,10 @@ body {
 
 .hud-stats,
 .hud-hand,
-.hud-level {
+.hud-level,
+.hud-gear,
+.hud-keys,
+.hud-belt {
   opacity: var(--hud-opacity);
   transition: opacity 500ms ease;
 }
@@ -146,7 +149,7 @@ body {
 .hud-stamina {
   position: absolute;
   left: 50%;
-  bottom: 28px;
+  bottom: 24px;
   transform: translateX(-50%);
   display: flex;
   align-items: center;
@@ -164,6 +167,167 @@ body {
 .hud-stamina-track { flex: 1; height: 8px; background: rgba(239, 227, 187, 0.12); }
 .hud-stamina-fill { height: 100%; width: 100%; background: #9dbb85; transition: width 120ms linear; }
 .hud-stamina--critical .hud-stamina-fill { background: #e0a094; animation: alarm 900ms ease-in-out infinite; }
+
+
+/* ── the belt ──────────────────────────────────────────────────────────────
+   The only part of the inventory readable without opening it, so it sits where
+   the eye already is: directly above the breath bar. */
+.hud-belt {
+  position: absolute;
+  left: 50%;
+  bottom: 72px;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+}
+
+.hud-belt-meta {
+  display: flex;
+  gap: 20px;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+}
+
+.hud-belt-meta-item { display: flex; gap: 7px; }
+.hud-belt-meta-item[hidden] { display: none; }
+.hud-belt-meta-label { color: var(--hud-dim); }
+.hud-belt-meta-value { color: var(--hud-text); }
+.hud-belt-meta-item--critical .hud-belt-meta-value { color: #e0a094; }
+
+.hud-belt-slots { display: flex; gap: 5px; }
+
+.hud-belt-slot {
+  position: relative;
+  width: var(--belt-slot-size, 96px);
+  padding: 7px 8px 10px;
+  background: var(--hud-panel);
+  border: 1px solid rgba(239, 227, 187, 0.2);
+  font-size: 11px;
+  line-height: 1.25;
+  text-align: left;
+  overflow: hidden;
+}
+
+.hud-belt-key {
+  display: block;
+  color: var(--hud-dim);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+}
+
+.hud-belt-name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+  margin-top: 3px;
+  color: var(--hud-text);
+  height: 3.75em;
+}
+
+.hud-belt-count {
+  position: absolute;
+  right: 7px;
+  top: 6px;
+  color: var(--hud-text);
+  font-size: 11px;
+}
+
+.hud-belt-slot--empty { opacity: 0.45; }
+.hud-belt-slot--empty .hud-belt-name { color: var(--hud-dim); }
+
+/* The slot the hand is drawing from reads first, before the name is read. */
+.hud-belt-slot--held {
+  border-color: #efe3bb;
+  box-shadow: inset 0 0 0 1px rgba(239, 227, 187, 0.35);
+}
+
+.hud-belt-wear {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.hud-belt-wear[hidden] { display: none; }
+.hud-belt-wear-fill { height: 100%; background: #b8a066; transition: width 160ms linear; }
+.hud-belt-slot--worn .hud-belt-wear-fill { background: #d2725c; }
+
+/* ── what is being worn ────────────────────────────────────────────────────
+   Armour and footstep noise are what equipment does; neither is visible
+   anywhere else, and both move as the gear wears down. */
+.hud-gear {
+  position: absolute;
+  top: 42px;
+  left: 16px;
+  min-width: 168px;
+  padding: 9px 11px;
+  background: var(--hud-panel);
+  border: 1px solid rgba(239, 227, 187, 0.14);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+}
+
+.hud-gear-row { display: flex; justify-content: space-between; gap: 14px; }
+.hud-gear-row + .hud-gear-row { margin-top: 4px; }
+.hud-gear-label { color: var(--hud-dim); }
+.hud-gear-value { color: var(--hud-text); }
+.hud-gear-value--loud { color: #e0a094; }
+.hud-gear-value--quiet { color: #9dbb85; }
+
+.hud-gear-failing {
+  margin-top: 5px;
+  color: #d2725c;
+  letter-spacing: 0.08em;
+}
+
+.hud-gear-failing:empty { display: none; }
+
+/* ── the legend ────────────────────────────────────────────────────────────
+   Written from the live bindings, so a rebind rewrites it. It fades with the
+   rest of the interface: it is for the first ten minutes, not for every one. */
+.hud-keys {
+  position: absolute;
+  left: 16px;
+  bottom: 24px;
+  padding: 10px 12px;
+  background: var(--hud-panel);
+  border: 1px solid rgba(239, 227, 187, 0.12);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+}
+
+.hud-keys-title {
+  color: var(--hud-dim);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  margin-bottom: 7px;
+}
+
+.hud-keys-grid {
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  gap: 3px 20px;
+}
+
+.hud-keys-row { display: flex; align-items: baseline; gap: 8px; }
+
+.hud-keys-chip {
+  min-width: 40px;
+  padding: 1px 5px;
+  text-align: center;
+  color: var(--hud-text);
+  border: 1px solid rgba(239, 227, 187, 0.28);
+  background: rgba(0, 0, 0, 0.35);
+  font-size: 10px;
+}
+
+.hud-keys-name { color: var(--hud-dim); }
 
 /* Each bar keeps its own colour: the shape of the block is recognised before
    the label under it is read. */
@@ -254,6 +418,19 @@ body {
 .hud-hand-description { margin-top: 9px; color: var(--hud-dim); font-size: 13px; line-height: 1.45; }
 .hud-hand-meta { color: var(--hud-dim); font-size: 13px; margin-top: 10px; min-height: 18px; }
 
+.hud-hand-offhand {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(239, 227, 187, 0.12);
+  font-size: 12px;
+}
+
+.hud-hand-offhand-label { color: var(--hud-dim); letter-spacing: 0.14em; }
+.hud-hand-offhand-name { color: var(--hud-text); }
+
 .hud-hand-wear { margin-top: 14px; }
 .hud-hand-wear-label { display: block; margin-bottom: 5px; color: var(--hud-dim); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; }
 .hud-wear-track { height: 10px; background: rgba(239, 227, 187, 0.12); }
@@ -262,7 +439,7 @@ body {
 .hud-hint {
   position: absolute;
   left: 50%;
-  bottom: 74px;
+  bottom: 196px;
   transform: translateX(-50%);
   color: var(--hud-text);
   text-shadow: 0 0 8px #000;
@@ -621,7 +798,7 @@ body {
 .hud-combat {
   position: absolute;
   left: 50%;
-  bottom: 104px;
+  bottom: 226px;
   transform: translateX(-50%);
   font-size: 13px;
   letter-spacing: 0.12em;
@@ -909,9 +1086,20 @@ body {
 }
 
 .hud-level,
+.hud-gear,
 .debug {
   transform: scale(var(--ui-scale));
   transform-origin: top left;
+}
+
+.hud-keys {
+  transform: scale(var(--ui-scale));
+  transform-origin: bottom left;
+}
+
+.hud-belt {
+  transform: translateX(-50%) scale(var(--ui-scale));
+  transform-origin: bottom center;
 }
 
 .bag {
