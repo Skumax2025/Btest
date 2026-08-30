@@ -105,6 +105,8 @@ export interface HudConfig {
   readonly promptFont: string;
   readonly scale: number;
   readonly handSlotSize: number;
+  /** Width of one belt slot on the hotbar, in pixels. */
+  readonly beltSlotSize: number;
 }
 
 /**
@@ -174,6 +176,7 @@ export const VIEW: ViewConfig = {
     promptFont: '14px ui-monospace, "DejaVu Sans Mono", monospace',
     scale: 1.28,
     handSlotSize: 86,
+    beltSlotSize: 96,
   },
   combat: {
     ringPadding: 3,

@@ -183,6 +183,29 @@ export const ARMOR = {
   minDamageFraction: 0.2,
 } as const;
 
+/**
+ * The test level. It is not balance — it is a workshop: everything in the game
+ * within a few steps of the start, in enough copies to try stacking, wearing,
+ * breaking and spoiling without hunting for a second one.
+ */
+export const SANDBOX = {
+  copies: 3,
+  /** About a tile apart, so the layout reads as shelves rather than a heap. */
+  spacing: 34,
+  creatureRadius: 430,
+  creatureCopies: 1,
+  /** Worn from the first tick; without a pack the floor cannot be picked up. */
+  startingKit: [
+    'item.hikingpack',
+    'item.jumpsuit',
+    'item.cargopants',
+    'item.boots',
+    'item.hardhat',
+    'item.pipe',
+    'item.flashlight',
+  ],
+} as const;
+
 export const SOUND: SoundConfig = {
   wallAttenuation: 0.3,
   memoryTicks: 90,

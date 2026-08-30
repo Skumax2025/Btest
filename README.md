@@ -39,6 +39,9 @@ npm run check      # typecheck + lint + tests
 | `F3` / `` ` `` | Debug overlay |
 | `Enter` | After death: go back in with a new seed |
 
+The heads-up display carries a legend of these keys in the bottom-left corner,
+written from the live bindings, so it is never out of date with what is bound.
+
 There is no attack key: melee is automatic (see below). Every key can be rebound
 in the settings, and the change applies immediately — including to every hint in
 the game and to the controls table in the guidebook, which are all generated from
@@ -65,7 +68,9 @@ what limits you is variety, not mass. Swapping to a smaller pack while the bag
 is full drops what no longer fits, and says how much before you agree to it.
 
 Four belt slots sit under the number keys: food is eaten and weapons are drawn
-from there without opening anything. The bag does not pause the world.
+from there without opening anything, and the hotbar above the breath bar shows
+what is on each of them, how worn it is, and which one the hand is holding. The
+bag does not pause the world.
 
 Every item carries one condition value, and what it means is written in the item
 rather than in the code: swing damage for a weapon, damage soaked for armour,
@@ -97,6 +102,20 @@ themselves an ordinary entry in the item catalogue rather than a special case.
 
 Trading blows with the hunter, head on, is always fatal. That is a designed
 property, checked by a test.
+
+## The test level
+
+The main menu has a **Test level** entry beside "New run". It starts an ordinary
+run with one extra level in front of the others and lays the entire catalogue —
+every item, three stacks of each — on the floor in rings around the spawn, with
+one of every creature standing on a ring beyond that and a full set of gear
+already worn. It is the same drop, spawn and pickup code a real run uses, so what
+it shows is the real behaviour rather than a display case.
+
+It is never written to storage: starting it, dying in it and walking back out
+leave a saved run exactly where it was. Its numbers live in `SANDBOX` in
+`src/content/tuning.ts` and its level in `SANDBOX_LEVEL` in
+`src/content/levels.ts`.
 
 ## Menus and settings
 

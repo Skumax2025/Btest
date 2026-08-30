@@ -26,6 +26,7 @@ export type {
   ActionNames,
   InteractionConfig,
   NoiseConfig,
+  SandboxConfig,
   RunConfig,
   RunContent,
 } from './config';

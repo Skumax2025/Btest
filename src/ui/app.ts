@@ -31,7 +31,7 @@ import type { RunSave } from '@game/run';
 import { ITEMS } from '@content/items';
 import { DEFAULT_LOCALE, LOCALES } from '@content/locales';
 import { GUIDE_SECTIONS } from '@content/guide';
-import { createRunConfig } from '@content/run-config';
+import { createRunConfig, createSandboxConfig } from '@content/run-config';
 import { AUDIO } from '@content/audio';
 import { paletteOf } from '@content/palettes';
 import { VIEW } from '@content/view';
@@ -155,6 +155,7 @@ export class App {
     this.menu = new MenuScreen(this.overlay, this.ui, {
       onContinue: () => this.enterRun(),
       onNewRun: () => this.startNewRun(),
+      onSandbox: () => this.startSandbox(),
       onGuide: () => this.setState('guide'),
       onSettings: () => this.settingsScreen.open(),
       onResume: () => this.enterRun(),
@@ -226,6 +227,15 @@ export class App {
     this.enterRun();
   }
 
+  /**
+   * The test level. It is never written to storage and never touches the saved
+   * run: a workshop you can walk out of and find your own game where you left it.
+   */
+  private startSandbox(): void {
+    this.swapRun(new Run(createSandboxConfig(createRandom(Date.now()).nextUint32())));
+    this.enterRun();
+  }
+
   private swapRun(run: Run): void {
     this.run = run;
     this.camera.snapTo(run.player.x, run.player.y);
@@ -233,6 +243,11 @@ export class App {
     this.bag.setOpen(false);
     this.audioView.reset();
     this.lastHealth = Number.POSITIVE_INFINITY;
+  }
+
+  /** True while the test level is the run; it is deliberately not persisted. */
+  private get inSandbox(): boolean {
+    return this.run.config.sandbox !== null;
   }
 
   private freshRun(): Run {
@@ -252,6 +267,9 @@ export class App {
   }
 
   private persist(): void {
+    // The test level is never written down: walking out of it has to leave the
+    // player's own run exactly where they left it.
+    if (this.inSandbox) return;
     if (!this.runActive || this.run.phase !== 'alive') {
       clearEnvelope(this.storage, SAVE_KEY);
       return;
@@ -283,6 +301,8 @@ export class App {
     this.canvas.style.filter = `brightness(${settings.brightness})`;
     this.overlay.style.setProperty('--ui-scale', String(settings.uiScale));
     this.debug.setVisible(settings.debugOverlay);
+    // Rebinding a key rewrites every label that names one, here and in the bag.
+    this.ui.binder.refresh();
     saveSettings(this.storage, settings);
   }
 

@@ -38,6 +38,7 @@ export const RU = {
   'menu.subtitle': 'Ты уже внутри. Осталось решить, надолго ли.',
   'menu.continue': 'Продолжить забег',
   'menu.newRun': 'Новый забег',
+  'menu.sandbox': 'Тестовый уровень',
   'menu.guide': 'Справочник',
   'menu.settings': 'Настройки',
   'menu.resume': 'Вернуться в игру',
@@ -122,6 +123,13 @@ export const RU = {
   'hud.wear': 'износ',
   'hud.level': 'УРОВЕНЬ {value}',
   'hud.broken': 'сломано',
+  'hud.controls': 'УПРАВЛЕНИЕ',
+  'hud.key': '{key}',
+  'hud.action.move': 'Идти',
+  'hud.action.belt': 'Пояс',
+  'hud.armor': 'БРОНЯ',
+  'hud.noise': 'ШАГИ',
+  'hud.failing': '{name} — на исходе',
 
   // ── подсказки: {key} подставляется из текущей раскладки ──────────────────
   'hint.move': '{move} — идти. Мышь — куда смотришь.',

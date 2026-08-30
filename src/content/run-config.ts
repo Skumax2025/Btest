@@ -9,7 +9,7 @@
 import type { RunConfig } from '@game/run';
 import { CREATURES } from './entities';
 import { ITEMS } from './items';
-import { LEVELS } from './levels';
+import { LEVELS, SANDBOX_LEVEL } from './levels';
 import { CONTAINERS, LOOT_TABLES } from './loot-tables';
 import {
   ACTIONS,
@@ -22,6 +22,7 @@ import {
   LIGHTING,
   NOISE,
   PLAYER,
+  SANDBOX,
   SIM,
   SOUND,
   STATS,
@@ -45,6 +46,7 @@ export const createRunConfig = (seed: number): RunConfig => ({
   player: PLAYER,
   stats: STATS,
   inventory: INVENTORY,
+  sandbox: null,
   lighting: LIGHTING,
   sound: SOUND,
   noise: NOISE,
@@ -56,3 +58,17 @@ export const createRunConfig = (seed: number): RunConfig => ({
   propCellSize: GEOMETRY.tileSize * 4,
   openingHintTicks: INTERACTION.openingHintTicks,
 });
+
+/**
+ * The test level, as a run configuration. It is the same game with one extra
+ * level in front and a `sandbox` block: everything else — items, creatures,
+ * tuning — is shared with a real run, so what it demonstrates is the real thing.
+ */
+export const createSandboxConfig = (seed: number): RunConfig => {
+  const base = createRunConfig(seed);
+  return {
+    ...base,
+    content: { ...base.content, levels: [SANDBOX_LEVEL, ...LEVELS] },
+    sandbox: SANDBOX,
+  };
+};

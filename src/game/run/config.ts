@@ -83,6 +83,24 @@ export interface CombatConfig {
   readonly armor: ArmorLimits;
 }
 
+/**
+ * The test level. When this is present the run lays the whole catalogue out on
+ * the floor and puts a sample of every creature on a ring around it, so every
+ * system can be looked at in one place. A real run never has one.
+ */
+export interface SandboxConfig {
+  /** Stacks of every catalogue item laid on the floor. */
+  readonly copies: number;
+  /** Distance between two laid-out stacks, in world units. */
+  readonly spacing: number;
+  /** Ring the sample creatures stand on, in world units. */
+  readonly creatureRadius: number;
+  /** Sample creatures of each kind. */
+  readonly creatureCopies: number;
+  /** Worn and carried from the first tick, so the floor can be picked up at all. */
+  readonly startingKit: readonly string[];
+}
+
 export interface RunConfig {
   readonly seed: number;
   readonly content: RunContent;
@@ -93,6 +111,8 @@ export interface RunConfig {
   readonly player: PlayerConfig;
   readonly stats: StatsConfig;
   readonly inventory: InventoryLayout;
+  /** Set only for the test level; `null` for every real run. */
+  readonly sandbox: SandboxConfig | null;
   readonly lighting: LightingConfig;
   readonly sound: SoundConfig;
   readonly noise: NoiseConfig;
