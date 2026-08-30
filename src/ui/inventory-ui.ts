@@ -6,7 +6,7 @@
  * turns pointer events into calls.
  */
 
-import { moveStack, setHand, stackAt } from '@game/inventory';
+import { canPlace, moveStack, setHand, stackAt } from '@game/inventory';
 import type { InventoryState, InventoryStack } from '@game/inventory';
 import type { ItemCatalog } from '@game/items';
 import type { UiContext } from './context';
@@ -24,10 +24,16 @@ interface DragState {
   readonly node: HTMLElement;
 }
 
+/** Cells the footprint covers, drawn inside the item so it can be counted. */
+const paintFootprint = (node: HTMLElement, cell: number): void => {
+  setStyle(node, 'background-size', `${cell}px ${cell}px`);
+};
+
 export class InventoryUi {
   private readonly root: HTMLElement;
   private readonly grid: HTMLElement;
   private readonly nodes = new Map<number, HTMLElement>();
+  private readonly ghost: HTMLElement;
   private drag: DragState | null = null;
   private signature = '';
   private open = false;
@@ -42,6 +48,8 @@ export class InventoryUi {
     this.root = el('div', 'bag', parent);
     ui.binder.bind(el('div', 'bag-title', this.root), 'inventory.title');
     this.grid = el('div', 'bag-grid', this.root);
+    this.ghost = el('div', 'bag-ghost', this.grid);
+    this.ghost.hidden = true;
     setStyle(this.grid, 'width', `${state.width * options.cellPixels}px`);
     setStyle(this.grid, 'height', `${state.height * options.cellPixels}px`);
     setStyle(
@@ -125,6 +133,7 @@ export class InventoryUi {
     setStyle(node, 'top', `${stack.y * cell}px`);
     setStyle(node, 'width', `${width}px`);
     setStyle(node, 'height', `${height}px`);
+    paintFootprint(node, cell);
     node.classList.toggle('bag-item--held', this.state.hand === stack.id);
     const name = node.querySelector('.bag-item-name');
     const count = node.querySelector('.bag-item-count');
@@ -161,14 +170,39 @@ export class InventoryUi {
     if (!this.drag) return;
     const cell = this.cellFromEvent(event);
     const cellPixels = this.options.cellPixels;
-    setStyle(this.drag.node, 'left', `${(cell.x - this.drag.offsetX) * cellPixels}px`);
-    setStyle(this.drag.node, 'top', `${(cell.y - this.drag.offsetY) * cellPixels}px`);
+    const x = cell.x - this.drag.offsetX;
+    const y = cell.y - this.drag.offsetY;
+    setStyle(this.drag.node, 'left', `${x * cellPixels}px`);
+    setStyle(this.drag.node, 'top', `${y * cellPixels}px`);
+    this.paintGhost(x, y);
   };
+
+  /** Shows where the stack would land, and whether it may land there at all. */
+  private paintGhost(x: number, y: number): void {
+    const drag = this.drag;
+    if (!drag) return;
+    const stack = this.state.stacks.find((candidate) => candidate.id === drag.stackId);
+    const def = stack ? this.catalog[stack.itemId] : undefined;
+    if (!stack || !def) return;
+    const cell = this.options.cellPixels;
+    const target = stackAt(this.state, this.catalog, x, y);
+    const merges = target !== null && target.id !== stack.id && target.itemId === stack.itemId;
+    const allowed = merges || canPlace(this.state, this.catalog, stack.itemId, x, y, stack.id);
+    this.ghost.hidden = false;
+    setStyle(this.ghost, 'left', `${x * cell}px`);
+    setStyle(this.ghost, 'top', `${y * cell}px`);
+    setStyle(this.ghost, 'width', `${Math.max(1, def.width) * cell}px`);
+    setStyle(this.ghost, 'height', `${Math.max(1, def.height) * cell}px`);
+    paintFootprint(this.ghost, cell);
+    this.ghost.classList.toggle('bag-ghost--allowed', allowed);
+    this.ghost.classList.toggle('bag-ghost--blocked', !allowed);
+  }
 
   private readonly onPointerUp = (event: PointerEvent): void => {
     const drag = this.drag;
     if (!drag) return;
     this.drag = null;
+    this.ghost.hidden = true;
     drag.node.classList.remove('bag-item--dragging');
     const cell = this.cellFromEvent(event);
     moveStack(

@@ -68,11 +68,32 @@ body {
   border: 1px solid rgba(239, 227, 187, 0.12);
 }
 
+.hud {
+  --hud-opacity: 1;
+}
+
+.hud-stats,
+.hud-hand,
+.hud-level {
+  opacity: var(--hud-opacity);
+  transition: opacity 500ms ease;
+}
+
 .hud-bar {
   display: grid;
-  grid-template-columns: 78px 130px 30px;
   align-items: center;
   gap: 8px;
+}
+
+.hud-bar--primary {
+  grid-template-columns: 78px 190px;
+  margin-bottom: 3px;
+}
+
+.hud-bar--secondary {
+  grid-template-columns: 78px 130px;
+  font-size: 10px;
+  opacity: 0.75;
 }
 
 .hud-bar-label {
@@ -80,8 +101,15 @@ body {
 }
 
 .hud-bar-track {
-  height: 7px;
   background: rgba(239, 227, 187, 0.12);
+}
+
+.hud-bar--primary .hud-bar-track {
+  height: 11px;
+}
+
+.hud-bar--secondary .hud-bar-track {
+  height: 5px;
 }
 
 .hud-bar-fill {
@@ -91,26 +119,48 @@ body {
   transition: width 120ms linear;
 }
 
+/* Each bar keeps its own colour: the shape of the block is recognised before
+   the label under it is read. */
 .hud-bar--health .hud-bar-fill {
   background: #c98a7c;
 }
-.hud-bar--hunger .hud-bar-fill {
-  background: #c2a866;
-}
-.hud-bar--thirst .hud-bar-fill {
-  background: #7fa8bd;
-}
+
 .hud-bar--stamina .hud-bar-fill {
   background: #9dbb85;
 }
+
+.hud-bar--hunger .hud-bar-fill {
+  background: #c2a866;
+}
+
+.hud-bar--thirst .hud-bar-fill {
+  background: #7fa8bd;
+}
+
 .hud-bar--sanity .hud-bar-fill {
   background: #a78fbd;
 }
 
-.hud-bar-value {
-  color: var(--hud-dim);
-  text-align: right;
+/* Critical bars pulse, so they are caught by the corner of an eye. */
+.hud-bar--critical {
+  opacity: 1;
+  animation: alarm 900ms ease-in-out infinite;
 }
+
+.hud-bar--critical .hud-bar-label {
+  color: #e0a094;
+}
+
+@keyframes alarm {
+  0%,
+  100% {
+    filter: none;
+  }
+  50% {
+    filter: brightness(1.9);
+  }
+}
+
 
 .hud-hand {
   position: absolute;
@@ -596,4 +646,51 @@ body {
 .hud-hint,
 .hud-combat {
   transform: translateX(-50%) scale(var(--ui-scale));
+}
+
+.hud-wear-track {
+  margin-top: 6px;
+  height: 3px;
+  background: rgba(239, 227, 187, 0.12);
+  display: none;
+}
+
+.hud--has-wear .hud-wear-track {
+  display: block;
+}
+
+.hud-wear-fill {
+  height: 100%;
+  background: #b8a066;
+  transition: width 160ms linear;
+}
+
+.hud--worn .hud-wear-fill {
+  background: #d2725c;
+}
+
+.bag-item {
+  background-image:
+    linear-gradient(to right, rgba(0, 0, 0, 0.35) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.35) 1px, transparent 1px);
+}
+
+.bag-ghost {
+  position: absolute;
+  pointer-events: none;
+  z-index: 1;
+  border: 1px solid;
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.14) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.14) 1px, transparent 1px);
+}
+
+.bag-ghost--allowed {
+  border-color: rgba(160, 220, 160, 0.8);
+  background-color: rgba(120, 200, 120, 0.16);
+}
+
+.bag-ghost--blocked {
+  border-color: rgba(210, 110, 90, 0.8);
+  background-color: rgba(200, 90, 70, 0.16);
 }

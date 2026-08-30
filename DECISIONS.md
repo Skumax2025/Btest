@@ -207,3 +207,27 @@ I went, so the order is roughly chronological.
   whole overlay: each panel scales about the corner it is pinned to, so nothing
   drifts off screen at 160%. Brightness is a CSS filter on the canvas, which
   leaves the palette and the lighting mechanic untouched.
+
+## Interface (G3)
+
+- **Two tiers of bar, not five equals.** Body and breath are large; hunger,
+  thirst and nerve are small and dim. Breath moved to second place because melee
+  now spends it continuously and a player must not have to look for it.
+- **Numbers came off the bars.** A bar already says what a number would, and the
+  brief forbids numbers where an indicator is enough. What survives as text is
+  what a bar cannot say: the item in hand, its charge, the load.
+- **Critical bars pulse.** A brightness animation is caught by peripheral vision
+  in a way a colour change alone is not.
+- **The interface goes quiet on its own** after a couple of seconds of nothing
+  happening, and comes back on any stat jump, any combat event, any body inside
+  weapon reach, or any prompt. Standing conditions like "it is too dark" are
+  excluded from that, or the interface would never fade in a dark building.
+- **Key prompts moved into the world**, drawn above the crate or the item they
+  are about. The centre line now carries only what has nowhere better to be.
+  The text is localized before it reaches the view, so the view still holds no
+  strings of its own.
+- **Wear is a bar under the hand slot**, not a percentage — it is a state, not a
+  measurement, and it turns red before it fails.
+- **Dragging shows a ghost** of the footprint, green where the stack may land and
+  red where it may not, and every item block is drawn with its cell grid so the
+  footprint can be counted at a glance.

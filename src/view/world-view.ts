@@ -14,6 +14,7 @@ import type { Palette } from '@content/palettes';
 import type { ViewConfig } from '@content/view';
 import { LightingView } from './lighting-view';
 import { drawCombat } from './combat-view';
+import { drawPrompt } from './prompt-view';
 import { drawCreatures, drawGround, drawPlayer, drawProps, drawTelegraphs } from './props';
 import { drawTiles } from './tiles';
 
@@ -30,6 +31,11 @@ export interface WorldViewOptions {
   /** 0 = clear head, 1 = the walls are lying to you. */
   readonly derangement: number;
   readonly view: ViewConfig;
+  /**
+   * A key prompt drawn next to the thing it is about. The text arrives already
+   * localized: the view never holds a string of its own.
+   */
+  readonly prompt: { readonly x: number; readonly y: number; readonly text: string } | null;
 }
 
 export class WorldView {
@@ -76,6 +82,9 @@ export class WorldView {
     });
     drawTelegraphs(renderer, run, options.palette, options.view);
     drawCombat(renderer, run, px, py, options.view.combat);
+    if (options.prompt) {
+      drawPrompt(renderer, options.prompt, options.palette, options.view.hud);
+    }
 
     renderer.popWorld();
   }

@@ -39,6 +39,25 @@ export interface ViewConfig {
   /** Phantoms per unit of derangement. */
   readonly phantomCount: number;
   readonly combat: CombatViewConfig;
+  readonly hud: HudConfig;
+}
+
+/**
+ * How loudly the interface talks. It stays out of the way while nothing is
+ * happening and comes back the moment a bar moves or something walks into reach.
+ */
+export interface HudConfig {
+  /** Below this share of its maximum, a bar starts asking to be looked at. */
+  readonly criticalFraction: number;
+  /** Ticks of nothing happening before the interface fades back. */
+  readonly calmTicks: number;
+  /** Change in a stat, in points, that counts as something happening. */
+  readonly changeEpsilon: number;
+  /** Opacity of the interface once it has gone quiet. */
+  readonly calmOpacity: number;
+  /** World units above a target that its key prompt is drawn. */
+  readonly promptOffset: number;
+  readonly promptFont: string;
 }
 
 /**
@@ -86,6 +105,14 @@ export const VIEW: ViewConfig = {
   phantomBaseAlpha: 0.1,
   phantomAlphaRange: 0.22,
   phantomCount: 3,
+  hud: {
+    criticalFraction: 0.3,
+    calmTicks: 150,
+    changeEpsilon: 0.4,
+    calmOpacity: 0.3,
+    promptOffset: 26,
+    promptFont: '11px ui-monospace, "DejaVu Sans Mono", monospace',
+  },
   combat: {
     ringPadding: 3,
     ringWidth: 1.5,

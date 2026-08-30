@@ -117,7 +117,7 @@ export class App {
       this.guide.refresh();
     });
 
-    this.hud = new Hud(this.overlay, this.ui);
+    this.hud = new Hud(this.overlay, this.ui, VIEW.hud);
     this.summary = new SummaryScreen(this.overlay, this.ui);
     this.debug = new DebugOverlay(this.overlay);
     this.bag = new InventoryUi(
@@ -337,6 +337,10 @@ export class App {
       losRadius: LIGHTING.losRadius,
       derangement,
       view: VIEW,
+      prompt:
+        this.run.hint && this.run.hintTarget
+          ? { ...this.run.hintTarget, text: this.hud.promptFor(this.run.hint) }
+          : null,
     });
     if (this.settings.debugOverlay) drawDebug(this.renderer, this.run, view, alpha);
     this.renderer.endFrame();

@@ -68,6 +68,8 @@ export class Run implements RunWorld {
   collected = 0;
   distance = 0;
   hint: HintKey | null = null;
+  /** Where the thing the hint is about is standing, for an in-world prompt. */
+  hintTarget: { x: number; y: number } | null = null;
   perception: Perception;
 
   /** Public because the save file owns them; nothing else should write them. */
@@ -243,6 +245,8 @@ export class Run implements RunWorld {
 
   private updateHint(input: InputFrame): void {
     const target = nearestInteractable(this);
+    const at = target?.prop ?? target?.ground ?? null;
+    this.hintTarget = at ? { x: at.x, y: at.y } : null;
     if (this.search) {
       this.hint = 'search';
     } else if (target?.kind === 'ground') {
@@ -259,6 +263,9 @@ export class Run implements RunWorld {
       this.hint = 'move';
     } else {
       this.hint = null;
+    }
+    if (this.hint !== 'search' && this.hint !== 'pickup' && this.hint !== 'descend') {
+      this.hintTarget = null;
     }
   }
 
