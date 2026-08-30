@@ -75,15 +75,6 @@ export class Camera {
   }
 }
 
-export const worldToScreen = (
-  view: CameraView,
-  worldX: number,
-  worldY: number,
-): { x: number; y: number } => ({
-  x: (worldX - view.x) * view.zoom + view.width / 2,
-  y: (worldY - view.y) * view.zoom + view.height / 2,
-});
-
 /** World-space rectangle currently covered by the view, expanded by `pad`. */
 export const viewBounds = (
   view: CameraView,

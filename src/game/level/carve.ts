@@ -8,7 +8,7 @@
 import { hashInts } from '@core/rng';
 import type { RandomStream } from '@core/rng';
 import type { LandmarkTemplate, LevelGeometry, LevelSpec, PropSpawn, RoomTemplate } from './types';
-import { TILE, isSolidTile } from './types';
+import { LAMP_DEAD, LAMP_FLICKER, LAMP_LIT, TILE, isSolidTile } from './types';
 
 export const isLandmarkTemplate = (template: RoomTemplate): template is LandmarkTemplate =>
   'marker' in template;
@@ -94,10 +94,10 @@ export const makeProp = (
       const roll = rng.next();
       const variant =
         roll < spec.lampWorkingChance
-          ? 0
+          ? LAMP_LIT
           : roll < spec.lampWorkingChance + spec.lampFlickerChance
-            ? 1
-            : 2;
+            ? LAMP_FLICKER
+            : LAMP_DEAD;
       return { ...base, kind: 'lamp', defId: 'lamp', variant };
     }
     case 'c': {

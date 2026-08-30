@@ -13,6 +13,7 @@ import { LEVELS } from './levels';
 import { CONTAINERS, LOOT_TABLES } from './loot-tables';
 import {
   ACTIONS,
+  AI,
   GEOMETRY,
   INTERACTION,
   INVENTORY,
@@ -43,6 +44,7 @@ export const createRunConfig = (seed: number): RunConfig => ({
   sound: SOUND,
   noise: NOISE,
   interaction: INTERACTION,
+  ai: AI,
   actions: ACTIONS,
   stepSeconds: SIM.stepMs / 1000,
   propCellSize: GEOMETRY.tileSize * 4,

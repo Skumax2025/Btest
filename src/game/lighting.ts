@@ -11,11 +11,8 @@
 
 import { clamp } from '@core/math';
 import { streamFor } from '@core/rng';
+import { LAMP_DEAD, LAMP_LIT } from '@game/level';
 import type { PropSpawn } from '@game/level';
-
-export const LAMP_LIT = 0;
-export const LAMP_FLICKER = 1;
-export const LAMP_DEAD = 2;
 
 export interface LightingConfig {
   readonly lampRadius: number;
@@ -31,6 +28,8 @@ export interface LightingConfig {
   readonly flashlightStrength: number;
   /** Below this light level the player counts as standing in the dark. */
   readonly darkThreshold: number;
+  /** Light level a burning flashlight guarantees, whatever the lamps are doing. */
+  readonly flashlightLightLevel: number;
 }
 
 export interface LightSource {

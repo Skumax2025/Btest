@@ -157,6 +157,22 @@ describe('a full loop', () => {
     expect(run.phase).toBe('alive');
   });
 
+  it('lets the player hide: crouching makes no noise, and a hunter gives up', () => {
+    const run = new Run(createRunConfig(555));
+    const start = run.noise.recent().length;
+    for (let i = 0; i < 120; i++) {
+      run.step({ ...EMPTY_INPUT, axisX: 1, held: ['crouch'] });
+    }
+    const crouchNoise = run.noise.recent().filter((event) => event.source === 'step').length;
+    expect(crouchNoise).toBe(0);
+    expect(run.player.stance).toBe('crouch');
+
+    for (let i = 0; i < 120; i++) run.step({ ...EMPTY_INPUT, axisX: 1 });
+    const walkNoise = run.noise.recent().filter((event) => event.source === 'step').length;
+    expect(walkNoise).toBeGreaterThan(0);
+    expect(run.noise.recent().length).toBeGreaterThan(start);
+  });
+
   it('ends the run when the body gives out and stops simulating', () => {
     const run = new Run(createRunConfig(10));
     run.stats.health = 0.01;

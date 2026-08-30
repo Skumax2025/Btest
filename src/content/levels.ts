@@ -73,5 +73,3 @@ export const LEVELS: readonly LevelSpec[] = [
     startRoomId: null,
   },
 ];
-
-export const levelAt = (index: number): LevelSpec => LEVELS[Math.min(index, LEVELS.length - 1)];

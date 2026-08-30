@@ -38,7 +38,10 @@ export interface Perception {
 export const perceive = (params: PerceptionParams): Perception => {
   const lights = collectLights(params.props, params.tick, params.lighting);
   const lampLight = lightLevelAt(params.x, params.y, lights, params.ambient);
-  const lightLevel = params.flashlightOn ? Math.max(lampLight, params.lighting.darkThreshold + 0.1) : lampLight;
+  // A lit torch is by definition not darkness, whatever the lamps are doing.
+  const lightLevel = params.flashlightOn
+    ? Math.max(lampLight, params.lighting.flashlightLightLevel)
+    : lampLight;
 
   let pressure = 0;
   for (const creature of params.creatures) {

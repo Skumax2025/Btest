@@ -8,7 +8,6 @@
  * sequence of `InputFrame`s is the whole game; the browser is optional.
  */
 
-import { SpatialGrid } from '@core/spatial';
 import { World } from '@core/world';
 import type { ComponentStore, EntityId } from '@core/world';
 import { createRandom } from '@core/rng';
@@ -30,6 +29,7 @@ import { handleActions, nearestInteractable } from './actions';
 import { stepCreatures, syncCreatures } from './creatures';
 import { applyContactDamage, stepLight, stepProjectiles, stepSearch } from './effects';
 import { perceive } from './perception';
+import { PropIndex, groundItemsNear } from './prop-index';
 import type { Perception } from './perception';
 import type { GroundItem, HintKey, Projectile, RunWorld, SearchProgress } from './world-access';
 
@@ -65,15 +65,14 @@ export class Run implements RunWorld {
   lastNoiseTick = 0;
   lastFootstepTick = 0;
 
-  private readonly propGrid: SpatialGrid;
-  private readonly propList: PropSpawn[] = [];
+  private readonly propIndex: PropIndex;
 
   constructor(config: RunConfig) {
     this.config = config;
     this.creatures = this.world.store<CreatureState>('creature');
     this.projectiles = this.world.store<Projectile>('projectile');
     this.rng = createRandom(config.seed);
-    this.propGrid = new SpatialGrid(config.propCellSize);
+    this.propIndex = new PropIndex(config.propCellSize);
     this.noise = new NoiseField(config.sound);
     this.stats = createStats(config.stats);
     this.inventory = createInventory(
@@ -226,7 +225,7 @@ export class Run implements RunWorld {
         : this.player.stance === 'crouch'
           ? noise.crouch
           : noise.walk;
-    const wet = this.player.onWet ? 1.4 : 1;
+    const wet = this.player.onWet ? noise.wetFactor : 1;
     if (radius > 0) this.emitNoise(this.player.x, this.player.y, radius * wet, 'step');
   }
 
@@ -268,45 +267,20 @@ export class Run implements RunWorld {
     this.hint = hint;
   }
 
-  /**
-   * Static props of every loaded chunk, pushed into the spatial index. Rebuilt
-   * only when chunks come and go, never per tick.
-   */
+  /** Rebuilt only when chunks come and go, never per tick. */
   rebuildPropIndex(): void {
-    this.propGrid.clear();
-    this.propList.length = 0;
-    for (const chunk of this.level.loadedChunks()) {
-      for (const prop of chunk.props) {
-        const id = this.propList.push(prop) - 1;
-        this.propGrid.insert(id, prop.x, prop.y, 0);
-      }
-    }
+    this.propIndex.rebuild(this.level);
   }
 
   propsNear(x: number, y: number, radius: number): PropSpawn[] {
-    return this.propGrid.queryCircle(x, y, radius).map((entry) => this.propList[entry.id]);
+    return this.propIndex.near(x, y, radius);
   }
 
   propsInRect(minX: number, minY: number, maxX: number, maxY: number): PropSpawn[] {
-    return this.propGrid.queryRect(minX, minY, maxX, maxY).map((entry) => this.propList[entry.id]);
+    return this.propIndex.inRect(minX, minY, maxX, maxY);
   }
 
-  /** Items lying on the floor nearby, read straight out of the chunk deltas. */
   groundItemsNear(x: number, y: number, radius: number): GroundItem[] {
-    const found: GroundItem[] = [];
-    const origin = this.level.chunkCoordAt(x, y);
-    const span = Math.ceil(radius / this.level.chunkWorldSize);
-    for (let cy = origin.cy - span; cy <= origin.cy + span; cy++) {
-      for (let cx = origin.cx - span; cx <= origin.cx + span; cx++) {
-        const dropped = this.level.peekDelta(cx, cy)?.dropped;
-        if (!dropped) continue;
-        for (let index = 0; index < dropped.length; index++) {
-          const entry = dropped[index];
-          if (Math.hypot(entry.x - x, entry.y - y) > radius) continue;
-          found.push({ ...entry, cx, cy, index });
-        }
-      }
-    }
-    return found;
+    return groundItemsNear(this.level, x, y, radius);
   }
 }

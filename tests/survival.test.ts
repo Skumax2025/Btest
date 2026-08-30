@@ -87,12 +87,22 @@ describe('stats', () => {
     expect(watched.sanity).toBeLessThan(dark.sanity);
   });
 
-  it('recovers nerve only while resting somewhere lit and noisy enough', () => {
-    const state = createStats(STATS);
-    state.sanity = 40;
-    for (let i = 0; i < 10; i++) stepStats(state, idle({ resting: true }), STATS);
-    expect(state.sanity).toBeGreaterThan(40);
-    expect(isLowSanity(state, STATS)).toBe(false);
+  it('recovers nerve wherever nothing is eating it, fastest while standing still', () => {
+    const resting = createStats(STATS);
+    const walking = createStats(STATS);
+    const haunted = createStats(STATS);
+    resting.sanity = 40;
+    walking.sanity = 40;
+    haunted.sanity = 40;
+    for (let i = 0; i < 10; i++) {
+      stepStats(resting, idle({ resting: true }), STATS);
+      stepStats(walking, idle(), STATS);
+      stepStats(haunted, idle({ inDark: true }), STATS);
+    }
+    expect(resting.sanity).toBeGreaterThan(walking.sanity);
+    expect(walking.sanity).toBeGreaterThan(40);
+    expect(haunted.sanity).toBeLessThan(40);
+    expect(isLowSanity(resting, STATS)).toBe(false);
   });
 
   it('records the cause of death', () => {

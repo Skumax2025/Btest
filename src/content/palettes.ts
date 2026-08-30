@@ -65,6 +65,6 @@ export const PALETTES: Readonly<Record<string, Palette>> = {
   },
 };
 
-export const DEFAULT_PALETTE_ID = 'level0.yellow';
+const DEFAULT_PALETTE_ID = 'level0.yellow';
 
 export const paletteOf = (id: string): Palette => PALETTES[id] ?? PALETTES[DEFAULT_PALETTE_ID];

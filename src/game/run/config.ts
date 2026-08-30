@@ -33,6 +33,18 @@ export interface RunContent {
   readonly creatures: CreatureCatalog;
 }
 
+/** Numbers that govern how creatures are driven, as opposed to how they think. */
+export interface AiConfig {
+  /** A* node budget for one path request. */
+  readonly pathNodes: number;
+  /** Ticks between path recomputations while a route is being followed. */
+  readonly repathTicks: number;
+  /** Ticks between the noises a creature makes for itself. */
+  readonly noiseTicks: number;
+  /** Share of a tile within which a waypoint counts as reached. */
+  readonly waypointReachedFactor: number;
+}
+
 export interface NoiseConfig {
   readonly walk: number;
   readonly sprint: number;
@@ -41,6 +53,8 @@ export interface NoiseConfig {
   readonly searchFallback: number;
   readonly melee: number;
   readonly silenceTicks: number;
+  /** Multiplier on footstep noise while standing on wet carpet. */
+  readonly wetFactor: number;
 }
 
 export interface InteractionConfig {
@@ -55,6 +69,12 @@ export interface InteractionConfig {
   readonly meleeFallbackDamage: number;
   readonly meleeStaminaCost: number;
   readonly shoveImpulse: number;
+  /** Radius, in tiles, that loot is scattered over when a container is opened. */
+  readonly lootSpread: number;
+  /** Share of the full search noise made when the search begins. */
+  readonly searchStartNoiseFactor: number;
+  /** Multiple of the interact range at which walking away cancels a search. */
+  readonly searchCancelFactor: number;
 }
 
 export interface InventoryConfig {
@@ -75,6 +95,7 @@ export interface RunConfig {
   readonly sound: SoundConfig;
   readonly noise: NoiseConfig;
   readonly interaction: InteractionConfig;
+  readonly ai: AiConfig;
   readonly actions: ActionNames;
   /** Length of one simulation step in seconds. */
   readonly stepSeconds: number;

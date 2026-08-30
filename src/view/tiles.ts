@@ -10,16 +10,25 @@ import type { Renderer } from '@core/renderer';
 import { TILE } from '@game/level';
 import type { LevelStream } from '@game/level';
 import type { Palette } from '@content/palettes';
+import type { ViewConfig } from '@content/view';
 
 /** Slight per-tile mottling so an endless carpet does not read as flat colour. */
-const floorColour = (tile: number, tx: number, ty: number, palette: Palette): string => {
+const floorColour = (
+  tile: number,
+  tx: number,
+  ty: number,
+  palette: Palette,
+  view: ViewConfig,
+): string => {
   switch (tile) {
     case TILE.STAIN:
       return palette.stain;
     case TILE.WET:
       return palette.wet;
     default:
-      return hashInts(tx, ty, 31) % 5 === 0 ? palette.floorAlt : palette.floor;
+      return hashInts(tx, ty, 31) % view.floorVariationEvery === 0
+        ? palette.floorAlt
+        : palette.floor;
   }
 };
 
@@ -28,6 +37,7 @@ export const drawTiles = (
   level: LevelStream,
   view: CameraView,
   palette: Palette,
+  config: ViewConfig,
 ): void => {
   const tileSize = level.geo.tileSize;
   const bounds = viewBounds(view, tileSize * 2);
@@ -46,14 +56,15 @@ export const drawTiles = (
         renderer.fillRect(x, y, tileSize, tileSize, tile === TILE.WALL ? palette.wall : palette.pillar);
         // Faces only where the wall mass actually ends: a lit cap on the north
         // side and a dark skirt on the south. That is the whole "3d" budget.
+        const face = tileSize * config.wallFaceHeight;
         if (!isSolid(level, tx, ty - 1)) {
-          renderer.fillRect(x, y, tileSize, tileSize * 0.22, palette.wallEdge);
+          renderer.fillRect(x, y, tileSize, face, palette.wallEdge);
         }
         if (!isSolid(level, tx, ty + 1)) {
-          renderer.fillRect(x, y + tileSize * 0.78, tileSize, tileSize * 0.22, palette.wallShade);
+          renderer.fillRect(x, y + tileSize - face, tileSize, face, palette.wallShade);
         }
       } else {
-        renderer.fillRect(x, y, tileSize, tileSize, floorColour(tile, tx, ty, palette));
+        renderer.fillRect(x, y, tileSize, tileSize, floorColour(tile, tx, ty, palette, config));
       }
     }
   }

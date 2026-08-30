@@ -62,7 +62,13 @@ const beginSearch = (world: RunWorld, prop: PropSpawn): void => {
   const def = world.config.content.containers[prop.defId];
   const ticks = def?.searchTicks ?? world.config.interaction.searchFallbackTicks;
   world.search = { key: prop.key, x: prop.x, y: prop.y, ticksLeft: ticks, total: ticks };
-  world.emitNoise(prop.x, prop.y, (def?.searchNoise ?? world.config.noise.searchFallback) * 0.5, 'search');
+  world.emitNoise(
+    prop.x,
+    prop.y,
+    (def?.searchNoise ?? world.config.noise.searchFallback) *
+      world.config.interaction.searchStartNoiseFactor,
+    'search',
+  );
 };
 
 /** Spills a container's contents onto the floor around it. */
@@ -84,7 +90,7 @@ export const finishSearch = (world: RunWorld, prop: PropSpawn): void => {
     world.setHint('nothing');
     return;
   }
-  const spread = world.config.geometry.tileSize * 0.55;
+  const spread = world.config.geometry.tileSize * world.config.interaction.lootSpread;
   stacks.forEach((stack, index) => {
     const angle = (index / stacks.length) * Math.PI * 2;
     world.level.drop(

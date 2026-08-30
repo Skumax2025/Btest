@@ -72,10 +72,6 @@ export class InputDevice {
     this.rebuild();
   }
 
-  getBindings(): KeyBindings {
-    return this.bindings;
-  }
-
   attach(target: HTMLElement, windowLike: Window): void {
     const onKeyDown = (event: KeyboardEvent): void => {
       const actions = this.codeToActions.get(event.code);

@@ -30,14 +30,6 @@ export interface AudioOutput {
   readonly muted: boolean;
 }
 
-export class SilentAudio implements AudioOutput {
-  readonly muted = true;
-  resume(): void {}
-  play(): void {}
-  setDrone(): void {}
-  setMuted(): void {}
-}
-
 const NOISE_SECONDS = 1;
 
 export class WebAudio implements AudioOutput {

@@ -219,6 +219,3 @@ export const heldStack = (state: InventoryState): InventoryStack | null =>
 export const setHand = (state: InventoryState, id: number | null): void => {
   state.hand = id !== null && findStack(state, id) ? id : null;
 };
-
-export const countOf = (state: InventoryState, itemId: string): number =>
-  state.stacks.reduce((sum, stack) => sum + (stack.itemId === itemId ? stack.count : 0), 0);

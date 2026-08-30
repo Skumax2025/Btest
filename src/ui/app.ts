@@ -19,6 +19,7 @@ import { ITEMS } from '@content/items';
 import { createRunConfig } from '@content/run-config';
 import { AUDIO } from '@content/audio';
 import { paletteOf } from '@content/palettes';
+import { VIEW } from '@content/view';
 import { FALLBACK_SPRITE, SPRITES } from '@content/sprites';
 import {
   AXIS_BINDINGS,
@@ -54,6 +55,7 @@ export class App {
   private readonly audioView: AudioView;
   private readonly summary: SummaryScreen;
   private readonly debug: DebugOverlay;
+  private lastHealth = Number.POSITIVE_INFINITY;
   private run: Run;
 
   constructor(private readonly root: HTMLElement) {
@@ -67,6 +69,7 @@ export class App {
     this.worldView = new WorldView(
       this.renderer,
       new PlaceholderSpriteProvider(SPRITES, domCanvasFactory, FALLBACK_SPRITE),
+      VIEW.lightCacheLimit,
     );
     this.camera.zoom = CAMERA.zoom;
 
@@ -125,6 +128,7 @@ export class App {
     this.bag.setOpen(false);
     this.summary.update(this.run);
     this.audioView.reset();
+    this.lastHealth = Number.POSITIVE_INFINITY;
   }
 
   start(): void {
@@ -142,28 +146,45 @@ export class App {
     const pointer = this.input.pointerScreen;
     const world = this.camera.screenToWorld(pointer.x, pointer.y);
     const frame = this.input.sample(world.x, world.y);
-    if (frame.pressed.includes('inventory')) this.bag.toggle();
+    if (frame.pressed.includes('inventory')) {
+      this.bag.toggle();
+      // Keys held while the panel opens must not stay held behind it.
+      this.input.releaseAll();
+    }
     if (frame.pressed.includes('debug')) this.debug.toggle();
     if (this.run.phase === 'dead' && frame.pressed.includes('restart')) {
       this.restart();
       return;
     }
     this.run.step(frame);
+    // Getting hit is the one thing that shakes the camera; it reads before the
+    // health bar does.
+    if (this.run.stats.health < this.lastHealth - 0.5) this.camera.addShake(CAMERA.hitShake);
+    this.lastHealth = this.run.stats.health;
     this.camera.follow(this.run.player.x, this.run.player.y, CAMERA.smoothing);
     if (this.run.tick % SIM.autosaveTicks === 0) this.persist();
   }
 
   private render(alpha: number): void {
+    this.camera.updateShake(
+      CAMERA.shakeDecay,
+      Math.sin(this.run.tick * 12.9898) ,
+      Math.cos(this.run.tick * 78.233),
+    );
     const view = this.camera.view(alpha);
     const derangement = this.derangement();
     this.worldView.draw(this.run, view, alpha, {
       lighting: LIGHTING,
       palette: paletteOf(this.run.spec.paletteId),
       rays: VISION,
+      losRadius: LIGHTING.losRadius,
       derangement,
+      view: VIEW,
     });
     if (this.debug.isVisible) drawDebug(this.renderer, this.run, view, alpha);
     this.renderer.endFrame();
+    // The run summary replaces the HUD rather than sitting on top of it.
+    this.hud.setVisible(this.run.phase === 'alive');
     this.hud.update(this.run);
     this.bag.update();
     this.summary.update(this.run);

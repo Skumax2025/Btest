@@ -44,8 +44,6 @@ export interface ItemDef {
 
 export type ItemCatalog = Readonly<Record<string, ItemDef>>;
 
-export const itemDef = (catalog: ItemCatalog, id: string): ItemDef | undefined => catalog[id];
-
 export const hasTag = (def: ItemDef, tag: ItemTag): boolean => def.tags.includes(tag);
 
 export const isLightSource = (def: ItemDef): boolean => hasTag(def, 'light') && def.charge > 0;

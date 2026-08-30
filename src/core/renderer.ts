@@ -61,6 +61,12 @@ export interface Renderer {
     radius: number,
     strength: number,
   ): void;
+  /**
+   * Restricts every following light punch to a polygon — the player's own line
+   * of sight. Without it a lit room is visible through the wall in front of it.
+   */
+  beginVisibility(points: Float32Array): void;
+  endVisibility(): void;
   /** Light clipped to a visibility ring, so walls actually cast shadows. */
   punchPolygon(
     points: Float32Array,

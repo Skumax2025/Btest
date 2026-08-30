@@ -46,7 +46,7 @@ export const stepSearch = (world: RunWorld): void => {
   const search = world.search;
   if (!search) return;
   const distance = Math.hypot(search.x - world.player.x, search.y - world.player.y);
-  if (distance > world.config.interaction.interactRange * 1.5) {
+  if (distance > world.config.interaction.interactRange * world.config.interaction.searchCancelFactor) {
     world.search = null;
     return;
   }

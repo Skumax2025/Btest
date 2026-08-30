@@ -29,6 +29,7 @@ const BAR_LABELS: Record<BarKey, string> = {
 };
 
 export class Hud {
+  private visible = true;
   private readonly root: HTMLElement;
   private readonly bars = new Map<BarKey, Bar>();
   private readonly handName: HTMLElement;
@@ -60,6 +61,7 @@ export class Hud {
   }
 
   update(run: Run): void {
+    if (!this.visible) return;
     const config = run.config.stats;
     const maxima: Record<BarKey, number> = {
       health: config.maxHealth,
@@ -93,6 +95,7 @@ export class Hud {
   }
 
   setVisible(visible: boolean): void {
+    this.visible = visible;
     setStyle(this.root, 'display', visible ? 'flex' : 'none');
   }
 }

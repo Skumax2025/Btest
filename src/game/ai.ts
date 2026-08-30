@@ -43,6 +43,8 @@ export interface CreatureDef {
   readonly killsOnContact: boolean;
   /** Distance a wanderer picks its next idle destination within. */
   readonly wanderRange: number;
+  /** Closest share of `wanderRange` an idle destination may be. */
+  readonly wanderMinFactor: number;
 }
 
 export type CreatureCatalog = Readonly<Record<string, CreatureDef>>;
@@ -163,7 +165,7 @@ export const decide = (
 
 const wander = (state: CreatureState, def: CreatureDef, rng: RandomStream): Decision => {
   const angle = rng.float(0, Math.PI * 2);
-  const distance = rng.float(def.wanderRange * 0.3, def.wanderRange);
+  const distance = rng.float(def.wanderRange * def.wanderMinFactor, def.wanderRange);
   return {
     mode: 'wander',
     targetX: state.x + Math.cos(angle) * distance,

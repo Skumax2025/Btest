@@ -34,6 +34,8 @@ export interface StatsConfig {
   readonly sanitySilencePerSecond: number;
   readonly sanityCreaturePerSecond: number;
   readonly sanityRegenPerSecond: number;
+  /** Share of the nerve recovery rate that applies while walking rather than resting. */
+  readonly movingRegenFactor: number;
   /** Below this fraction of max sanity the world starts lying to the player. */
   readonly lowSanityFraction: number;
   readonly healthRegenPerSecond: number;
@@ -111,7 +113,10 @@ export const stepStats = (state: StatsState, input: StatsInput, config: StatsCon
   if (input.inDark) sanityDelta -= config.sanityDarkPerSecond;
   if (input.inSilence) sanityDelta -= config.sanitySilencePerSecond;
   sanityDelta -= config.sanityCreaturePerSecond * clamp(input.creaturePressure, 0, 1);
-  if (sanityDelta === 0 && input.resting) sanityDelta += config.sanityRegenPerSecond;
+  // Nerve comes back wherever nothing is eating it, but standing still helps most.
+  if (sanityDelta === 0) {
+    sanityDelta += config.sanityRegenPerSecond * (input.resting ? 1 : config.movingRegenFactor);
+  }
   state.sanity = clamp(state.sanity + sanityDelta * dt, 0, config.maxSanity);
 
   if (state.hunger <= 0) applyDamage(state, config.starvationDamagePerSecond * dt, 'starvation', config);

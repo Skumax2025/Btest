@@ -16,10 +16,6 @@ import { chunkKey } from '@game/level';
 import type { RunWorld } from './world-access';
 
 const CREATURE_NOISE = 'creature';
-/** A* budget per creature request. Generous enough for a room, cheap enough for many. */
-const PATH_NODES = 320;
-const REPATH_TICKS = 24;
-const NOISE_TICKS = 40;
 
 /**
  * Turns freshly loaded chunks into live creatures and drops the ones whose chunk
@@ -136,7 +132,7 @@ const advance = (world: RunWorld, creature: CreatureState, speed: number): void 
     creature.pathIndex = 0;
   } else {
     if (creature.repathIn <= 0 || creature.pathIndex * 2 >= creature.path.length) {
-      creature.repathIn = REPATH_TICKS;
+      creature.repathIn = world.config.ai.repathTicks;
       creature.pathIndex = 0;
       creature.path =
         findPath(
@@ -145,13 +141,15 @@ const advance = (world: RunWorld, creature: CreatureState, speed: number): void 
           Math.floor(goalX / tileSize),
           Math.floor(goalY / tileSize),
           world.level.isSolidTileAt,
-          PATH_NODES,
+          world.config.ai.pathNodes,
         ) ?? [];
     }
     if (creature.path.length === 0) return;
     goalX = (creature.path[creature.pathIndex * 2] + 0.5) * tileSize;
     goalY = (creature.path[creature.pathIndex * 2 + 1] + 0.5) * tileSize;
-    if (Math.hypot(goalX - creature.x, goalY - creature.y) < tileSize * 0.4) creature.pathIndex++;
+    if (Math.hypot(goalX - creature.x, goalY - creature.y) < tileSize * world.config.ai.waypointReachedFactor) {
+      creature.pathIndex++;
+    }
   }
 
   const dx = goalX - creature.x;
@@ -199,7 +197,7 @@ export const stepCreatures = (world: RunWorld): void => {
 
     if (creature.noiseIn > 0) creature.noiseIn--;
     else if (def.noiseRadius > 0 && (speed > 0 || def.archetype === 'sentinel')) {
-      creature.noiseIn = NOISE_TICKS;
+      creature.noiseIn = world.config.ai.noiseTicks;
       world.emitNoise(creature.x, creature.y, def.noiseRadius, 'creature');
     }
   }

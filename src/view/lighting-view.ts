@@ -14,6 +14,7 @@ import type { SolidSampler } from '@systems/collision';
 import { visibilityPolygon } from '@systems/vision';
 import type { LightSource, LightingConfig } from '@game/lighting';
 import type { Palette } from '@content/palettes';
+import type { ViewConfig } from '@content/view';
 
 export interface DarknessParams {
   readonly view: CameraView;
@@ -26,20 +27,46 @@ export interface DarknessParams {
   readonly playerY: number;
   readonly playerFacing: number;
   readonly sightRadius: number;
+  /** How far the player can see lit places down an open corridor. */
+  readonly losRadius: number;
   readonly flashlightOn: boolean;
-  readonly rays: { readonly lightRays: number; readonly playerRays: number; readonly flashlightRays: number };
+  readonly rays: {
+    readonly lightRays: number;
+    readonly playerRays: number;
+    readonly flashlightRays: number;
+  };
+  readonly config: ViewConfig;
 }
 
 export class LightingView {
   private readonly cache = new Map<string, Float32Array>();
   private scratchPlayer?: Float32Array;
   private scratchCone?: Float32Array;
+  private scratchLos?: Float32Array;
 
   constructor(private readonly cacheLimit: number) {}
 
   draw(renderer: Renderer, params: DarknessParams): void {
     const bounds = viewBounds(params.view, params.tileSize * 2);
     renderer.beginDarkness(params.palette.darkness, params.view);
+
+    // Lamps are only seen where the player could actually be looking. A lit room
+    // behind a wall stays dark; the same room down an open corridor does not.
+    this.scratchLos = visibilityPolygon(
+      params.playerX,
+      params.playerY,
+      params.losRadius,
+      params.isSolid,
+      {
+        rayCount: params.rays.playerRays,
+        tileSize: params.tileSize,
+        halfAngle: Math.PI,
+        facing: 0,
+        overshoot: params.tileSize * params.config.overshootTiles,
+      },
+      this.scratchLos,
+    );
+    renderer.beginVisibility(this.scratchLos);
 
     for (const light of params.lights) {
       if (
@@ -53,6 +80,7 @@ export class LightingView {
       const polygon = this.cachedPolygon(light, params);
       renderer.punchPolygon(polygon, light.x, light.y, light.radius, light.strength);
     }
+    renderer.endVisibility();
 
     this.scratchPlayer = visibilityPolygon(
       params.playerX,
@@ -64,7 +92,7 @@ export class LightingView {
         tileSize: params.tileSize,
         halfAngle: Math.PI,
         facing: 0,
-        overshoot: params.tileSize * 1.4,
+        overshoot: params.tileSize * params.config.overshootTiles,
       },
       this.scratchPlayer,
     );
@@ -73,7 +101,7 @@ export class LightingView {
       params.playerX,
       params.playerY,
       params.sightRadius,
-      0.92,
+      params.config.playerLightStrength,
     );
 
     if (params.flashlightOn) {
@@ -87,7 +115,7 @@ export class LightingView {
           tileSize: params.tileSize,
           halfAngle: params.lighting.flashlightHalfAngle,
           facing: params.playerFacing,
-          overshoot: params.tileSize * 1.4,
+          overshoot: params.tileSize * params.config.overshootTiles,
         },
         this.scratchCone,
       );
@@ -112,7 +140,7 @@ export class LightingView {
       tileSize: params.tileSize,
       halfAngle: Math.PI,
       facing: 0,
-      overshoot: params.tileSize * 1.4,
+      overshoot: params.tileSize * params.config.overshootTiles,
     });
     if (this.cache.size >= this.cacheLimit) this.cache.clear();
     this.cache.set(key, polygon);

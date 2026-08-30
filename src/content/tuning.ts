@@ -35,6 +35,8 @@ export const CAMERA = {
   /** Fraction of the remaining distance covered per tick. */
   smoothing: 0.14,
   shakeDecay: 0.86,
+  /** Camera kick, in world units, when the player is hurt. */
+  hitShake: 7,
   maxPixelRatio: 2,
 } as const;
 
@@ -59,11 +61,14 @@ export const LIGHTING = {
   flickerPeriod: 7,
   flickerOnChance: 0.62,
   visionRadius: 220,
-  darkVisionRadius: 74,
+  darkVisionRadius: 94,
   flashlightRadius: 430,
   flashlightHalfAngle: 0.42,
   flashlightStrength: 1,
   darkThreshold: 0.22,
+  flashlightLightLevel: 0.34,
+  /** How far a lit room stays visible down an unobstructed line of sight. */
+  losRadius: 1100,
 } as const;
 
 /**
@@ -85,10 +90,11 @@ export const STATS: StatsConfig = {
   sprintRecoveryStamina: 30,
   starvationDamagePerSecond: 1.6,
   dehydrationDamagePerSecond: 2.2,
-  sanityDarkPerSecond: 1.5,
+  sanityDarkPerSecond: 1.0,
   sanitySilencePerSecond: 0.85,
   sanityCreaturePerSecond: 3.4,
-  sanityRegenPerSecond: 1.2,
+  sanityRegenPerSecond: 1.4,
+  movingRegenFactor: 0.45,
   lowSanityFraction: 0.35,
   healthRegenPerSecond: 0.35,
   healthRegenFraction: 0.5,
@@ -110,8 +116,8 @@ export const SOUND: SoundConfig = {
 
 /** Radii, in world units, of the noise the player makes. */
 export const NOISE = {
-  walk: 110,
-  sprint: 250,
+  walk: 130,
+  sprint: 285,
   crouch: 0,
   /** Ticks between footstep noises while moving. */
   stepInterval: 22,
@@ -119,6 +125,8 @@ export const NOISE = {
   melee: 210,
   /** Ticks of quiet before the silence starts eating at the player's nerve. */
   silenceTicks: 300,
+  /** Wet carpet squelches. */
+  wetFactor: 1.4,
 } as const;
 
 export const INTERACTION = {
@@ -137,6 +145,16 @@ export const INTERACTION = {
   shoveImpulse: 240,
   /** How long the opening movement line stays up, in ticks. */
   openingHintTicks: 360,
+  lootSpread: 0.55,
+  searchStartNoiseFactor: 0.5,
+  searchCancelFactor: 1.5,
+} as const;
+
+export const AI = {
+  pathNodes: 320,
+  repathTicks: 24,
+  noiseTicks: 40,
+  waypointReachedFactor: 0.4,
 } as const;
 
 export const VISION = {

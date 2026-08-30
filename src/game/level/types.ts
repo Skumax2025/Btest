@@ -45,6 +45,11 @@ export const charToTile = (char: string): TileId => {
 
 export type PropKind = 'lamp' | 'container' | 'creature' | 'exit' | 'marker';
 
+/** Values of `PropSpawn.variant` for a lamp. */
+export const LAMP_LIT = 0;
+export const LAMP_FLICKER = 1;
+export const LAMP_DEAD = 2;
+
 export interface PropSpawn {
   /** Stable identity across regeneration — the key used by chunk deltas. */
   readonly key: string;

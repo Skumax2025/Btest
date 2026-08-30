@@ -21,6 +21,7 @@ export class Canvas2DRenderer implements Renderer {
   private readonly darkCtx: CanvasRenderingContext2D;
   private pixelRatio = 1;
   private worldDepth = 0;
+  private visibilityDepth = 0;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -222,6 +223,23 @@ export class Canvas2DRenderer implements Renderer {
     this.darkCtx.fillStyle = gradient;
     this.darkCtx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
     this.darkCtx.restore();
+  }
+
+  beginVisibility(points: Float32Array): void {
+    if (points.length < 6) return;
+    this.darkCtx.save();
+    this.darkCtx.beginPath();
+    this.darkCtx.moveTo(points[0], points[1]);
+    for (let i = 2; i < points.length; i += 2) this.darkCtx.lineTo(points[i], points[i + 1]);
+    this.darkCtx.closePath();
+    this.darkCtx.clip();
+    this.visibilityDepth++;
+  }
+
+  endVisibility(): void {
+    if (this.visibilityDepth === 0) return;
+    this.darkCtx.restore();
+    this.visibilityDepth--;
   }
 
   punchPolygon(

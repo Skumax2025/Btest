@@ -15,6 +15,9 @@ export type { DoorRules, GenerateParams } from './generate';
 export { LevelStream } from './stream';
 export type { StreamOptions, StreamSave } from './stream';
 export {
+  LAMP_DEAD,
+  LAMP_FLICKER,
+  LAMP_LIT,
   TILE,
   TEMPLATE_CHARS,
   charToTile,

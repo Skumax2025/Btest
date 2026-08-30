@@ -17,7 +17,7 @@ export const CREATURES: CreatureCatalog = {
     radius: 13,
     walkSpeed: 46,
     chaseSpeed: 74,
-    hearingThreshold: 0.22,
+    hearingThreshold: 0.17,
     sightRange: 0,
     sightHalfAngle: 0,
     loseInterestTicks: 260,
@@ -32,6 +32,7 @@ export const CREATURES: CreatureCatalog = {
     sanityRadius: 220,
     killsOnContact: false,
     wanderRange: 280,
+    wanderMinFactor: 0.35,
   },
   'creature.hound': {
     id: 'creature.hound',
@@ -43,7 +44,7 @@ export const CREATURES: CreatureCatalog = {
     // Faster than a sprint, but only for a while: breaking line of sight and
     // outlasting it is the intended answer, never a straight race.
     chaseSpeed: 182,
-    hearingThreshold: 0.14,
+    hearingThreshold: 0.1,
     sightRange: 390,
     sightHalfAngle: 1.05,
     loseInterestTicks: 200,
@@ -58,6 +59,7 @@ export const CREATURES: CreatureCatalog = {
     sanityRadius: 300,
     killsOnContact: false,
     wanderRange: 420,
+    wanderMinFactor: 0.3,
   },
   'creature.bloom': {
     id: 'creature.bloom',
@@ -83,5 +85,6 @@ export const CREATURES: CreatureCatalog = {
     sanityRadius: 180,
     killsOnContact: true,
     wanderRange: 0,
+    wanderMinFactor: 0,
   },
 };

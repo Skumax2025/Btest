@@ -42,10 +42,6 @@ export class GameLoop {
     private readonly callbacks: LoopCallbacks,
   ) {}
 
-  get currentTick(): number {
-    return this.tick;
-  }
-
   start(): void {
     if (this.running) return;
     this.running = true;

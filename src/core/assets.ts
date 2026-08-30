@@ -31,7 +31,6 @@ export interface PlaceholderSpec {
 
 export interface SpriteProvider {
   sprite(id: string): Sprite;
-  has(id: string): boolean;
 }
 
 export type CanvasFactory = (width: number, height: number) => HTMLCanvasElement | OffscreenCanvas;
@@ -99,10 +98,6 @@ export class PlaceholderSpriteProvider implements SpriteProvider {
     private readonly createCanvas: CanvasFactory,
     private readonly fallbackId: string,
   ) {}
-
-  has(id: string): boolean {
-    return id in this.specs;
-  }
 
   sprite(id: string): Sprite {
     const cached = this.cache.get(id);

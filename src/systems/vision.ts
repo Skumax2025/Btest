@@ -59,17 +59,3 @@ export const visibilityPolygon = (
   }
   return points;
 };
-
-/** True when the point is inside the ring produced by `visibilityPolygon`. */
-export const polygonContains = (points: Float32Array, x: number, y: number): boolean => {
-  let inside = false;
-  const count = points.length / 2;
-  for (let i = 0, j = count - 1; i < count; j = i++) {
-    const xi = points[i * 2];
-    const yi = points[i * 2 + 1];
-    const xj = points[j * 2];
-    const yj = points[j * 2 + 1];
-    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) inside = !inside;
-  }
-  return inside;
-};
