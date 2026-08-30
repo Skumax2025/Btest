@@ -58,6 +58,8 @@ export interface HudConfig {
   /** World units above a target that its key prompt is drawn. */
   readonly promptOffset: number;
   readonly promptFont: string;
+  readonly scale: number;
+  readonly handSlotSize: number;
 }
 
 /**
@@ -110,8 +112,10 @@ export const VIEW: ViewConfig = {
     calmTicks: 150,
     changeEpsilon: 0.4,
     calmOpacity: 0.3,
-    promptOffset: 26,
-    promptFont: '11px ui-monospace, "DejaVu Sans Mono", monospace',
+    promptOffset: 32,
+    promptFont: '14px ui-monospace, "DejaVu Sans Mono", monospace',
+    scale: 1.28,
+    handSlotSize: 86,
   },
   combat: {
     ringPadding: 3,

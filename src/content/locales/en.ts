@@ -98,6 +98,8 @@ export const EN: Record<TextKey, LocaleString> = {
   'hud.sanity': 'NERVE',
   'hud.hand': 'IN HAND',
   'hud.empty': 'empty hands',
+  'hud.ready': 'READY',
+  'hud.handEmptyDescription': 'No item selected',
   'hud.charge': 'charge',
   'hud.weight': 'load',
   'hud.wear': 'wear',
@@ -127,6 +129,7 @@ export const EN: Record<TextKey, LocaleString> = {
   'inventory.title': 'BAG',
   'inventory.help': 'Drag with the mouse. Right click puts it in hand. {drop} puts it down.',
   'inventory.cells': { one: '{count} cell', other: '{count} cells' },
+  'inventory.tooltipWeight': 'Weight: {value}',
   'inventory.count': { one: '{count} piece', other: '{count} pieces' },
 
   'summary.title': 'THE BUILDING KEEPS YOU',

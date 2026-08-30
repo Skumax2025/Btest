@@ -110,6 +110,8 @@ export const RU = {
   'hud.sanity': 'НЕРВЫ',
   'hud.hand': 'В РУКАХ',
   'hud.empty': 'пустые руки',
+  'hud.ready': 'ГОТОВО',
+  'hud.handEmptyDescription': 'Предмет не выбран',
   'hud.charge': 'заряд',
   'hud.weight': 'вес',
   'hud.wear': 'износ',
@@ -145,6 +147,7 @@ export const RU = {
     few: '{count} ячейки',
     many: '{count} ячеек',
   },
+  'inventory.tooltipWeight': 'Вес: {value}',
   'inventory.count': {
     one: '{count} штука',
     few: '{count} штуки',
