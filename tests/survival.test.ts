@@ -2,22 +2,29 @@ import { describe, expect, it } from 'vitest';
 import { createRandom } from '@core/rng';
 import {
   addItem,
-  canPlace,
+  canEquip,
+  capacity,
+  containerStacks,
   createInventory,
+  equip,
+  equippedStack,
   heldStack,
-  moveStack,
+  mergeStacks,
+  overflowFor,
   removeStack,
   setHand,
-  stackAt,
-  takeFrom,
-  totalWeight,
+  splitStack,
+  stepWear,
+  tickWear,
+  unequip,
+  wearStack,
 } from '@game/inventory';
 import { applyDamage, canSprint, createStats, isDead, isLowSanity, stepStats } from '@game/stats';
 import type { StatsInput } from '@game/stats';
 import { expectedStacks, rollLoot } from '@game/loot';
 import { ITEMS } from '@content/items';
 import { CONTAINERS, LOOT_TABLES } from '@content/loot-tables';
-import { STATS } from '@content/tuning';
+import { INVENTORY, STATS } from '@content/tuning';
 
 const idle = (over: Partial<StatsInput> = {}): StatsInput => ({
   stepSeconds: 1,
@@ -113,69 +120,135 @@ describe('stats', () => {
   });
 });
 
-describe('inventory', () => {
-  const inv = () => createInventory(8, 5, 14);
+describe('inventory slots', () => {
+  const inv = () => createInventory(INVENTORY);
 
-  it('places an item and refuses to overlap it', () => {
+  it('takes an item only into a slot it fits', () => {
     const state = inv();
-    expect(addItem(state, ITEMS, 'item.pipe', 1)).toBe(0);
-    const pipe = state.stacks[0];
-    expect(canPlace(state, ITEMS, 'item.water', pipe.x, pipe.y)).toBe(false);
-    expect(canPlace(state, ITEMS, 'item.water', pipe.x + 1, pipe.y)).toBe(true);
+    addItem(state, ITEMS, 'item.hardhat', 1);
+    const hat = state.stacks[0];
+    expect(canEquip(ITEMS, 'item.hardhat', 'head')).toBe(true);
+    expect(canEquip(ITEMS, 'item.hardhat', 'feet')).toBe(false);
+    expect(equip(state, ITEMS, hat.id, 'feet').ok).toBe(false);
+    expect(equip(state, ITEMS, hat.id, 'head').ok).toBe(true);
+    expect(equippedStack(state, 'head')?.id).toBe(hat.id);
+    expect(containerStacks(state)).toHaveLength(0);
   });
 
-  it('respects the grid edges for multi-cell items', () => {
+  it('refuses a stack once every cell is spoken for', () => {
     const state = inv();
-    expect(canPlace(state, ITEMS, 'item.pipe', 0, 3)).toBe(false);
-    expect(canPlace(state, ITEMS, 'item.pipe', 0, 2)).toBe(true);
+    expect(capacity(state, ITEMS)).toBe(INVENTORY.baseCells);
+    for (let i = 0; i < INVENTORY.baseCells; i++) addItem(state, ITEMS, 'item.medkit', 1);
+    expect(containerStacks(state)).toHaveLength(INVENTORY.baseCells);
+    expect(addItem(state, ITEMS, 'item.medkit', 1)).toBe(1);
   });
 
-  it('stacks up to the item maximum and then opens a new stack', () => {
+  it('grows with a pack and spills what a smaller one cannot hold', () => {
+    const state = inv();
+    addItem(state, ITEMS, 'item.schoolbag', 1);
+    const pack = state.stacks[0];
+    equip(state, ITEMS, pack.id, 'back');
+    const grown = capacity(state, ITEMS);
+    expect(grown).toBe(INVENTORY.baseCells + (ITEMS['item.schoolbag'].carry?.cells ?? 0));
+
+    // A spare pack, worn to nothing, is worth only its `wornCells`.
+    addItem(state, ITEMS, 'item.schoolbag', 1);
+    const spare = state.stacks[state.stacks.length - 1];
+    spare.durability = 0;
+    while (containerStacks(state).length < grown) addItem(state, ITEMS, 'item.medkit', 1);
+    expect(containerStacks(state)).toHaveLength(grown);
+
+    const preview = overflowFor(state, ITEMS, spare.id, 'back');
+    expect(preview.length).toBeGreaterThan(0);
+    const result = equip(state, ITEMS, spare.id, 'back');
+    expect(result.spilled).toHaveLength(preview.length);
+    expect(capacity(state, ITEMS)).toBeLessThan(grown);
+    expect(containerStacks(state).length).toBeLessThanOrEqual(capacity(state, ITEMS));
+  });
+
+  it('will not take a pack off into the bag it was holding open', () => {
+    const state = inv();
+    addItem(state, ITEMS, 'item.schoolbag', 1);
+    const pack = state.stacks[0];
+    equip(state, ITEMS, pack.id, 'back');
+    for (let i = 0; i < capacity(state, ITEMS); i++) addItem(state, ITEMS, 'item.medkit', 1);
+    expect(unequip(state, ITEMS, pack.id)).toBe(false);
+    expect(equippedStack(state, 'back')?.id).toBe(pack.id);
+  });
+
+  it('stacks to the item maximum, splits and merges back', () => {
     const state = inv();
     addItem(state, ITEMS, 'item.crackers', 7);
-    expect(state.stacks.length).toBe(2);
-    expect(state.stacks[0].count).toBe(5);
+    expect(state.stacks).toHaveLength(2);
+    expect(state.stacks[0].count).toBe(ITEMS['item.crackers'].maxStack);
     expect(state.stacks[1].count).toBe(2);
-  });
 
-  it('refuses items once the weight budget is spent', () => {
-    const state = inv();
-    const leftover = addItem(state, ITEMS, 'item.pipe', 20);
-    expect(leftover).toBeGreaterThan(0);
-    expect(totalWeight(state, ITEMS)).toBeLessThanOrEqual(state.capacity);
-  });
+    const half = splitStack(state, ITEMS, state.stacks[0].id, 2);
+    expect(half?.count).toBe(2);
+    expect(state.stacks[0].count).toBe(3);
 
-  it('moves a stack and merges compatible ones', () => {
-    const state = inv();
-    addItem(state, ITEMS, 'item.crackers', 2);
-    const first = state.stacks[0];
-    addItem(state, ITEMS, 'item.soda', 1);
-    const soda = state.stacks[1];
-    expect(moveStack(state, ITEMS, soda.id, 5, 4)).toBe(true);
-    expect(stackAt(state, ITEMS, 5, 4)?.id).toBe(soda.id);
-    expect(moveStack(state, ITEMS, soda.id, first.x, first.y)).toBe(false);
-  });
-
-  it('merges two stacks of the same item', () => {
-    const state = inv();
-    addItem(state, ITEMS, 'item.crackers', 5);
-    addItem(state, ITEMS, 'item.crackers', 2);
-    const [full, partial] = state.stacks;
-    takeFrom(state, full.id, 3);
-    expect(moveStack(state, ITEMS, partial.id, full.x, full.y)).toBe(true);
-    expect(state.stacks.length).toBe(1);
-    expect(state.stacks[0].count).toBe(4);
+    expect(mergeStacks(state, ITEMS, state.stacks[1].id, state.stacks[0].id)).toBe(true);
+    expect(state.stacks[0].count).toBe(ITEMS['item.crackers'].maxStack);
   });
 
   it('tracks what is in hand and forgets it when the stack is gone', () => {
     const state = inv();
     addItem(state, ITEMS, 'item.flashlight', 1);
     const stack = state.stacks[0];
-    setHand(state, stack.id);
+    setHand(state, ITEMS, stack.id);
     expect(heldStack(state)?.itemId).toBe('item.flashlight');
     expect(stack.charge).toBe(ITEMS['item.flashlight'].charge);
     removeStack(state, stack.id);
     expect(heldStack(state)).toBeNull();
+  });
+});
+
+describe('wear', () => {
+  const inv = () => createInventory(INVENTORY);
+
+  it('spoils food with the clock and keeps it edible', () => {
+    const state = inv();
+    addItem(state, ITEMS, 'item.crackers', 1);
+    const food = state.stacks[0];
+    const full = food.durability;
+    tickWear(state, ITEMS, 60);
+    expect(food.durability).toBeLessThan(full);
+    tickWear(state, ITEMS, 100000);
+    expect(food.durability).toBe(0);
+    expect(state.stacks).toHaveLength(1);
+  });
+
+  it('scuffs worn clothing on every footstep and never destroys it', () => {
+    const state = inv();
+    addItem(state, ITEMS, 'item.boots', 1);
+    const boots = state.stacks[0];
+    equip(state, ITEMS, boots.id, 'feet');
+    const full = boots.durability;
+    stepWear(state, ITEMS);
+    expect(boots.durability).toBeLessThan(full);
+    for (let i = 0; i < 100000 && boots.durability > 0; i++) stepWear(state, ITEMS);
+    expect(boots.durability).toBe(0);
+    expect(equippedStack(state, 'feet')?.id).toBe(boots.id);
+  });
+
+  it('destroys armour that runs out of condition', () => {
+    const state = inv();
+    addItem(state, ITEMS, 'item.hardhat', 1);
+    const hat = state.stacks[0];
+    equip(state, ITEMS, hat.id, 'head');
+    const event = wearStack(state, ITEMS, hat.id, hat.durability + 10);
+    expect(event?.outcome).toBe('destroy');
+    expect(state.stacks).toHaveLength(0);
+    expect(equippedStack(state, 'head')).toBeNull();
+  });
+
+  it('leaves a spent weapon in hand, to swing like bare hands', () => {
+    const state = inv();
+    addItem(state, ITEMS, 'item.pipe', 1);
+    const pipe = state.stacks[0];
+    equip(state, ITEMS, pipe.id, 'hand');
+    expect(wearStack(state, ITEMS, pipe.id, pipe.durability)?.outcome).toBe('break');
+    expect(heldStack(state)?.id).toBe(pipe.id);
   });
 });
 

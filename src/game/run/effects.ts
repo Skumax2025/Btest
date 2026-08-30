@@ -6,9 +6,10 @@
  */
 
 import { castRay } from '@systems/raycast';
+import { clamp } from '@core/math';
 import { isLightSource } from '@game/items';
 import { finishSearch } from './actions';
-import type { RunWorld } from './world-access';
+import type { Beacon, RunWorld } from './world-access';
 
 /** Advances thrown items; a landing makes noise where it lands, not where it was thrown. */
 export const stepProjectiles = (world: RunWorld): void => {
@@ -33,6 +34,17 @@ export const stepProjectiles = (world: RunWorld): void => {
       const def = world.config.content.items[projectile.itemId];
       world.level.drop(projectile.itemId, 1, landX, landY);
       if (def) world.emitNoise(landX, landY, def.noise, 'impact');
+      if (def?.beacon) {
+        const beacon: Beacon = {
+          x: landX,
+          y: landY,
+          radius: def.beacon.radius,
+          ticksLeft: Math.round(def.beacon.seconds / world.config.stepSeconds),
+          intervalTicks: Math.max(1, Math.round(def.beacon.intervalSeconds / world.config.stepSeconds)),
+          sinceLast: 0,
+        };
+        world.spawn(world.beacons, beacon);
+      }
       landed.push(id);
       continue;
     }
@@ -40,6 +52,44 @@ export const stepProjectiles = (world: RunWorld): void => {
     projectile.y = nextY;
   }
   for (const id of landed) world.world.destroyEntity(id);
+};
+
+/**
+ * Something thrown that keeps shouting. It draws creatures to where it landed
+ * for as long as it lasts, which is the only way to move a crowd off a door.
+ */
+export const stepBeacons = (world: RunWorld): void => {
+  const spent: number[] = [];
+  for (const [id, beacon] of world.beacons.entries()) {
+    beacon.ticksLeft--;
+    beacon.sinceLast++;
+    if (beacon.sinceLast >= beacon.intervalTicks) {
+      beacon.sinceLast = 0;
+      world.emitNoise(beacon.x, beacon.y, beacon.radius, 'lure');
+    }
+    if (beacon.ticksLeft <= 0) spent.push(id);
+  }
+  for (const id of spent) world.world.destroyEntity(id);
+};
+
+/** Effects that arrive late: the price of everything that helped at the time. */
+export const stepLasting = (world: RunWorld): void => {
+  if (world.lasting.length === 0) return;
+  const stats = world.stats;
+  const config = world.config.stats;
+  const dt = world.config.stepSeconds;
+  for (const effect of world.lasting) {
+    const share = effect.seconds > 0 ? dt / effect.seconds : 1;
+    stats.health = clamp(stats.health + effect.health * share, 0, config.maxHealth);
+    stats.hunger = clamp(stats.hunger + effect.hunger * share, 0, config.maxHunger);
+    stats.thirst = clamp(stats.thirst + effect.thirst * share, 0, config.maxThirst);
+    stats.stamina = clamp(stats.stamina + effect.stamina * share, 0, config.maxStamina);
+    stats.sanity = clamp(stats.sanity + effect.sanity * share, 0, config.maxSanity);
+    effect.ticksLeft--;
+  }
+  const alive = world.lasting.filter((effect) => effect.ticksLeft > 0);
+  world.lasting.length = 0;
+  world.lasting.push(...alive);
 };
 
 export const stepSearch = (world: RunWorld): void => {

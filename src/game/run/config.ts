@@ -8,6 +8,8 @@ import type { PlayerConfig } from '@game/player';
 import type { StatsConfig } from '@game/stats';
 import type { ItemCatalog } from '@game/items';
 import type { ContainerCatalog, LootTables } from '@game/loot';
+import type { ArmorLimits } from '@game/combat';
+import type { InventoryLayout } from '@game/inventory';
 import type { LightingConfig } from '@game/lighting';
 import type { CreatureCatalog } from '@game/ai';
 import type { SoundConfig } from '@systems/sound';
@@ -21,6 +23,9 @@ export interface ActionNames {
   readonly throwItem: string;
   readonly drop: string;
   readonly flashlight: string;
+  readonly swapHands: string;
+  /** Belt slots, in order; the index here is the index on the belt. */
+  readonly quick: readonly string[];
 }
 
 /** All data tables a run reads. Every one of them lives in L3. */
@@ -74,12 +79,8 @@ export interface InteractionConfig {
 export interface CombatConfig {
   /** Ticks a combat event stays reported, on screen and in the ear. */
   readonly eventTicks: number;
-}
-
-export interface InventoryConfig {
-  readonly width: number;
-  readonly height: number;
-  readonly capacity: number;
+  /** Ceilings on what worn armour may take out of a hit. */
+  readonly armor: ArmorLimits;
 }
 
 export interface RunConfig {
@@ -91,7 +92,7 @@ export interface RunConfig {
   readonly stream: StreamOptions;
   readonly player: PlayerConfig;
   readonly stats: StatsConfig;
-  readonly inventory: InventoryConfig;
+  readonly inventory: InventoryLayout;
   readonly lighting: LightingConfig;
   readonly sound: SoundConfig;
   readonly noise: NoiseConfig;

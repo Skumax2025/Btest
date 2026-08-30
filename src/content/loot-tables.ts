@@ -24,6 +24,9 @@ export const LOOT_TABLES: LootTables = {
       { itemId: 'item.flashlight', weight: 3, min: 1, max: 1 },
       { itemId: 'item.medkit', weight: 2, min: 1, max: 1 },
       { itemId: 'item.pipe', weight: 2, min: 1, max: 1 },
+      { itemId: 'item.schoolbag', weight: 4, min: 1, max: 1 },
+      { itemId: 'item.boots', weight: 5, min: 1, max: 1 },
+      { itemId: 'item.hardhat', weight: 4, min: 1, max: 1 },
     ],
   },
   'loot.crate': {
@@ -48,6 +51,8 @@ export const LOOT_TABLES: LootTables = {
       { itemId: 'item.flashlight', weight: 8, min: 1, max: 1 },
       { itemId: 'item.battery', weight: 16, min: 1, max: 3 },
       { itemId: 'item.wrench', weight: 8, min: 1, max: 1 },
+      { itemId: 'item.hardhat', weight: 10, min: 1, max: 1 },
+      { itemId: 'item.boots', weight: 8, min: 1, max: 1 },
     ],
   },
   'loot.bag': {
@@ -59,6 +64,7 @@ export const LOOT_TABLES: LootTables = {
       { itemId: 'item.crackers', weight: 20, min: 1, max: 2 },
       { itemId: 'item.noisemaker', weight: 10, min: 1, max: 1 },
       { itemId: 'item.bandage', weight: 12, min: 1, max: 1 },
+      { itemId: 'item.schoolbag', weight: 8, min: 1, max: 1 },
     ],
   },
 };

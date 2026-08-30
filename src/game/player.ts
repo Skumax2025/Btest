@@ -45,6 +45,8 @@ export interface PlayerActions {
 }
 
 export interface PlayerStepContext {
+  /** Multiplier from what is being worn. Boots help; plate does not. */
+  readonly speedFactor?: number;
   readonly input: InputFrame;
   readonly config: PlayerConfig;
   readonly actions: PlayerActions;
@@ -99,7 +101,7 @@ export const stepPlayer = (state: PlayerState, context: PlayerStepContext): void
 
   state.stance = stanceOf(context);
   const wetFactor = state.onWet ? config.wetSpeedFactor : 1;
-  const speed = speedFor(state.stance, config) * wetFactor;
+  const speed = speedFor(state.stance, config) * wetFactor * (context.speedFactor ?? 1);
 
   const targetVx = input.axisX * speed;
   const targetVy = input.axisY * speed;

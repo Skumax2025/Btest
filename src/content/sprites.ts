@@ -58,6 +58,9 @@ export const SPRITES: Readonly<Record<string, PlaceholderSpec>> = {
   'item.pipe': icon('#6f7378', '#aeb3b8', 1, 3),
   'item.wrench': icon('#6a5f52', '#b5a692', 1, 2),
   'item.noisemaker': icon('#8f7a3f', '#e7d38a', 1, 1),
+  'item.schoolbag': icon('#4a5b46', '#93a88c', 2, 2),
+  'item.boots': icon('#4b3b30', '#8a6f5c', 1, 1),
+  'item.hardhat': icon('#b8892f', '#f0d089', 1, 1),
   'item.ground': {
     width: 20,
     height: 20,

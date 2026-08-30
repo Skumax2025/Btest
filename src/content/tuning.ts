@@ -116,13 +116,63 @@ export const STATS: StatsConfig = {
   healthRegenFraction: 0.5,
 };
 
+/**
+ * Cells, not kilograms. Four cells with nothing on your back is the whole of the
+ * carrying pressure: a pack is the single most valuable thing in the building,
+ * and giving one up for a better one is a decision with a cost.
+ */
 export const INVENTORY = {
-  width: 8,
-  height: 5,
-  /** Weight budget in kilograms. */
-  capacity: 14,
+  baseCells: 4,
+  quickSlots: 4,
+  /** Ceiling, so no pack can outgrow the panel that draws it. */
+  maxCells: 24,
   /** Pixels per inventory cell in the DOM overlay. */
-  cellPixels: 34,
+  cellPixels: 52,
+  /** Columns the bag grid is drawn in. */
+  columns: 6,
+} as const;
+
+/**
+ * How long supplies stay good, in seconds of run time. A careful run lasts five
+ * to fifteen minutes, so anything under ten is food you have to plan around and
+ * anything over twenty is food you never think about.
+ */
+export const FRESHNESS = {
+  /** Condition points a fresh item starts with; freshness is a percentage. */
+  scale: 100,
+  water: 1500,
+  soda: 1100,
+  crackers: 900,
+  canned: 2100,
+} as const;
+
+/** Condition budgets for gear, and what one scuff or one hit takes off. */
+export const WEAR = {
+  helmetMax: 60,
+  helmetPerDamage: 0.9,
+  vestMax: 90,
+  vestPerDamage: 1.1,
+  clothingMax: 70,
+  clothingPerStep: 0.05,
+  clothingPerDamage: 0.35,
+  bootsMax: 80,
+  bootsPerStep: 0.09,
+  packMax: 120,
+  /** A pack ages slowly; it is the one thing that never simply fails. */
+  packPerStep: 0.02,
+  /** Condition one use of the tape puts back into one piece. */
+  repairAmount: 30,
+  toolMax: 4,
+  toolPerUse: 1,
+} as const;
+
+/**
+ * Ceilings on armour. Full plate has to make a mauling survivable without ever
+ * making it harmless, or the creatures stop being a reason to walk away.
+ */
+export const ARMOR = {
+  maxShare: 0.55,
+  minDamageFraction: 0.2,
 } as const;
 
 export const SOUND: SoundConfig = {
@@ -256,6 +306,11 @@ export const KEY_BINDINGS = {
   throwItem: ['KeyQ'],
   drop: ['KeyG'],
   inventory: ['Tab'],
+  quick1: ['Digit1'],
+  quick2: ['Digit2'],
+  quick3: ['Digit3'],
+  quick4: ['Digit4'],
+  swapHands: ['KeyX'],
   flashlight: ['KeyR'],
   debug: ['F3', 'Backquote'],
   restart: ['Enter'],
@@ -273,6 +328,9 @@ export const ACTIONS = {
   throwItem: 'throwItem',
   drop: 'drop',
   flashlight: 'flashlight',
+  swapHands: 'swapHands',
+  /** Belt slots, in order. The index in this list is the index on the belt. */
+  quick: ['quick1', 'quick2', 'quick3', 'quick4'],
 } as const;
 
 /** Starting point for the settings screen; the player's own choices override it. */
@@ -300,6 +358,11 @@ export const REBINDABLE_ACTIONS: readonly string[] = [
   'drop',
   'inventory',
   'flashlight',
+  'swapHands',
+  'quick1',
+  'quick2',
+  'quick3',
+  'quick4',
   'guide',
   'pause',
   'debug',

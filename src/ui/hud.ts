@@ -12,7 +12,7 @@
 
 import type { Run } from '@game/run';
 import type { HintKey } from '@game/run';
-import { heldStack, totalWeight } from '@game/inventory';
+import { capacity, heldStack, usedCells } from '@game/inventory';
 import { isLowSanity } from '@game/stats';
 import type { HudConfig } from '@content/view';
 import type { UiContext } from './context';
@@ -192,8 +192,8 @@ export class Hud {
       parts.push(`${t('hud.charge')} ${t('ui.seconds', { value: Math.ceil(held.charge) })}`);
     }
     if (run.combat.broken) parts.push(t('hud.broken'));
-    const weight = totalWeight(run.inventory, run.config.content.items);
-    parts.push(`${t('hud.weight')} ${weight.toFixed(1)}/${run.inventory.capacity}`);
+    const cells = capacity(run.inventory, run.config.content.items);
+    parts.push(`${t('hud.cells')} ${usedCells(run.inventory)}/${cells}`);
     setText(this.handMeta, parts.join('  ·  '));
 
     // Wear is a bar, not a percentage: it is a state, not a measurement.

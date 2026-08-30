@@ -1,14 +1,93 @@
 /**
  * L3: the item catalogue.
  *
- * To add an item: add one entry here, add a sprite spec with the same `sprite`
- * id in sprites.ts, and put it in a loot table. Nothing above L3 changes.
+ * To add an item: add one entry here, add a sprite spec with the same id in
+ * sprites.ts, add its two locale keys, and put it in a loot table. Nothing above
+ * L3 changes — behaviour is a combination of effects the item module already
+ * executes, never a new branch.
  */
 
-import type { ItemCatalog, ItemDef } from '@game/items';
-import { WEAPONS } from './tuning';
+import type {
+  ArmorDef,
+  CarryDef,
+  DurabilityDef,
+  ItemCatalog,
+  ItemDef,
+  PassiveDef,
+} from '@game/items';
+import { NEUTRAL_PASSIVE } from '@game/items';
+import type { WeaponStats } from '@game/combat';
+import { FRESHNESS, LIGHTING, WEAPONS, WEAR } from './tuning';
 
-const item = (def: ItemDef): ItemDef => def;
+const BASE = {
+  slots: [] as ItemDef['slots'],
+  maxStack: 1,
+  tags: [] as ItemDef['tags'],
+  use: null,
+  melee: null,
+  armor: null,
+  carry: null,
+  passive: null,
+  wornPassive: null,
+  durability: null,
+  noise: 60,
+  throwable: false,
+  charge: 0,
+  light: null,
+  beacon: null,
+} satisfies Omit<ItemDef, 'id' | 'nameKey' | 'descriptionKey' | 'sprite'>;
+
+const item = (id: string, def: Partial<ItemDef>): ItemDef => ({
+  ...BASE,
+  id,
+  nameKey: `item.${id}.name`,
+  descriptionKey: `item.${id}.desc`,
+  sprite: id,
+  ...def,
+});
+
+/** Condition that only ever runs down with the clock: freshness. */
+const perishes = (seconds: number): DurabilityDef => ({
+  max: FRESHNESS.scale,
+  perSecond: FRESHNESS.scale / seconds,
+  perStep: 0,
+  perDamage: 0,
+  perUse: 0,
+  atZero: 'keep',
+});
+
+/** A weapon's condition is the one the combat module already knows about. */
+const swings = (stats: WeaponStats): DurabilityDef => ({
+  max: stats.maxDurability,
+  perSecond: 0,
+  perStep: 0,
+  perDamage: 0,
+  perUse: 0,
+  atZero: 'break',
+});
+
+/** Worn gear: scuffed by walking, chewed by hits, and gone or merely tired at zero. */
+const worn = (
+  max: number,
+  spec: { perStep?: number; perDamage?: number; perUse?: number; atZero: DurabilityDef['atZero'] },
+): DurabilityDef => ({
+  max,
+  perSecond: 0,
+  perStep: spec.perStep ?? 0,
+  perDamage: spec.perDamage ?? 0,
+  perUse: spec.perUse ?? 0,
+  atZero: spec.atZero,
+});
+
+const armor = (flat: number, share: number, wornFactor: number): ArmorDef => ({
+  flat,
+  share,
+  wornFactor,
+});
+
+const pockets = (cells: number, wornCells: number): CarryDef => ({ cells, wornCells });
+
+const passive = (over: Partial<PassiveDef>): PassiveDef => ({ ...NEUTRAL_PASSIVE, ...over });
 
 export const ITEMS: ItemCatalog = {
   /**
@@ -16,196 +95,164 @@ export const ITEMS: ItemCatalog = {
    * special case for them. Never spawned, never carried — it is the stat block
    * a broken weapon and a non-weapon both fall back to.
    */
-  'item.hands': item({
-    id: 'item.hands',
-    nameKey: 'item.item.hands.name',
-    descriptionKey: 'item.item.hands.desc',
-    width: 1,
-    height: 1,
-    maxStack: 1,
-    weight: 0,
-    tags: [],
+  'item.hands': item('item.hands', {
     sprite: 'item.ground',
-    use: null,
+    slots: ['hand'],
     melee: WEAPONS.hands,
     noise: 40,
-    throwable: false,
-    charge: 0,
   }),
-  'item.water': item({
-    id: 'item.water',
-    nameKey: 'item.item.water.name',
-    descriptionKey: 'item.item.water.desc',
-    width: 1,
-    height: 2,
-    maxStack: 2,
-    weight: 1,
+
+  'item.water': item('item.water', {
+    slots: ['hand', 'offhand'],
+    maxStack: 3,
     tags: ['drink'],
-    sprite: 'item.water',
-    use: { thirst: 46, consumed: true },
-    melee: null,
     noise: 60,
     throwable: true,
-    charge: 0,
+    durability: perishes(FRESHNESS.water),
+    use: {
+      consumed: true,
+      effects: [{ kind: 'stat', thirst: 46 }],
+      spoiled: [{ kind: 'stat', thirst: 30, health: -4 }],
+    },
   }),
-  'item.soda': item({
-    id: 'item.soda',
-    nameKey: 'item.item.soda.name',
-    descriptionKey: 'item.item.soda.desc',
-    width: 1,
-    height: 1,
+  'item.soda': item('item.soda', {
+    slots: ['hand', 'offhand'],
     maxStack: 4,
-    weight: 0.5,
     tags: ['drink'],
-    sprite: 'item.soda',
-    use: { thirst: 24, hunger: 6, stamina: 12, consumed: true },
-    melee: null,
     noise: 80,
     throwable: true,
-    charge: 0,
+    durability: perishes(FRESHNESS.soda),
+    use: {
+      consumed: true,
+      effects: [
+        { kind: 'stat', thirst: 24, hunger: 6, stamina: 12 },
+        { kind: 'noise', radius: 90 },
+      ],
+      spoiled: [
+        { kind: 'stat', thirst: 12, sanity: -5 },
+        { kind: 'noise', radius: 90 },
+      ],
+    },
   }),
-  'item.crackers': item({
-    id: 'item.crackers',
-    nameKey: 'item.item.crackers.name',
-    descriptionKey: 'item.item.crackers.desc',
-    width: 1,
-    height: 1,
+  'item.crackers': item('item.crackers', {
+    slots: ['hand', 'offhand'],
     maxStack: 5,
-    weight: 0.25,
     tags: ['food'],
-    sprite: 'item.crackers',
-    use: { hunger: 28, thirst: -4, consumed: true },
-    melee: null,
     noise: 40,
-    throwable: false,
-    charge: 0,
+    durability: perishes(FRESHNESS.crackers),
+    use: {
+      consumed: true,
+      effects: [{ kind: 'stat', hunger: 28, thirst: -4 }],
+      spoiled: [{ kind: 'stat', hunger: 14, thirst: -8, sanity: -4 }],
+    },
   }),
-  'item.canned': item({
-    id: 'item.canned',
-    nameKey: 'item.item.canned.name',
-    descriptionKey: 'item.item.canned.desc',
-    width: 2,
-    height: 1,
-    maxStack: 2,
-    weight: 0.6,
+  'item.canned': item('item.canned', {
+    slots: ['hand', 'offhand'],
+    maxStack: 3,
     tags: ['food'],
-    sprite: 'item.canned',
-    use: { hunger: 52, thirst: -6, consumed: true },
-    melee: null,
     noise: 90,
     throwable: true,
-    charge: 0,
+    durability: perishes(FRESHNESS.canned),
+    use: {
+      consumed: true,
+      effects: [
+        { kind: 'stat', hunger: 52, thirst: -6 },
+        { kind: 'noise', radius: 150 },
+      ],
+      spoiled: [
+        { kind: 'stat', hunger: 22, thirst: -6 },
+        { kind: 'lasting', seconds: 30, health: -12, sanity: -8 },
+        { kind: 'noise', radius: 150 },
+      ],
+    },
   }),
-  'item.medkit': item({
-    id: 'item.medkit',
-    nameKey: 'item.item.medkit.name',
-    descriptionKey: 'item.item.medkit.desc',
-    width: 2,
-    height: 2,
-    maxStack: 1,
-    weight: 1.2,
+  'item.medkit': item('item.medkit', {
+    slots: ['hand', 'offhand'],
     tags: ['medical'],
-    sprite: 'item.medkit',
-    use: { health: 55, sanity: 6, consumed: true },
-    melee: null,
     noise: 70,
-    throwable: false,
-    charge: 0,
+    use: { consumed: true, effects: [{ kind: 'stat', health: 55, sanity: 6 }] },
   }),
-  'item.bandage': item({
-    id: 'item.bandage',
-    nameKey: 'item.item.bandage.name',
-    descriptionKey: 'item.item.bandage.desc',
-    width: 1,
-    height: 1,
+  'item.bandage': item('item.bandage', {
+    slots: ['hand', 'offhand'],
     maxStack: 4,
-    weight: 0.2,
     tags: ['medical'],
-    sprite: 'item.bandage',
-    use: { health: 20, consumed: true },
-    melee: null,
     noise: 20,
-    throwable: false,
-    charge: 0,
+    use: { consumed: true, effects: [{ kind: 'stat', health: 20 }] },
   }),
-  'item.flashlight': item({
-    id: 'item.flashlight',
-    nameKey: 'item.item.flashlight.name',
-    descriptionKey: 'item.item.flashlight.desc',
-    width: 1,
-    height: 2,
-    maxStack: 1,
-    weight: 0.6,
+
+  'item.flashlight': item('item.flashlight', {
+    slots: ['hand', 'offhand'],
     tags: ['light'],
-    sprite: 'item.flashlight',
-    use: null,
-    melee: null,
     noise: 60,
-    throwable: false,
     charge: 300,
+    light: {
+      radius: LIGHTING.flashlightRadius,
+      halfAngle: LIGHTING.flashlightHalfAngle,
+      strength: LIGHTING.flashlightStrength,
+    },
   }),
-  'item.battery': item({
-    id: 'item.battery',
-    nameKey: 'item.item.battery.name',
-    descriptionKey: 'item.item.battery.desc',
-    width: 1,
-    height: 1,
+  'item.battery': item('item.battery', {
     maxStack: 6,
-    weight: 0.15,
     tags: ['battery'],
-    sprite: 'item.battery',
-    use: { charge: 240, consumed: true },
-    melee: null,
     noise: 30,
-    throwable: false,
-    charge: 0,
+    use: { consumed: true, effects: [{ kind: 'charge', seconds: 240 }] },
   }),
-  'item.pipe': item({
-    id: 'item.pipe',
-    nameKey: 'item.item.pipe.name',
-    descriptionKey: 'item.item.pipe.desc',
-    width: 1,
-    height: 3,
-    maxStack: 1,
-    weight: 2.2,
+
+  'item.pipe': item('item.pipe', {
+    slots: ['hand'],
     tags: ['weapon'],
-    sprite: 'item.pipe',
-    use: null,
-    melee: WEAPONS.pipe,
     noise: 200,
     throwable: true,
-    charge: 0,
+    melee: WEAPONS.pipe,
+    durability: swings(WEAPONS.pipe),
   }),
-  'item.wrench': item({
-    id: 'item.wrench',
-    nameKey: 'item.item.wrench.name',
-    descriptionKey: 'item.item.wrench.desc',
-    width: 1,
-    height: 2,
-    maxStack: 1,
-    weight: 1.4,
+  'item.wrench': item('item.wrench', {
+    slots: ['hand', 'offhand'],
     tags: ['weapon'],
-    sprite: 'item.wrench',
-    use: null,
-    melee: WEAPONS.wrench,
     noise: 170,
     throwable: true,
-    charge: 0,
+    melee: WEAPONS.wrench,
+    durability: swings(WEAPONS.wrench),
   }),
-  'item.noisemaker': item({
-    id: 'item.noisemaker',
-    nameKey: 'item.item.noisemaker.name',
-    descriptionKey: 'item.item.noisemaker.desc',
-    width: 1,
-    height: 1,
+  'item.noisemaker': item('item.noisemaker', {
+    slots: ['hand', 'offhand'],
     maxStack: 3,
-    weight: 0.4,
     tags: ['lure'],
-    sprite: 'item.noisemaker',
-    use: null,
-    melee: null,
     noise: 460,
     throwable: true,
-    charge: 0,
+  }),
+
+  'item.schoolbag': item('item.schoolbag', {
+    slots: ['back'],
+    tags: ['pack'],
+    noise: 50,
+    carry: pockets(4, 2),
+    passive: passive({}),
+    durability: worn(WEAR.packMax, { perStep: WEAR.packPerStep, atZero: 'keep' }),
+  }),
+  'item.boots': item('item.boots', {
+    slots: ['feet'],
+    tags: ['clothing', 'armor'],
+    noise: 70,
+    armor: armor(1, 0.04, 0.3),
+    passive: passive({ noiseFactor: 1.3, wetNoiseFactor: 0.8, speedFactor: 1.04 }),
+    wornPassive: passive({ noiseFactor: 1.7, wetNoiseFactor: 1, speedFactor: 1 }),
+    durability: worn(WEAR.bootsMax, {
+      perStep: WEAR.bootsPerStep,
+      perDamage: WEAR.clothingPerDamage,
+      atZero: 'keep',
+    }),
+  }),
+  'item.hardhat': item('item.hardhat', {
+    slots: ['head'],
+    tags: ['armor'],
+    noise: 90,
+    throwable: true,
+    armor: armor(3, 0.1, 0.25),
+    passive: passive({ nerveFactor: 0.92 }),
+    durability: worn(WEAR.helmetMax, {
+      perDamage: WEAR.helmetPerDamage,
+      atZero: 'destroy',
+    }),
   }),
 };

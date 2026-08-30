@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { createRandom } from '@core/rng';
 import { EMPTY_INPUT } from '@core/input';
 import {
+  absorbDamage,
   attackVeto,
   canBlock,
   resolveWeapon,
@@ -15,6 +16,8 @@ import {
   targetsInReach,
   wearAfterSwing,
 } from '@game/combat';
+import { addItem, armorPieces, equip } from '@game/inventory';
+import type { EquipSlot } from '@game/items';
 import { Run } from '@game/run';
 import type { CreatureState } from '@game/ai';
 import { createRunConfig } from '@content/run-config';
@@ -194,18 +197,21 @@ const spawnCreature = (run: Run, defId: string, x: number, y: number): CreatureS
 };
 
 const arm = (run: Run, itemId: string): void => {
-  const def = ITEMS[itemId];
-  run.inventory.stacks.push({
-    id: 1,
-    itemId,
-    count: 1,
-    x: 0,
-    y: 0,
-    charge: 0,
-    durability: def.melee?.maxDurability ?? 0,
-  });
-  run.inventory.nextId = 2;
-  run.inventory.hand = 1;
+  addItem(run.inventory, ITEMS, itemId, 1);
+  const stack = run.inventory.stacks[run.inventory.stacks.length - 1];
+  equip(run.inventory, ITEMS, stack.id, 'hand');
+};
+
+/** Worn armour reduced to what it takes out of a hit. */
+const pieces = (run: Run) => armorPieces(run.inventory, ITEMS).map(({ flat, share }) => ({ flat, share }));
+
+/** Wears one piece and hands the stack back, for the armour scenarios. */
+const wear = (run: Run, itemId: string, slot: EquipSlot, share = 1) => {
+  addItem(run.inventory, ITEMS, itemId, 1);
+  const stack = run.inventory.stacks[run.inventory.stacks.length - 1];
+  stack.durability = Math.round(stack.durability * share);
+  equip(run.inventory, ITEMS, stack.id, slot);
+  return stack;
 };
 
 /** Drops the level's own creatures so a scenario is only what it says it is. */
@@ -458,5 +464,55 @@ describe('the shape of a fight', () => {
 
   it('kills a player who trades blows with a hound', () => {
     expect(fight(1, 'creature.hound').phase).toBe('dead');
+  });
+});
+
+describe('armour', () => {
+  const limits = { maxShare: 0.5, minDamageFraction: 0.2 };
+
+  it('takes a share and then a flat amount out of a hit', () => {
+    const result = absorbDamage([{ flat: 4, share: 0.25 }], 40, limits);
+    expect(result.damage).toBeCloseTo(26, 5);
+    expect(result.absorbed).toBeCloseTo(14, 5);
+  });
+
+  it('never removes more than the cap, and never removes all of it', () => {
+    const capped = absorbDamage(
+      [
+        { flat: 0, share: 0.4 },
+        { flat: 0, share: 0.4 },
+      ],
+      100,
+      limits,
+    );
+    expect(capped.damage).toBeCloseTo(50, 5);
+    const overwhelming = absorbDamage([{ flat: 500, share: 0.5 }], 40, limits);
+    expect(overwhelming.damage).toBeCloseTo(8, 5);
+  });
+
+  it('protects less as it wears, and stops protecting when it is gone', () => {
+    const run = new Run(createRunConfig(4242));
+    clearWorld(run);
+    const hat = wear(run, 'item.hardhat', 'head');
+    const fresh = pieces(run);
+    hat.durability = Math.round((ITEMS['item.hardhat'].durability?.max ?? 0) * 0.2);
+    const tired = pieces(run);
+    expect(tired[0].flat).toBeLessThan(fresh[0].flat);
+    expect(absorbDamage(tired, 30, limits).damage).toBeGreaterThan(
+      absorbDamage(fresh, 30, limits).damage,
+    );
+  });
+
+  it('soaks a mauling, wears down doing it, and is destroyed at zero', () => {
+    const run = new Run(createRunConfig(4243));
+    clearWorld(run);
+    const hat = wear(run, 'item.hardhat', 'head');
+    run.stats.health = 100;
+    const before = run.stats.health;
+    surround(run, 1);
+    run60(run, 240);
+    expect(run.stats.health).toBeLessThan(before);
+    const gone = run.inventory.stacks.every((stack) => stack.id !== hat.id);
+    expect(gone || hat.durability < (ITEMS['item.hardhat'].durability?.max ?? 0)).toBe(true);
   });
 });
