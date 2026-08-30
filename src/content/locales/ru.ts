@@ -87,6 +87,7 @@ export const RU = {
   'action.quick2': 'Пояс 2',
   'action.quick3': 'Пояс 3',
   'action.quick4': 'Пояс 4',
+  'action.controls': 'Показать управление',
   'action.guide': 'Справочник',
   'action.pause': 'Пауза',
   'action.debug': 'Отладка',

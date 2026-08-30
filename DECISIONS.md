@@ -385,3 +385,38 @@ I went, so the order is roughly chronological.
   guidebook's control table already follows, and `applySettings` now refreshes
   the binder so a rebind rewrites the legend, the bag's help line and every hint
   at once — that was stale before.
+
+## Interface pass (G8)
+
+- **Two hands, two keys.** One "use" key could only ever address one hand, which
+  made the off hand a slot you loaded and then forgot. `E` and `F` make it a
+  thing you operate; `interact` moved to `Space` to make room, since searching is
+  the one action that already knows what it is aimed at.
+- **The belt only takes what the catalogue says it takes.** `belt: true` is data,
+  not a tag test, so "can this hang on my belt" is answered where the item is
+  described. It also removes a branch: a belt key now only ever uses a thing,
+  because nothing needing a hand can be on the belt in the first place.
+- **A belt slot is a button.** It was the one part of the display that named a
+  key without being reachable by the mouse.
+- **Pockets, rather than a warning about loss.** A smaller pack costing you the
+  room is a decision; costing you the things was just a punishment for finding a
+  pack. What no longer fits goes into the pockets of the one coming off, and only
+  a genuinely full set of pockets puts anything on the floor — which is also the
+  only case the confirmation now interrupts for.
+- **Wearing through a pack empties it at your feet.** Pockets are capacity, and
+  capacity that shrinks has to put its contents somewhere visible. Silently
+  deleting them, or silently keeping them in a pack that no longer has room,
+  would both be lies.
+- **The top bar became a corner panel.** A full-width strip of four bars was the
+  largest thing on screen and the least urgent; the same four bars in a top-left
+  block read faster and give the middle of the screen back to the game.
+- **Breath is a hairline and a vignette, not a panel with a number.** Running out
+  of air is a state to feel: the line only appears once breath is being spent,
+  and the edges of the screen close in as it goes. No stat carries a number now —
+  a bar already says everything a number would.
+- **The legend hides, and remembers.** It is written from the live bindings and
+  it is the one part of the interface a player is meant to outgrow, so `F1` or a
+  click on its title folds it away and the choice is kept with the settings.
+- **One panel treatment for everything.** `.hud-panel` and one set of tokens —
+  ink, surface, line, state — now cover the corners, the bag and the screens, so
+  the interface reads as one object instead of five separately-invented ones.

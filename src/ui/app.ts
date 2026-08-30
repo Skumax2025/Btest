@@ -25,6 +25,7 @@ import {
   restoreRun,
   snapshotRun,
   unequipStack,
+  useQuickSlot,
   useStack,
 } from '@game/run';
 import type { RunSave } from '@game/run';
@@ -127,7 +128,11 @@ export class App {
       this.guide.refresh();
     });
 
-    this.hud = new Hud(this.overlay, this.ui, VIEW.hud);
+    this.hud = new Hud(this.overlay, this.ui, VIEW.hud, {
+      useBelt: (index) => useQuickSlot(this.run, index),
+      toggleControls: () =>
+        this.applySettings({ ...this.settings, showControls: !this.settings.showControls }),
+    });
     this.worldTooltip = document.createElement('div');
     this.worldTooltip.className = 'world-tooltip';
     this.worldTooltip.hidden = true;
@@ -301,6 +306,7 @@ export class App {
     this.canvas.style.filter = `brightness(${settings.brightness})`;
     this.overlay.style.setProperty('--ui-scale', String(settings.uiScale));
     this.debug.setVisible(settings.debugOverlay);
+    this.hud.setControlsVisible(settings.showControls);
     // Rebinding a key rewrites every label that names one, here and in the bag.
     this.ui.binder.refresh();
     saveSettings(this.storage, settings);
@@ -336,6 +342,9 @@ export class App {
     if (frame.pressed.includes('inventory')) {
       this.bag.toggle();
       this.input.releaseAll();
+    }
+    if (frame.pressed.includes('controls')) {
+      this.applySettings({ ...this.settings, showControls: !this.settings.showControls });
     }
     if (frame.pressed.includes('debug')) {
       this.applySettings({ ...this.settings, debugOverlay: !this.settings.debugOverlay });

@@ -74,6 +74,7 @@ export const EN: Record<TextKey, LocaleString> = {
   'action.quick2': 'Belt 2',
   'action.quick3': 'Belt 3',
   'action.quick4': 'Belt 4',
+  'action.controls': 'Show the controls',
   'action.guide': 'Guidebook',
   'action.pause': 'Pause',
   'action.debug': 'Debug',

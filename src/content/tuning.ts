@@ -127,7 +127,7 @@ export const INVENTORY = {
   /** Ceiling, so no pack can outgrow the panel that draws it. */
   maxCells: 24,
   /** Pixels per inventory cell in the DOM overlay. */
-  cellPixels: 52,
+  cellPixels: 64,
   /** Columns the bag grid is drawn in. */
   columns: 6,
   /** Condition below which an icon reads as worn, and below which it reads as failing. */
@@ -404,6 +404,7 @@ export const KEY_BINDINGS = {
   debug: ['F3', 'Backquote'],
   restart: ['Enter'],
   guide: ['KeyH'],
+  controls: ['F1'],
   pause: ['Escape'],
   language: ['F2'],
 } as const;
@@ -432,6 +433,8 @@ export const SETTINGS_DEFAULTS = {
   brightness: 1,
   uiScale: 1,
   debugOverlay: false,
+  /** The key legend starts open; hiding it is one keypress and it is remembered. */
+  showControls: true,
 } as const;
 
 /** Order the controls are listed in, and which of them may be rebound. */
@@ -449,6 +452,7 @@ export const REBINDABLE_ACTIONS: readonly string[] = [
   'drop',
   'inventory',
   'flashlight',
+  'controls',
   'swapHands',
   'quick1',
   'quick2',

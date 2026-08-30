@@ -114,6 +114,7 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
       'inventory',
       'quick1',
       'swapHands',
+      'controls',
       'flashlight',
       'guide',
       'pause',

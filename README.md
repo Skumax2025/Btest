@@ -26,14 +26,16 @@ npm run check      # typecheck + lint + tests
 | Mouse | Look — your eyes and your flashlight point at the cursor |
 | `Shift` | Sprint. Fast, loud, costs breath |
 | `Ctrl` / `C` | Crouch. Slow, silent, and never swings |
-| `E` | Search a container, pick something up, take the way down |
-| `F` | Use what is in your hand |
+| `Space` | Search a container, pick something up, take the way down |
+| `E` | Use what is in the main hand |
+| `F` | Use what is in the off hand |
 | `R` | Switch the flashlight on or off |
 | `Q` | Throw what is in your hand |
 | `G` | Put down what is in your hand |
-| `1` – `4` | Belt slots: use what hangs there, or take a weapon in hand |
+| `1` – `4` | Belt slots: use what hangs there (clicking a slot does the same) |
 | `X` | Swap main hand and off hand |
 | `Tab` | Bag. Drag between the bag, the slots and the belt |
+| `F1` | Show or hide the key legend |
 | `H` | Guidebook |
 | `Esc` | Pause; from a screen, back |
 | `F3` / `` ` `` | Debug overlay |
@@ -67,10 +69,18 @@ one or two. One thing is one cell, and a stack of any size is also one cell, so
 what limits you is variety, not mass. Swapping to a smaller pack while the bag
 is full drops what no longer fits, and says how much before you agree to it.
 
-Four belt slots sit under the number keys: food is eaten and weapons are drawn
-from there without opening anything, and the hotbar above the breath bar shows
-what is on each of them, how worn it is, and which one the hand is holding. The
-bag does not pause the world.
+Each hand has its own key, so a torch in the off hand switches on without the
+weapon leaving the main one. Four belt slots sit under the number keys and take
+only what the catalogue marks belt-worthy — food, water, bandages, a light stick
+— never a weapon and never a coat; the hotbar shows what is on each of them and
+how worn it is, and a slot can be clicked as well as pressed. The bag does not
+pause the world.
+
+A pack, a satchel and a pair of cargo trousers have pockets of their own. Swap to
+a smaller pack and what no longer fits goes into the pockets of the one coming
+off rather than onto the floor; only what no pocket will take is dropped, and you
+are warned before it is. Wear a pack through and its pockets shrink — whatever
+was in them lands at your feet.
 
 Every item carries one condition value, and what it means is written in the item
 rather than in the code: swing damage for a weapon, damage soaked for armour,

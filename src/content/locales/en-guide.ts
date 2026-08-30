@@ -137,9 +137,10 @@ export const EN_GUIDE: Record<GuideKey, LocaleString> = {
     'and that is the whole arithmetic of carrying. One thing is one cell; a stack of any size ' +
     'is also one cell. A pack adds {packCells}; trouser and coat pockets add one or two.',
   'guide.items.p2':
-    'Nine slots: head, face, body, vest, legs, feet, back and two hands. The belt holds ' +
-    '{quickSlots} more under the number keys — you eat and change weapons from there without ' +
-    'opening the bag. The world does not stop while the bag is open.',
+    'Nine slots: head, face, body, vest, legs, feet, back and two hands. Each hand has ' +
+    'its own key, so a torch in the off hand switches on without putting the weapon down. ' +
+    'The belt holds {quickSlots} more under the number keys — but only things you eat and ' +
+    'drink: no weapon and no coat will hang on it.',
   'guide.items.p3':
     'Everything has a condition, and it means something different each time. A worn weapon ' +
     'hits softer and at zero swings like bare hands. Armour never takes more than {armorPercent} ' +

@@ -1,13 +1,17 @@
 /**
  * L4: the heads-up display.
  *
- * Ordered by how fast the player needs it: body and breath large, the three
- * slower clocks small. It fades back when nothing is happening and returns the
- * instant a bar moves or something walks into weapon reach — melee runs itself,
- * so breath has to be readable without being looked for.
+ * Four corners, each answering one question. Top left: what is happening to the
+ * body. Top right: what the clothes are doing about it. Bottom right: what is in
+ * each hand. Bottom centre: what is on the belt, and how much breath is left.
+ * Bottom left: which key does what, for as long as that is still needed.
  *
- * Deliberately no map, no compass, no coordinates, and no numbers where a bar
- * already says it.
+ * It fades back when nothing is happening and returns the instant a bar moves or
+ * something walks into weapon reach — melee runs itself, so breath has to be
+ * readable without being looked for.
+ *
+ * Deliberately no map, no compass, no coordinates, and no numbers on a body
+ * that a bar already describes.
  */
 
 import type { Run } from '@game/run';
@@ -16,12 +20,12 @@ import {
   armorPieces,
   capacity,
   equippedStack,
-  heldStack,
   passives,
   quickStack,
   usedCells,
 } from '@game/inventory';
 import { condition, isLightSource } from '@game/items';
+import type { EquipSlot } from '@game/items';
 import { isLowSanity } from '@game/stats';
 import type { HudConfig } from '@content/view';
 import type { UiContext } from './context';
@@ -33,16 +37,15 @@ interface Bar {
   readonly fill: HTMLElement;
 }
 
-const PRIMARY = ['health'] as const;
-const SECONDARY = ['hunger', 'thirst', 'sanity'] as const;
-const BAR_KEYS = [...PRIMARY, ...SECONDARY];
+const BAR_KEYS = ['health', 'hunger', 'thirst', 'sanity'] as const;
+type BarKey = (typeof BAR_KEYS)[number];
+
 const BAR_ICONS: Record<BarKey, string> = {
   health: '♥',
   hunger: '◇',
   thirst: '≈',
   sanity: '◉',
 };
-type BarKey = (typeof BAR_KEYS)[number];
 
 /** Which action's key a hint is talking about, if any. */
 const HINT_ACTION: Partial<Record<HintKey, string>> = {
@@ -73,7 +76,6 @@ const MOVE_ACTIONS = ['up', 'left', 'down', 'right'];
 interface LegendRow {
   readonly labelKey: string;
   readonly actions: readonly string[];
-  /** How the keys are joined: a clump for movement, a range for the belt. */
   readonly join: 'clump' | 'range' | 'single';
 }
 
@@ -82,8 +84,8 @@ const LEGEND: readonly LegendRow[] = [
   { labelKey: 'action.interact', actions: ['interact'], join: 'single' },
   { labelKey: 'action.handMain', actions: ['handMain'], join: 'single' },
   { labelKey: 'action.handOff', actions: ['handOff'], join: 'single' },
-  { labelKey: 'action.inventory', actions: ['inventory'], join: 'single' },
   { labelKey: 'hud.action.belt', actions: ['quick1', 'quick4'], join: 'range' },
+  { labelKey: 'action.inventory', actions: ['inventory'], join: 'single' },
   { labelKey: 'action.swapHands', actions: ['swapHands'], join: 'single' },
   { labelKey: 'action.flashlight', actions: ['flashlight'], join: 'single' },
   { labelKey: 'action.throwItem', actions: ['throwItem'], join: 'single' },
@@ -91,40 +93,52 @@ const LEGEND: readonly LegendRow[] = [
   { labelKey: 'action.crouch', actions: ['crouch'], join: 'single' },
   { labelKey: 'action.sprint', actions: ['sprint'], join: 'single' },
   { labelKey: 'action.guide', actions: ['guide'], join: 'single' },
+  { labelKey: 'action.controls', actions: ['controls'], join: 'single' },
 ];
 
 interface BeltSlot {
   readonly root: HTMLElement;
+  readonly key: HTMLElement;
   readonly name: HTMLElement;
   readonly count: HTMLElement;
   readonly wear: HTMLElement;
   readonly wearFill: HTMLElement;
 }
 
+interface HandRow {
+  readonly root: HTMLElement;
+  readonly key: HTMLElement;
+  readonly name: HTMLElement;
+  readonly state: HTMLElement;
+  readonly wear: HTMLElement;
+  readonly wearFill: HTMLElement;
+}
+
+/** What the display cannot do itself, because it changes the world. */
+export interface HudHost {
+  useBelt(index: number): void;
+  toggleControls(): void;
+}
+
 export class Hud {
   private visible = true;
   private readonly root: HTMLElement;
   private readonly bars = new Map<BarKey, Bar>();
-  private readonly handName: HTMLElement;
-  private readonly handGlyph: HTMLElement;
-  private readonly handState: HTMLElement;
-  private readonly handDescription: HTMLElement;
-  private readonly handMeta: HTMLElement;
-  private readonly offhandName: HTMLElement;
-  private readonly wearFill: HTMLElement;
-  private readonly staminaFill: HTMLElement;
-  private readonly staminaValue: HTMLElement;
-  private readonly hint: HTMLElement;
-  private readonly combatLine: HTMLElement;
   private readonly levelLabel: HTMLElement;
+  private readonly hands = new Map<EquipSlot, HandRow>();
   private readonly beltSlots: HTMLElement;
   private readonly belt: BeltSlot[] = [];
   private readonly carryValue: HTMLElement;
   private readonly lightRow: HTMLElement;
   private readonly lightValue: HTMLElement;
+  private readonly breath: HTMLElement;
+  private readonly breathFill: HTMLElement;
   private readonly armorValue: HTMLElement;
   private readonly noiseValue: HTMLElement;
   private readonly failing: HTMLElement;
+  private readonly keys: HTMLElement;
+  private readonly hint: HTMLElement;
+  private readonly combatLine: HTMLElement;
   private readonly previous = new Map<BarKey, number>();
   private calmCountdown = 0;
 
@@ -132,16 +146,17 @@ export class Hud {
     parent: HTMLElement,
     private readonly ui: UiContext,
     private readonly config: HudConfig,
+    private readonly host: HudHost,
   ) {
     this.root = el('div', 'hud', parent);
     this.root.style.setProperty('--hud-scale', String(config.scale));
-    this.root.style.setProperty('--hand-slot-size', `${config.handSlotSize}px`);
-    this.levelLabel = el('div', 'hud-level', this.root);
+    this.root.style.setProperty('--belt-slot-size', `${config.beltSlotSize}px`);
 
-    const stats = el('div', 'hud-stats', this.root);
+    // ── the body, top left ──────────────────────────────────────────────────
+    const vitals = el('div', 'hud-panel hud-vitals', this.root);
+    this.levelLabel = el('div', 'hud-vitals-level', vitals);
     for (const key of BAR_KEYS) {
-      const tier = PRIMARY.includes(key as (typeof PRIMARY)[number]) ? 'primary' : 'secondary';
-      const row = el('div', `hud-bar hud-bar--${key} hud-bar--${tier}`, stats);
+      const row = el('div', `hud-bar hud-bar--${key}`, vitals);
       const icon = el('span', 'hud-bar-icon', row);
       icon.textContent = BAR_ICONS[key];
       icon.setAttribute('aria-hidden', 'true');
@@ -150,33 +165,8 @@ export class Hud {
       this.bars.set(key, { row, fill: el('div', 'hud-bar-fill', track) });
     }
 
-    const hand = el('div', 'hud-hand', this.root);
-    ui.binder.bind(el('span', 'hud-hand-label', hand), 'hud.hand');
-    const handBody = el('div', 'hud-hand-body', hand);
-    this.handGlyph = el('div', 'hud-hand-glyph', handBody);
-    const handCopy = el('div', 'hud-hand-copy', handBody);
-    this.handName = el('div', 'hud-hand-name', handCopy);
-    this.handState = el('div', 'hud-hand-state', handCopy);
-    this.handDescription = el('div', 'hud-hand-description', handCopy);
-    this.handMeta = el('div', 'hud-hand-meta', handCopy);
-    const offhand = el('div', 'hud-hand-offhand', hand);
-    ui.binder.bind(el('span', 'hud-hand-offhand-label', offhand), 'inventory.slot.offhand');
-    this.offhandName = el('span', 'hud-hand-offhand-name', offhand);
-
-    const wear = el('div', 'hud-hand-wear', hand);
-    ui.binder.bind(el('span', 'hud-hand-wear-label', wear), 'hud.wear');
-    this.wearFill = el('div', 'hud-wear-fill', el('div', 'hud-wear-track', wear));
-
-    const stamina = el('div', 'hud-stamina', this.root);
-    const staminaIcon = el('span', 'hud-stamina-icon', stamina);
-    staminaIcon.textContent = '↯';
-    staminaIcon.setAttribute('aria-hidden', 'true');
-    const staminaInfo = el('div', 'hud-stamina-info', stamina);
-    ui.binder.bind(el('span', 'hud-stamina-label', staminaInfo), 'hud.stamina');
-    this.staminaValue = el('span', 'hud-stamina-value', staminaInfo);
-    this.staminaFill = el('div', 'hud-stamina-fill', el('div', 'hud-stamina-track', stamina));
-
-    const gear = el('div', 'hud-gear', this.root);
+    // ── what is being worn, top right ───────────────────────────────────────
+    const gear = el('div', 'hud-panel hud-gear', this.root);
     const armorRow = el('div', 'hud-gear-row', gear);
     ui.binder.bind(el('span', 'hud-gear-label', armorRow), 'hud.armor');
     this.armorValue = el('span', 'hud-gear-value', armorRow);
@@ -185,6 +175,27 @@ export class Hud {
     this.noiseValue = el('span', 'hud-gear-value', noiseRow);
     this.failing = el('div', 'hud-gear-failing', gear);
 
+    // ── the hands, bottom right ─────────────────────────────────────────────
+    const hands = el('div', 'hud-panel hud-hands', this.root);
+    ui.binder.bind(el('div', 'hud-panel-title', hands), 'hud.hand');
+    for (const slot of ['hand', 'offhand'] as const) {
+      const row = el('div', `hud-hand-row hud-hand-row--${slot}`, hands);
+      const head = el('div', 'hud-hand-head', row);
+      const key = el('span', 'hud-chip', head);
+      const name = el('span', 'hud-hand-name', head);
+      const state = el('span', 'hud-hand-state', head);
+      const wear = el('div', 'hud-hand-wear', row);
+      this.hands.set(slot, {
+        root: row,
+        key,
+        name,
+        state,
+        wear,
+        wearFill: el('div', 'hud-hand-wear-fill', wear),
+      });
+    }
+
+    // ── the belt and the breath, bottom centre ──────────────────────────────
     const beltPanel = el('div', 'hud-belt', this.root);
     const meta = el('div', 'hud-belt-meta', beltPanel);
     const carry = el('div', 'hud-belt-meta-item', meta);
@@ -194,25 +205,29 @@ export class Hud {
     ui.binder.bind(el('span', 'hud-belt-meta-label', this.lightRow), 'hud.charge');
     this.lightValue = el('span', 'hud-belt-meta-value', this.lightRow);
     this.beltSlots = el('div', 'hud-belt-slots', beltPanel);
-    this.root.style.setProperty('--belt-slot-size', `${config.beltSlotSize}px`);
+    this.breath = el('div', 'hud-breath', beltPanel);
+    this.breathFill = el('div', 'hud-breath-fill', this.breath);
 
     this.hint = el('div', 'hud-hint', this.root);
     this.combatLine = el('div', 'hud-combat', this.root);
-    this.buildLegend();
+    this.keys = this.buildLegend();
   }
 
   /** Built once from the bindings; `binder.refresh()` rewrites it after a rebind. */
-  private buildLegend(): void {
-    const legend = el('div', 'hud-keys', this.root);
-    this.ui.binder.bind(el('div', 'hud-keys-title', legend), 'hud.controls');
+  private buildLegend(): HTMLElement {
+    const legend = el('div', 'hud-panel hud-keys', this.root);
+    const header = el('button', 'hud-keys-title', legend);
+    this.ui.binder.bind(header, 'hud.controls');
+    header.addEventListener('click', () => this.host.toggleControls());
     const grid = el('div', 'hud-keys-grid', legend);
     for (const row of LEGEND) {
       const line = el('div', 'hud-keys-row', grid);
-      this.ui.binder.bind(el('span', 'hud-keys-chip', line), 'hud.key', () => ({
+      this.ui.binder.bind(el('span', 'hud-chip', line), 'hud.key', () => ({
         key: this.legendKeys(row),
       }));
       this.ui.binder.bind(el('span', 'hud-keys-name', line), row.labelKey);
     }
+    return legend;
   }
 
   private legendKeys(row: LegendRow): string {
@@ -220,6 +235,11 @@ export class Hud {
     if (row.join === 'clump') return movementLabel(t, bindings(), row.actions);
     const labels = row.actions.map((action) => actionLabel(t, bindings(), action));
     return row.join === 'range' ? labels.join('-') : labels[0];
+  }
+
+  /** The legend is the one part of the display a player is meant to outgrow. */
+  setControlsVisible(visible: boolean): void {
+    this.keys.classList.toggle('hud-keys--collapsed', !visible);
   }
 
   update(run: Run): void {
@@ -248,11 +268,8 @@ export class Hud {
       this.previous.set(key, value);
     }
 
-    const staminaRatio = Math.max(0, Math.min(1, run.stats.stamina / config.maxStamina));
-    setStyle(this.staminaFill, 'width', `${(staminaRatio * 100).toFixed(1)}%`);
-    setText(this.staminaValue, `${Math.ceil(run.stats.stamina)}/${config.maxStamina}`);
-    this.staminaFill.parentElement?.parentElement?.classList.toggle('hud-stamina--critical', staminaRatio < this.config.criticalFraction);
-    this.updateHand(run);
+    this.updateBreath(run);
+    this.updateHands(run);
     this.updateBelt(run);
     this.updateGear(run);
     setText(this.levelLabel, t('hud.level', { value: run.levelIndex }));
@@ -263,58 +280,62 @@ export class Hud {
   }
 
   /**
-   * The interface is loud while something is happening and quiet otherwise.
-   * A body in weapon reach counts as something happening.
+   * Breath is a line, not a panel, and it is only there while it is being spent.
+   * At the bottom of it the whole screen tightens instead of a number turning
+   * red: running out of air is the one state that should be felt rather than read.
    */
-  private updateCalm(run: Run, statsMoved: boolean): void {
-    const busy =
-      statsMoved ||
-      (run.combat.canFight && run.combat.targets > 0) ||
-      run.combat.eventTicks > 0 ||
-      (run.hint !== null && !STEADY.has(run.hint));
-    if (busy) this.calmCountdown = this.config.calmTicks;
-    else if (this.calmCountdown > 0) this.calmCountdown--;
-    const calm = this.calmCountdown <= 0;
-    this.root.classList.toggle('hud--calm', calm);
-    setStyle(this.root, '--hud-opacity', calm ? String(this.config.calmOpacity) : '1');
+  private updateBreath(run: Run): void {
+    const ratio = Math.max(
+      0,
+      Math.min(1, run.stats.stamina / run.config.stats.maxStamina),
+    );
+    setStyle(this.breathFill, 'width', `${(ratio * 100).toFixed(1)}%`);
+    // Full breath is not information, so it is not drawn.
+    setStyle(this.breath, 'opacity', ratio >= 1 ? '0' : '1');
+    const spent = ratio < this.config.criticalFraction;
+    this.breath.classList.toggle('hud-breath--spent', spent);
+    setStyle(
+      this.root,
+      '--strain',
+      spent ? (1 - ratio / this.config.criticalFraction).toFixed(2) : '0',
+    );
   }
 
-  private updateHand(run: Run): void {
+  /** Both hands, each labelled with the key that uses it. */
+  private updateHands(run: Run): void {
     const { t } = this.ui;
-    const held = heldStack(run.inventory);
-    const def = held ? run.config.content.items[held.itemId] : undefined;
-    const displayName = def ? t(def.nameKey) : t('hud.empty');
-    setText(this.handName, displayName);
-    setText(this.handGlyph, held ? displayName.slice(0, 1).toUpperCase() : '—');
-    setText(this.handState, run.combat.broken ? t('hud.broken') : held ? t('hud.ready') : t('hud.empty'));
-    setText(this.handDescription, def ? t(def.descriptionKey) : t('hud.handEmptyDescription'));
+    const bindings = this.ui.bindings();
+    const catalog = run.config.content.items;
+    for (const [slot, row] of this.hands) {
+      const action = slot === 'hand' ? 'handMain' : 'handOff';
+      setText(row.key, actionLabel(t, bindings, action));
+      const stack = equippedStack(run.inventory, slot);
+      const def = stack ? catalog[stack.itemId] : undefined;
+      setText(row.name, def ? t(def.nameKey) : t('hud.empty'));
+      row.root.classList.toggle('hud-hand-row--empty', !stack);
 
-    const parts: string[] = [];
-    if (held && held.count > 1) parts.push(`x${held.count}`);
-    if (def && def.charge > 0 && held) {
-      parts.push(`${t('hud.charge')} ${t('ui.seconds', { value: Math.ceil(held.charge) })}`);
+      const notes: string[] = [];
+      if (stack && stack.count > 1) notes.push(`x${stack.count}`);
+      if (def && def.charge > 0 && stack) {
+        notes.push(t('ui.seconds', { value: Math.ceil(stack.charge) }));
+      }
+      if (slot === 'hand' && run.combat.broken) notes.push(t('hud.broken'));
+      setText(row.state, notes.join(' · '));
+
+      const max = def?.durability?.max ?? 0;
+      row.wear.hidden = max <= 0;
+      if (stack && def && max > 0) {
+        const share = condition(def, stack.durability);
+        setStyle(row.wearFill, 'width', `${(share * 100).toFixed(1)}%`);
+        row.root.classList.toggle('hud-hand-row--worn', share <= this.config.criticalFraction);
+      }
     }
-    if (run.combat.broken) parts.push(t('hud.broken'));
-    setText(this.handMeta, parts.join('  ·  '));
-
-    // The off hand is a real decision now — a guard, or a light that frees the
-    // other hand — so it cannot be something only the bag knows about.
-    const second = equippedStack(run.inventory, 'offhand');
-    const secondDef = second ? run.config.content.items[second.itemId] : undefined;
-    setText(this.offhandName, secondDef ? t(secondDef.nameKey) : '—');
-
-    // Wear is a bar, not a percentage: it is a state, not a measurement.
-    const worn = run.combat.maxDurability > 0;
-    const share = worn ? run.combat.durability / run.combat.maxDurability : 0;
-    setStyle(this.wearFill, 'width', `${(share * 100).toFixed(1)}%`);
-    this.root.classList.toggle('hud--has-wear', worn);
-    this.root.classList.toggle('hud--worn', worn && share <= this.config.criticalFraction);
   }
 
   /**
-   * The belt. It is the only part of the inventory that is readable without
-   * opening the inventory, so it carries everything a number key needs: what is
-   * on it, how many, how worn, and whether it is the thing in your hand.
+   * The belt. It is the only part of the inventory readable without opening the
+   * inventory, so it carries everything a number key needs: what is on it, how
+   * many, how worn. Clicking a slot is the same as pressing its number.
    */
   private updateBelt(run: Run): void {
     const { t } = this.ui;
@@ -322,23 +343,30 @@ export class Hud {
     const bindings = this.ui.bindings();
     while (this.belt.length < run.inventory.quick.length) {
       const index = this.belt.length;
-      const root = el('div', 'hud-belt-slot', this.beltSlots);
-      setText(el('span', 'hud-belt-key', root), actionLabel(t, bindings, `quick${index + 1}`));
+      const root = el('button', 'hud-belt-slot', this.beltSlots);
+      root.addEventListener('click', () => this.host.useBelt(index));
+      const key = el('span', 'hud-belt-key', root);
       const name = el('span', 'hud-belt-name', root);
       const count = el('span', 'hud-belt-count', root);
       const wear = el('div', 'hud-belt-wear', root);
-      this.belt.push({ root, name, count, wear, wearFill: el('div', 'hud-belt-wear-fill', wear) });
+      this.belt.push({
+        root,
+        key,
+        name,
+        count,
+        wear,
+        wearFill: el('div', 'hud-belt-wear-fill', wear),
+      });
     }
 
-    const held = heldStack(run.inventory);
     for (let index = 0; index < this.belt.length; index++) {
       const slot = this.belt[index];
       const stack = quickStack(run.inventory, index);
       const def = stack ? catalog[stack.itemId] : undefined;
-      setText(slot.name, def ? t(def.nameKey) : '—');
+      setText(slot.key, actionLabel(t, bindings, `quick${index + 1}`));
+      setText(slot.name, def ? t(def.nameKey) : '');
       setText(slot.count, stack && stack.count > 1 ? `x${stack.count}` : '');
       slot.root.classList.toggle('hud-belt-slot--empty', !stack);
-      slot.root.classList.toggle('hud-belt-slot--held', !!stack && held?.id === stack.id);
       const max = def?.durability?.max ?? 0;
       slot.wear.hidden = max <= 0;
       if (stack && def && max > 0) {
@@ -348,8 +376,7 @@ export class Hud {
       }
     }
 
-    const cells = capacity(run.inventory, catalog);
-    setText(this.carryValue, `${usedCells(run.inventory)}/${cells}`);
+    setText(this.carryValue, `${usedCells(run.inventory)}/${capacity(run.inventory, catalog)}`);
 
     // The lamp is the one carried thing that runs down whether or not it is held.
     let charge = 0;
@@ -397,11 +424,8 @@ export class Hud {
 
     // One warning at a time: the worst thing being worn, and only once it matters.
     let worst: { name: string; share: number } | null = null;
-    for (const slot of Object.keys(run.inventory.equipment) as Array<
-      keyof typeof run.inventory.equipment
-    >) {
-      const id = run.inventory.equipment[slot];
-      const stack = id === null ? null : run.inventory.stacks.find((s) => s.id === id);
+    for (const slot of Object.keys(run.inventory.equipment) as EquipSlot[]) {
+      const stack = equippedStack(run.inventory, slot);
       const def = stack ? catalog[stack.itemId] : undefined;
       if (!stack || !def || (def.durability?.max ?? 0) <= 0) continue;
       const value = condition(def, stack.durability);
@@ -409,6 +433,23 @@ export class Hud {
       if (!worst || value < worst.share) worst = { name: t(def.nameKey), share: value };
     }
     setText(this.failing, worst ? t('hud.failing', { name: worst.name }) : '');
+  }
+
+  /**
+   * The interface is loud while something is happening and quiet otherwise.
+   * A body in weapon reach counts as something happening.
+   */
+  private updateCalm(run: Run, statsMoved: boolean): void {
+    const busy =
+      statsMoved ||
+      (run.combat.canFight && run.combat.targets > 0) ||
+      run.combat.eventTicks > 0 ||
+      (run.hint !== null && !STEADY.has(run.hint));
+    if (busy) this.calmCountdown = this.config.calmTicks;
+    else if (this.calmCountdown > 0) this.calmCountdown--;
+    const calm = this.calmCountdown <= 0;
+    this.root.classList.toggle('hud--calm', calm);
+    setStyle(this.root, '--hud-opacity', calm ? String(this.config.calmOpacity) : '1');
   }
 
   /** The centre line carries only what has nowhere better to be. */
@@ -437,6 +478,6 @@ export class Hud {
 
   setVisible(visible: boolean): void {
     this.visible = visible;
-    setStyle(this.root, 'display', visible ? 'flex' : 'none');
+    setStyle(this.root, 'display', visible ? 'block' : 'none');
   }
 }

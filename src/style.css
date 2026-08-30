@@ -1,8 +1,29 @@
 :root {
   color-scheme: dark;
-  --hud-text: #efe3bb;
-  --hud-dim: #9a8f6f;
-  --hud-panel: rgba(14, 12, 9, 0.9);
+
+  /* Ink. Three weights are enough: what you read, what you glance at, and what
+     is only there so the glance has somewhere to land. */
+  --hud-text: #f2e8c8;
+  --hud-dim: #a2967a;
+  --hud-faint: rgba(242, 232, 200, 0.34);
+
+  /* Surfaces. Every panel is the same glass over the same dark, so the corners
+     of the screen read as one object rather than five stickers. */
+  --hud-panel: rgba(12, 10, 7, 0.82);
+  --hud-panel-strong: rgba(9, 7, 5, 0.94);
+  --hud-line: rgba(242, 232, 200, 0.16);
+  --hud-line-strong: rgba(242, 232, 200, 0.38);
+  --hud-inset: rgba(0, 0, 0, 0.45);
+  --hud-shadow: 0 10px 34px rgba(0, 0, 0, 0.5);
+
+  /* States. Warm is fine, cool is good, hot is trouble. */
+  --hud-good: #a8c48c;
+  --hud-warm: #c9a94f;
+  --hud-bad: #d8735c;
+
+  --hud-gap: 10px;
+  --hud-pad: 11px 13px;
+  --hud-radius: 2px;
 }
 
 * {
@@ -44,206 +65,276 @@ body {
 .hud {
   position: absolute;
   inset: 0;
-  display: flex;
-  font-size: 18px;
-  letter-spacing: 0.08em;
-}
-
-.hud-level {
-  position: absolute;
-  top: 14px;
-  left: 16px;
-  color: var(--hud-dim);
-}
-
-.hud-stats {
-  position: absolute;
-  left: 50%;
-  top: 24px;
-  transform: translateX(-50%);
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 14px 18px;
-  width: min(1120px, calc(100vw - 48px));
-  max-width: calc(100vw - 48px);
-  background: linear-gradient(180deg, rgba(18, 15, 11, 0.96), rgba(10, 8, 6, 0.9));
-  padding: 16px 22px;
-  border: 1px solid rgba(239, 227, 187, 0.24);
-  box-shadow: 0 14px 45px rgba(0,0,0,0.4);
-  border: 1px solid rgba(239, 227, 187, 0.12);
-}
-
-.hud {
+  display: block;
+  font-size: 13px;
+  letter-spacing: 0.06em;
   --hud-opacity: 1;
+  --strain: 0;
 }
 
-.hud-stats,
-.hud-hand,
-.hud-level,
-.hud-gear,
-.hud-keys,
-.hud-belt {
+/* One panel treatment, used by every corner. */
+.hud-panel {
+  position: absolute;
+  padding: var(--hud-pad);
+  background: var(--hud-panel);
+  border: 1px solid var(--hud-line);
+  border-radius: var(--hud-radius);
+  box-shadow: var(--hud-shadow);
+  backdrop-filter: blur(3px);
   opacity: var(--hud-opacity);
   transition: opacity 500ms ease;
 }
 
+.hud-panel-title {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--hud-dim);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+}
+
+/* A key, drawn the same way wherever a key is named. */
+.hud-chip {
+  display: inline-block;
+  min-width: 34px;
+  padding: 1px 5px;
+  text-align: center;
+  color: var(--hud-text);
+  border: 1px solid var(--hud-line-strong);
+  background: var(--hud-inset);
+  border-radius: var(--hud-radius);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+}
+
+/* ── the body, top left ─────────────────────────────────────────────────── */
+.hud-vitals {
+  top: 14px;
+  left: 14px;
+  min-width: 232px;
+  transform: scale(var(--ui-scale));
+  transform-origin: top left;
+}
+
+.hud-vitals-level {
+  color: var(--hud-dim);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  margin-bottom: 9px;
+}
+
 .hud-bar {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: 16px 46px 1fr;
   align-items: center;
-  gap: 9px;
-  min-width: 210px;
-  min-height: 42px;
+  gap: 8px;
+  min-height: 18px;
 }
 
-.hud-bar--primary {
-  grid-template-columns: 34px 70px minmax(150px, 1fr);
-  margin-bottom: 3px;
-  font-size: 20px;
-}
+.hud-bar + .hud-bar { margin-top: 5px; }
 
-.hud-bar--secondary {
-  grid-template-columns: 34px 70px minmax(120px, 1fr);
-  font-size: 14px;
-  opacity: 0.75;
+.hud-bar-icon {
+  color: var(--hud-faint);
+  font-size: 12px;
+  text-align: center;
 }
 
 .hud-bar-label {
   color: var(--hud-dim);
+  font-size: 10px;
+  letter-spacing: 0.14em;
 }
 
 .hud-bar-track {
-  background: rgba(239, 227, 187, 0.12);
-}
-
-.hud-bar--primary .hud-bar-track {
-  height: 16px;
-  border: 1px solid rgba(239, 227, 187, 0.15);
-}
-
-.hud-bar--secondary .hud-bar-track {
-  height: 9px;
-  border: 1px solid rgba(239, 227, 187, 0.1);
+  height: 6px;
+  background: var(--hud-inset);
+  border-radius: 1px;
+  overflow: hidden;
 }
 
 .hud-bar-fill {
   height: 100%;
   width: 100%;
-  background: var(--hud-text);
-  transition: width 120ms linear;
+  transition: width 220ms ease-out;
 }
 
-.hud-bar-icon,
-.hud-stamina-icon {
-  color: var(--hud-text);
-  font-size: 30px;
-  line-height: 1;
+/* Each bar keeps its own colour: the shape of the block is recognised before
+   the label beside it is read. */
+.hud-bar--health .hud-bar-fill { background: linear-gradient(90deg, #a8544c, #d9877c); }
+.hud-bar--hunger .hud-bar-fill { background: linear-gradient(90deg, #8a7434, #c9a94f); }
+.hud-bar--thirst .hud-bar-fill { background: linear-gradient(90deg, #3f6f86, #7fb2c8); }
+.hud-bar--sanity .hud-bar-fill { background: linear-gradient(90deg, #6a5a86, #a893c4); }
+
+/* Critical bars pulse, so they are caught by the corner of an eye. */
+.hud-bar--critical .hud-bar-fill { animation: alarm 1100ms ease-in-out infinite; }
+.hud-bar--critical .hud-bar-label { color: var(--hud-bad); }
+
+@keyframes alarm {
+  0%, 100% { filter: none; }
+  50% { filter: brightness(1.7); }
 }
 
-.hud-bar-label {
-  grid-column: 1;
+/* ── what is being worn, top right ──────────────────────────────────────── */
+.hud-gear {
+  top: 14px;
+  right: 14px;
+  min-width: 186px;
   font-size: 11px;
+  transform: scale(var(--ui-scale));
+  transform-origin: top right;
 }
 
-.hud-stamina {
-  position: absolute;
-  left: 50%;
-  bottom: 24px;
-  transform: translateX(-50%);
+.hud-gear-row { display: flex; justify-content: space-between; gap: 16px; }
+.hud-gear-row + .hud-gear-row { margin-top: 5px; }
+.hud-gear-label { color: var(--hud-dim); letter-spacing: 0.14em; font-size: 10px; }
+.hud-gear-value { color: var(--hud-text); }
+.hud-gear-value--loud { color: var(--hud-bad); }
+.hud-gear-value--quiet { color: var(--hud-good); }
+
+.hud-gear-failing {
+  margin-top: 7px;
+  padding-top: 6px;
+  border-top: 1px solid var(--hud-line);
+  color: var(--hud-bad);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.hud-gear-failing:empty { display: none; }
+
+/* ── the hands, bottom right ────────────────────────────────────────────── */
+.hud-hands {
+  right: 14px;
+  bottom: 14px;
+  width: min(320px, calc(100vw - 28px));
+  transform: scale(var(--ui-scale));
+  transform-origin: bottom right;
+}
+
+.hud-hand-row + .hud-hand-row {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--hud-line);
+}
+
+.hud-hand-head {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 230px;
-  padding: 9px 13px;
-  background: var(--hud-panel);
-  border: 1px solid rgba(239, 227, 187, 0.2);
-  box-shadow: 0 8px 30px rgba(0,0,0,0.3);
+  align-items: baseline;
+  gap: 9px;
 }
 
-.hud-stamina-info { display: flex; justify-content: space-between; gap: 14px; min-width: 74px; font-size: 11px; }
-.hud-stamina-label { color: var(--hud-dim); }
-.hud-stamina-value { color: var(--hud-text); }
-.hud-stamina-track { flex: 1; height: 8px; background: rgba(239, 227, 187, 0.12); }
-.hud-stamina-fill { height: 100%; width: 100%; background: #9dbb85; transition: width 120ms linear; }
-.hud-stamina--critical .hud-stamina-fill { background: #e0a094; animation: alarm 900ms ease-in-out infinite; }
+.hud-hand-name {
+  flex: 1;
+  min-width: 0;
+  color: var(--hud-text);
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
+.hud-hand-state {
+  color: var(--hud-dim);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+}
 
-/* ── the belt ──────────────────────────────────────────────────────────────
-   The only part of the inventory readable without opening it, so it sits where
-   the eye already is: directly above the breath bar. */
+.hud-hand-row--empty .hud-hand-name { color: var(--hud-faint); }
+
+.hud-hand-wear {
+  margin-top: 6px;
+  height: 3px;
+  background: var(--hud-inset);
+}
+
+.hud-hand-wear[hidden] { display: none; }
+.hud-hand-wear-fill { height: 100%; background: var(--hud-warm); transition: width 180ms linear; }
+.hud-hand-row--worn .hud-hand-wear-fill { background: var(--hud-bad); }
+
+/* ── the belt and the breath, bottom centre ─────────────────────────────── */
 .hud-belt {
   position: absolute;
   left: 50%;
-  bottom: 72px;
-  transform: translateX(-50%);
+  bottom: 16px;
+  transform: translateX(-50%) scale(var(--ui-scale));
+  transform-origin: bottom center;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 7px;
+  opacity: var(--hud-opacity);
+  transition: opacity 500ms ease;
 }
 
 .hud-belt-meta {
   display: flex;
   gap: 20px;
-  font-size: 11px;
-  letter-spacing: 0.14em;
+  font-size: 10px;
+  letter-spacing: 0.16em;
 }
 
 .hud-belt-meta-item { display: flex; gap: 7px; }
 .hud-belt-meta-item[hidden] { display: none; }
 .hud-belt-meta-label { color: var(--hud-dim); }
 .hud-belt-meta-value { color: var(--hud-text); }
-.hud-belt-meta-item--critical .hud-belt-meta-value { color: #e0a094; }
+.hud-belt-meta-item--critical .hud-belt-meta-value { color: var(--hud-bad); }
 
 .hud-belt-slots { display: flex; gap: 5px; }
 
 .hud-belt-slot {
   position: relative;
   width: var(--belt-slot-size, 96px);
-  padding: 7px 8px 10px;
+  min-height: 54px;
+  padding: 6px 8px 10px;
   background: var(--hud-panel);
-  border: 1px solid rgba(239, 227, 187, 0.2);
+  border: 1px solid var(--hud-line);
+  border-radius: var(--hud-radius);
+  box-shadow: var(--hud-shadow);
+  backdrop-filter: blur(3px);
+  color: inherit;
+  font: inherit;
   font-size: 11px;
   line-height: 1.25;
   text-align: left;
   overflow: hidden;
+  /* The belt is the one part of the display you can put a finger on. */
+  pointer-events: auto;
+  cursor: pointer;
+  transition: border-color 140ms ease, transform 90ms ease;
 }
+
+.hud-belt-slot:hover { border-color: var(--hud-line-strong); }
+.hud-belt-slot:active { transform: translateY(1px); }
 
 .hud-belt-key {
   display: block;
   color: var(--hud-dim);
   font-size: 10px;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.18em;
 }
 
 .hud-belt-name {
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   overflow: hidden;
   margin-top: 3px;
   color: var(--hud-text);
-  height: 3.75em;
+  height: 2.5em;
 }
 
 .hud-belt-count {
   position: absolute;
   right: 7px;
-  top: 6px;
+  top: 5px;
   color: var(--hud-text);
-  font-size: 11px;
+  font-size: 10px;
 }
 
-.hud-belt-slot--empty { opacity: 0.45; }
-.hud-belt-slot--empty .hud-belt-name { color: var(--hud-dim); }
-
-/* The slot the hand is drawing from reads first, before the name is read. */
-.hud-belt-slot--held {
-  border-color: #efe3bb;
-  box-shadow: inset 0 0 0 1px rgba(239, 227, 187, 0.35);
-}
+.hud-belt-slot--empty { opacity: 0.4; cursor: default; }
+.hud-belt-slot--empty:hover { border-color: var(--hud-line); }
 
 .hud-belt-wear {
   position: absolute;
@@ -251,224 +342,125 @@ body {
   right: 0;
   bottom: 0;
   height: 3px;
-  background: rgba(0, 0, 0, 0.5);
+  background: var(--hud-inset);
 }
 
 .hud-belt-wear[hidden] { display: none; }
-.hud-belt-wear-fill { height: 100%; background: #b8a066; transition: width 160ms linear; }
-.hud-belt-slot--worn .hud-belt-wear-fill { background: #d2725c; }
+.hud-belt-wear-fill { height: 100%; background: var(--hud-warm); transition: width 180ms linear; }
+.hud-belt-slot--worn .hud-belt-wear-fill { background: var(--hud-bad); }
 
-/* ── what is being worn ────────────────────────────────────────────────────
-   Armour and footstep noise are what equipment does; neither is visible
-   anywhere else, and both move as the gear wears down. */
-.hud-gear {
+/* Breath is a hairline under the belt, and nothing at all while it is full.
+   What is left of it is felt through `--strain` on the screen, not counted. */
+.hud-breath {
+  width: 100%;
+  height: 2px;
+  background: var(--hud-inset);
+  opacity: 0;
+  transition: opacity 400ms ease;
+}
+
+.hud-breath-fill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, rgba(168, 196, 140, 0.35), var(--hud-good));
+  transition: width 140ms linear;
+}
+
+.hud-breath--spent .hud-breath-fill {
+  background: linear-gradient(90deg, rgba(216, 115, 92, 0.35), var(--hud-bad));
+}
+
+/* Running out of air tightens the edges of the screen instead of turning a
+   number red. It is drawn over everything and catches nothing. */
+.hud::after {
+  content: '';
   position: absolute;
-  top: 42px;
-  left: 16px;
-  min-width: 168px;
-  padding: 9px 11px;
-  background: var(--hud-panel);
-  border: 1px solid rgba(239, 227, 187, 0.14);
-  font-size: 11px;
-  letter-spacing: 0.12em;
+  inset: 0;
+  pointer-events: none;
+  opacity: var(--strain);
+  background: radial-gradient(
+    ellipse at center,
+    rgba(0, 0, 0, 0) 42%,
+    rgba(24, 6, 4, 0.55) 100%
+  );
+  transition: opacity 260ms ease;
 }
 
-.hud-gear-row { display: flex; justify-content: space-between; gap: 14px; }
-.hud-gear-row + .hud-gear-row { margin-top: 4px; }
-.hud-gear-label { color: var(--hud-dim); }
-.hud-gear-value { color: var(--hud-text); }
-.hud-gear-value--loud { color: #e0a094; }
-.hud-gear-value--quiet { color: #9dbb85; }
-
-.hud-gear-failing {
-  margin-top: 5px;
-  color: #d2725c;
-  letter-spacing: 0.08em;
-}
-
-.hud-gear-failing:empty { display: none; }
-
-/* ── the legend ────────────────────────────────────────────────────────────
-   Written from the live bindings, so a rebind rewrites it. It fades with the
-   rest of the interface: it is for the first ten minutes, not for every one. */
+/* ── the legend, bottom left ────────────────────────────────────────────── */
 .hud-keys {
-  position: absolute;
-  left: 16px;
-  bottom: 24px;
-  padding: 10px 12px;
-  background: var(--hud-panel);
-  border: 1px solid rgba(239, 227, 187, 0.12);
+  left: 14px;
+  bottom: 14px;
   font-size: 11px;
-  letter-spacing: 0.06em;
+  transform: scale(var(--ui-scale));
+  transform-origin: bottom left;
 }
 
 .hud-keys-title {
+  display: block;
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 0;
+  border: none;
+  background: none;
   color: var(--hud-dim);
+  font: inherit;
   font-size: 10px;
-  letter-spacing: 0.2em;
-  margin-bottom: 7px;
+  letter-spacing: 0.22em;
+  text-align: left;
+  pointer-events: auto;
+  cursor: pointer;
 }
+
+.hud-keys-title:hover { color: var(--hud-text); }
 
 .hud-keys-grid {
   display: grid;
   grid-template-columns: repeat(2, auto);
-  gap: 3px 20px;
+  gap: 4px 22px;
 }
+
+/* Collapsed, it is a single word you can click back open. */
+.hud-keys--collapsed .hud-keys-grid { display: none; }
+.hud-keys--collapsed .hud-keys-title { margin-bottom: 0; }
 
 .hud-keys-row { display: flex; align-items: baseline; gap: 8px; }
-
-.hud-keys-chip {
-  min-width: 40px;
-  padding: 1px 5px;
-  text-align: center;
-  color: var(--hud-text);
-  border: 1px solid rgba(239, 227, 187, 0.28);
-  background: rgba(0, 0, 0, 0.35);
-  font-size: 10px;
-}
-
 .hud-keys-name { color: var(--hud-dim); }
 
-/* Each bar keeps its own colour: the shape of the block is recognised before
-   the label under it is read. */
-.hud-bar--health .hud-bar-fill {
-  background: #c98a7c;
-}
-
-.hud-bar--stamina .hud-bar-fill {
-  background: #9dbb85;
-}
-
-.hud-bar--hunger .hud-bar-fill {
-  background: #c2a866;
-}
-
-.hud-bar--thirst .hud-bar-fill {
-  background: #7fa8bd;
-}
-
-.hud-bar--sanity .hud-bar-fill {
-  background: #a78fbd;
-}
-
-/* Critical bars pulse, so they are caught by the corner of an eye. */
-.hud-bar--critical {
-  opacity: 1;
-  animation: alarm 900ms ease-in-out infinite;
-}
-
-.hud-bar--critical .hud-bar-label {
-  color: #e0a094;
-}
-
-@keyframes alarm {
-  0%,
-  100% {
-    filter: none;
-  }
-  50% {
-    filter: brightness(1.9);
-  }
-}
-
-
-.hud-hand {
-  position: absolute;
-  right: 28px;
-  bottom: 28px;
-  width: min(390px, calc(100vw - 56px));
-  background: linear-gradient(145deg, rgba(28, 23, 15, 0.98), rgba(10, 8, 6, 0.96));
-  padding: 18px;
-  border: 1px solid rgba(239, 227, 187, 0.3);
-  box-shadow: 0 18px 55px rgba(0,0,0,0.5);
-  text-align: left;
-}
-
-.hud-hand-label {
-  display: block;
-  color: var(--hud-dim);
-  font-size: 13px;
-  letter-spacing: 0.18em;
-}
-
-.hud-hand-body {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-top: 12px;
-}
-
-.hud-hand-glyph {
-  flex: 0 0 var(--hand-slot-size, 86px);
-  width: var(--hand-slot-size, 86px);
-  height: var(--hand-slot-size, 86px);
-  display: grid;
-  place-items: center;
-  border: 2px solid rgba(239, 227, 187, 0.5);
-  background: rgba(239, 227, 187, 0.08);
-  color: var(--hud-text);
-  font-size: 46px;
-  font-weight: 700;
-  box-shadow: inset 0 0 26px rgba(239, 227, 187, 0.08);
-}
-
-.hud-hand-copy { min-width: 0; }
-.hud-hand-name { margin-top: 4px; font-size: 22px; font-weight: 700; text-wrap: balance; }
-.hud-hand-state { margin-top: 5px; color: #9dbb85; font-size: 13px; letter-spacing: 0.15em; }
-.hud-hand-description { margin-top: 9px; color: var(--hud-dim); font-size: 13px; line-height: 1.45; }
-.hud-hand-meta { color: var(--hud-dim); font-size: 13px; margin-top: 10px; min-height: 18px; }
-
-.hud-hand-offhand {
-  display: flex;
-  justify-content: space-between;
-  gap: 14px;
-  margin-top: 12px;
-  padding-top: 10px;
-  border-top: 1px solid rgba(239, 227, 187, 0.12);
-  font-size: 12px;
-}
-
-.hud-hand-offhand-label { color: var(--hud-dim); letter-spacing: 0.14em; }
-.hud-hand-offhand-name { color: var(--hud-text); }
-
-.hud-hand-wear { margin-top: 14px; }
-.hud-hand-wear-label { display: block; margin-bottom: 5px; color: var(--hud-dim); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; }
-.hud-wear-track { height: 10px; background: rgba(239, 227, 187, 0.12); }
-.hud-wear-fill { height: 100%; background: #c2a866; transition: width 120ms linear; }
-
-.hud-hint {
+/* ── the centre line ────────────────────────────────────────────────────── */
+.hud-hint,
+.hud-combat {
   position: absolute;
   left: 50%;
-  bottom: 196px;
-  transform: translateX(-50%);
-  color: var(--hud-text);
-  text-shadow: 0 0 8px #000;
+  bottom: 168px;
+  transform: translateX(-50%) scale(var(--ui-scale));
+  text-align: center;
+  text-shadow: 0 0 10px #000;
   min-height: 16px;
+  max-width: min(640px, calc(100vw - 40px));
+}
+
+.hud-hint { color: var(--hud-text); }
+
+.hud-combat {
+  bottom: 196px;
+  color: var(--hud-warm);
+  font-size: 12px;
+  letter-spacing: 0.14em;
 }
 
 .hud--strained {
   animation: strain 2.6s infinite ease-in-out;
 }
 
-@media (max-width: 900px) {
-  .hud-stats { top: 14px; width: calc(100vw - 24px); max-width: calc(100vw - 24px); padding: 12px; gap: 8px; }
-  .hud-bar { min-width: min(190px, calc(50vw - 26px)); }
-  .hud-bar--primary, .hud-bar--secondary { grid-template-columns: 28px 58px minmax(90px, 1fr); }
-  .hud-hand { right: 14px; bottom: 14px; width: min(350px, calc(100vw - 28px)); }
-  .hud-stamina { bottom: 18px; left: 14px; transform: none; min-width: 210px; }
+@media (max-width: 1100px) {
+  .hud-hands { width: min(270px, calc(100vw - 28px)); }
+  .hud-vitals { min-width: 200px; }
 }
 
-@media (max-width: 620px) {
-  .hud-stats { align-items: stretch; }
-  .hud-bar { min-width: calc(50vw - 22px); }
-  .hud-bar--primary, .hud-bar--secondary { grid-template-columns: 25px 1fr; min-height: 34px; }
-  .hud-bar-track { grid-column: 2; }
-  .hud-bar-label { grid-column: 2; grid-row: 1; }
-  .hud-bar-icon { grid-row: 1 / span 2; }
-  .hud-hand { left: 14px; right: 14px; bottom: 14px; width: auto; }
-  .hud-hand-description { display: none; }
-  .hud-stamina { bottom: 150px; left: 50%; transform: translateX(-50%); min-width: 220px; }
-  .hud-level { top: 6px; left: 10px; font-size: 12px; }
+@media (max-width: 860px) {
+  .hud-keys-grid { grid-template-columns: auto; }
+  .hud-belt-slot { width: 76px; }
+  .hud-hands { width: 220px; }
 }
 
 @keyframes strain {
@@ -488,7 +480,7 @@ body {
   padding: 12px 14px;
   white-space: pre-line;
   background: #0d0b08;
-  border: 1px solid rgba(239, 227, 187, 0.35);
+  border: 1px solid var(--hud-line-strong);
   color: var(--hud-text);
   font-size: 12px;
   line-height: 1.5;
@@ -501,17 +493,19 @@ body {
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  background: var(--hud-panel);
-  border: 1px solid rgba(239, 227, 187, 0.18);
+  background: var(--hud-panel-strong);
+  border: 1px solid var(--hud-line);
+  border-radius: var(--hud-radius);
   padding: 22px;
   pointer-events: auto;
-  box-shadow: 0 18px 70px rgba(0,0,0,0.55);
+  backdrop-filter: blur(6px);
+  box-shadow: 0 18px 70px rgba(0, 0, 0, 0.55);
 }
 
 .bag-title {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--hud-dim);
-  letter-spacing: 0.2em;
+  letter-spacing: 0.22em;
   margin-bottom: 12px;
 }
 
@@ -569,10 +563,15 @@ body {
 .bag-quick,
 .bag-cell {
   position: relative;
-  border: 1px solid rgba(239, 227, 187, 0.16);
-  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--hud-line);
+  border-radius: var(--hud-radius);
+  background: var(--hud-inset);
   min-height: 52px;
+  transition: border-color 140ms ease;
 }
+
+.bag-cell:hover,
+.bag-quick:hover { border-color: var(--hud-line-strong); }
 
 .bag-slot-label {
   position: absolute;
@@ -580,7 +579,7 @@ body {
   left: 5px;
   font-size: 9px;
   letter-spacing: 0.08em;
-  color: rgba(239, 227, 187, 0.35);
+  color: var(--hud-line-strong);
   pointer-events: none;
 }
 
@@ -611,7 +610,7 @@ body {
   top: 2px;
   left: 4px;
   font-size: 9px;
-  color: rgba(239, 227, 187, 0.4);
+  color: var(--hud-line-strong);
   pointer-events: none;
   z-index: 1;
 }
@@ -619,16 +618,27 @@ body {
 .bag-item {
   position: absolute;
   inset: 2px;
-  background: #4a4227;
+  background: linear-gradient(160deg, #55492b, #3a3320);
   border: 1px solid #7d7047;
+  border-radius: var(--hud-radius);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   padding: 4px;
-  font-size: 10px;
-  line-height: 1.1;
+  font-size: 9px;
+  line-height: 1.2;
   cursor: grab;
   overflow: hidden;
+}
+
+/* A long name is clipped by lines rather than mid-word. */
+.bag-item-name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  overflow: hidden;
+  word-break: break-word;
 }
 
 .bag-item--worn { border-color: #a08a4e; }
@@ -643,6 +653,20 @@ body {
   align-self: flex-end;
   color: var(--hud-text);
 }
+
+/* What a container is carrying inside itself, on the icon that carries it. */
+.bag-item-pocket {
+  position: absolute;
+  right: 3px;
+  top: 3px;
+  padding: 0 3px;
+  color: #0d0b08;
+  background: var(--hud-warm);
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.bag-item-pocket:empty { display: none; }
 
 /* Wear is always visible: a bar on the icon, not a number in a panel. */
 .bag-item-wear {
@@ -667,7 +691,7 @@ body {
   position: absolute;
   z-index: 30;
   background: #0d0b08;
-  border: 1px solid rgba(239, 227, 187, 0.35);
+  border: 1px solid var(--hud-line-strong);
   color: var(--hud-text);
   font-size: 12px;
   line-height: 1.5;
@@ -680,6 +704,8 @@ body {
   white-space: pre-line;
   pointer-events: none;
 }
+
+.bag-menu[hidden] { display: none; }
 
 .bag-menu {
   display: flex;
@@ -698,7 +724,7 @@ body {
   cursor: pointer;
 }
 
-.bag-menu-item:hover { background: rgba(239, 227, 187, 0.12); }
+.bag-menu-item:hover { background: var(--hud-line); }
 
 .bag-confirm[hidden] { display: none; }
 
@@ -715,7 +741,7 @@ body {
 
 .bag-confirm-button {
   background: none;
-  border: 1px solid rgba(239, 227, 187, 0.35);
+  border: 1px solid var(--hud-line-strong);
   color: inherit;
   font: inherit;
   padding: 3px 12px;
@@ -764,7 +790,7 @@ body {
   display: flex;
   justify-content: space-between;
   font-size: 12px;
-  border-bottom: 1px solid rgba(239, 227, 187, 0.12);
+  border-bottom: 1px solid var(--hud-line);
   padding-bottom: 4px;
 }
 
@@ -839,8 +865,11 @@ body {
 
 .screen-panel {
   transform: scale(var(--ui-scale));
-  background: #0d0b08;
-  border: 1px solid rgba(239, 227, 187, 0.16);
+  background: var(--hud-panel-strong);
+  border: 1px solid var(--hud-line);
+  border-radius: var(--hud-radius);
+  box-shadow: var(--hud-shadow);
+  backdrop-filter: blur(6px);
   padding: 26px 34px;
   min-width: 460px;
   max-width: 860px;
@@ -891,7 +920,7 @@ body {
 }
 
 .menu-item--active {
-  border-color: rgba(239, 227, 187, 0.4);
+  border-color: var(--hud-line-strong);
   background: rgba(239, 227, 187, 0.07);
 }
 
@@ -902,7 +931,7 @@ body {
 
 .settings-section {
   margin: 18px 0 6px;
-  border-top: 1px solid rgba(239, 227, 187, 0.12);
+  border-top: 1px solid var(--hud-line);
   padding-top: 10px;
 }
 
@@ -965,7 +994,7 @@ body {
 }
 
 .setting-choice--active {
-  background: rgba(239, 227, 187, 0.2);
+  background: var(--hud-line);
   border-color: rgba(239, 227, 187, 0.55);
 }
 
@@ -1002,7 +1031,7 @@ body {
 
 .binding-key--listening {
   border-color: #e8d6a8;
-  background: rgba(239, 227, 187, 0.2);
+  background: var(--hud-line);
 }
 
 .guide-columns {
@@ -1016,7 +1045,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  border-right: 1px solid rgba(239, 227, 187, 0.12);
+  border-right: 1px solid var(--hud-line);
   padding-right: 12px;
 }
 
@@ -1074,67 +1103,16 @@ body {
   color: var(--hud-dim);
 }
 
-/* Interface scale: each panel scales about the corner it is anchored to. */
-.hud-stats {
-  transform: translateX(-50%) scale(var(--ui-scale));
-  transform-origin: top center;
-}
-
-.hud-stats {
-  transform: translateX(-50%) scale(var(--ui-scale));
-  transform-origin: top center;
-}
-
-.hud-hand {
-  transform: scale(var(--ui-scale));
-  transform-origin: bottom right;
-}
-
-.hud-level,
-.hud-gear,
+/* Interface scale: each panel scales about the corner it is anchored to. The
+   HUD panels carry their own origin with their placement, so only the pieces
+   that sit outside that system are listed here. */
 .debug {
   transform: scale(var(--ui-scale));
   transform-origin: top left;
 }
 
-.hud-keys {
-  transform: scale(var(--ui-scale));
-  transform-origin: bottom left;
-}
-
-.hud-belt {
-  transform: translateX(-50%) scale(var(--ui-scale));
-  transform-origin: bottom center;
-}
-
 .bag {
   transform: translate(-50%, -50%) scale(var(--ui-scale));
-}
-
-.hud-hint,
-.hud-combat {
-  transform: translateX(-50%) scale(var(--ui-scale));
-}
-
-.hud-wear-track {
-  margin-top: 6px;
-  height: 3px;
-  background: rgba(239, 227, 187, 0.12);
-  display: none;
-}
-
-.hud--has-wear .hud-wear-track {
-  display: block;
-}
-
-.hud-wear-fill {
-  height: 100%;
-  background: #b8a066;
-  transition: width 160ms linear;
-}
-
-.hud--worn .hud-wear-fill {
-  background: #d2725c;
 }
 
 /* The guidebook scrolls its text, not its frame: the way out stays put. */

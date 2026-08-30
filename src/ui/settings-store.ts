@@ -22,6 +22,8 @@ export interface GameSettings {
   brightness: number;
   uiScale: number;
   debugOverlay: boolean;
+  /** Whether the key legend is expanded. A player is meant to outgrow it. */
+  showControls: boolean;
   bindings: Record<string, string[]>;
 }
 
@@ -39,6 +41,7 @@ export const defaultSettings = (): GameSettings => ({
   brightness: SETTINGS_DEFAULTS.brightness,
   uiScale: SETTINGS_DEFAULTS.uiScale,
   debugOverlay: SETTINGS_DEFAULTS.debugOverlay,
+  showControls: SETTINGS_DEFAULTS.showControls,
   bindings: defaultBindings(),
 });
 
