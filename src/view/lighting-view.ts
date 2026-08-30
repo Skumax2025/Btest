@@ -24,8 +24,8 @@ import type { CameraView } from '@core/camera';
 import { viewBounds } from '@core/camera';
 import type { LightProfile, Renderer } from '@core/renderer';
 import type { SolidSampler } from '@systems/collision';
-import { castFan, fanPolygon, visibilityPolygon } from '@systems/vision';
-import type { FanOptions } from '@systems/vision';
+import { createFan, fanPolygon, traceFan, visibilityPolygon } from '@systems/vision';
+import type { Fan, FanOptions } from '@systems/vision';
 import { lightFalloff } from '@game/lighting';
 import type { LightSource, LightingConfig } from '@game/lighting';
 import type { Palette } from '@content/palettes';
@@ -103,7 +103,7 @@ export class LightingView {
   private profiles?: Profiles;
   private profileKey?: LightingConfig;
   private viewKey?: LightViewConfig;
-  private playerReach?: Float32Array;
+  private readonly sightFan: Fan = createFan();
   private scratchLos?: Float32Array;
   private scratchSight?: Float32Array;
   private scratchSpill?: Float32Array;
@@ -118,14 +118,7 @@ export class LightingView {
 
     // One cast, at the furthest radius anything the player owns can reach.
     const fan = this.playerFan(params);
-    this.playerReach = castFan(
-      params.playerX,
-      params.playerY,
-      params.losRadius,
-      params.isSolid,
-      fan,
-      this.playerReach,
-    );
+    traceFan(params.playerX, params.playerY, params.losRadius, params.isSolid, fan, this.sightFan);
 
     // Lamps are only seen where the player could actually be looking. A lit room
     // behind a wall stays dark; the same room down an open corridor does not.
@@ -239,9 +232,7 @@ export class LightingView {
 
   /** The player's fan, reshaped to a smaller radius. Exact, and free. */
   private polygonAt(params: DarknessParams, radius: number, out?: Float32Array): Float32Array {
-    const reach = this.playerReach;
-    if (!reach) return new Float32Array(0);
-    return fanPolygon(params.playerX, params.playerY, reach, radius, this.playerFan(params), out);
+    return fanPolygon(params.playerX, params.playerY, this.sightFan, radius, out);
   }
 
   /** What the beam is allowed to reach at all: one cast, shared by every pool. */
