@@ -48,6 +48,8 @@ export interface CreatureDef {
   readonly telegraphRadius: number;
   readonly sanityRadius: number;
   readonly killsOnContact: boolean;
+  /** What it leaves behind. `null` means it leaves nothing. */
+  readonly lootTableId: string | null;
   /** Distance a wanderer picks its next idle destination within. */
   readonly wanderRange: number;
   /** Closest share of `wanderRange` an idle destination may be. */

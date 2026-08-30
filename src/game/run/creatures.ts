@@ -11,7 +11,8 @@ import { hasLineOfSight } from '@systems/raycast';
 import { findPath } from '@systems/pathfinding';
 import { moveCircle } from '@systems/collision';
 import { applyDecision, decide, speedFor } from '@game/ai';
-import type { CreaturePerception, CreatureState } from '@game/ai';
+import type { CreatureDef, CreaturePerception, CreatureState } from '@game/ai';
+import { rollLoot } from '@game/loot';
 import { chunkKey } from '@game/level';
 import type { RunWorld } from './world-access';
 
@@ -172,6 +173,25 @@ const advance = (world: RunWorld, creature: CreatureState, speed: number): void 
   creature.facing = Math.atan2(dy, dx);
 };
 
+/**
+ * What a body was carrying, spilled where it fell. The table is the creature's
+ * own, so what a thing was is what it leaves behind.
+ */
+const dropCarried = (world: RunWorld, creature: CreatureState, def: CreatureDef): void => {
+  const table = def.lootTableId ? world.config.content.loot[def.lootTableId] : undefined;
+  if (!table) return;
+  const spread = world.config.geometry.tileSize * world.config.interaction.lootSpread;
+  rollLoot(table, world.rng).forEach((stack, index, all) => {
+    const angle = (index / all.length) * Math.PI * 2;
+    world.level.drop(
+      stack.itemId,
+      stack.count,
+      creature.x + Math.cos(angle) * spread,
+      creature.y + Math.sin(angle) * spread,
+    );
+  });
+};
+
 export const stepCreatures = (world: RunWorld): void => {
   const dead: number[] = [];
   for (const [id, creature] of world.creatures.entries()) {
@@ -182,6 +202,7 @@ export const stepCreatures = (world: RunWorld): void => {
     }
     if (creature.health <= 0) {
       world.level.consume(creature.x, creature.y, creature.spawnKey);
+      dropCarried(world, creature, def);
       dead.push(id);
       continue;
     }

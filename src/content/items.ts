@@ -222,6 +222,229 @@ export const ITEMS: ItemCatalog = {
     throwable: true,
   }),
 
+
+  // ── hands ────────────────────────────────────────────────────────────────
+  'item.knife': item('item.knife', {
+    slots: ['hand', 'offhand'],
+    tags: ['weapon'],
+    noise: 90,
+    throwable: true,
+    melee: WEAPONS.knife,
+    durability: swings(WEAPONS.knife),
+  }),
+  'item.crowbar': item('item.crowbar', {
+    slots: ['hand'],
+    tags: ['weapon', 'tool'],
+    noise: 180,
+    throwable: true,
+    melee: WEAPONS.crowbar,
+    durability: swings(WEAPONS.crowbar),
+    passive: passive({ searchFactor: 0.6 }),
+    wornPassive: passive({ searchFactor: 0.85 }),
+  }),
+  'item.tray': item('item.tray', {
+    slots: ['offhand', 'hand'],
+    tags: ['weapon', 'armor'],
+    noise: 140,
+    throwable: true,
+    melee: WEAPONS.tray,
+    durability: swings(WEAPONS.tray),
+  }),
+
+  // ── head and face ────────────────────────────────────────────────────────
+  'item.hood': item('item.hood', {
+    slots: ['head'],
+    tags: ['clothing'],
+    noise: 20,
+    passive: passive({ noiseFactor: 0.92, nerveFactor: 0.85 }),
+    wornPassive: passive({ noiseFactor: 1, nerveFactor: 1 }),
+    durability: worn(WEAR.clothingMax, {
+      perStep: WEAR.clothingPerStep,
+      perDamage: WEAR.clothingPerDamage,
+      atZero: 'keep',
+    }),
+  }),
+  'item.headlamp': item('item.headlamp', {
+    slots: ['head'],
+    tags: ['light'],
+    noise: 40,
+    charge: 220,
+    light: {
+      radius: LIGHTING.flashlightRadius * 0.7,
+      halfAngle: LIGHTING.flashlightHalfAngle * 1.3,
+      strength: LIGHTING.flashlightStrength * 0.8,
+    },
+  }),
+  'item.respirator': item('item.respirator', {
+    slots: ['face'],
+    tags: ['clothing'],
+    noise: 30,
+    passive: passive({ nerveFactor: 0.7, staminaRegenFactor: 0.75, noiseFactor: 0.95 }),
+    wornPassive: passive({ nerveFactor: 0.95, staminaRegenFactor: 0.9, noiseFactor: 1 }),
+    durability: worn(WEAR.clothingMax, { perStep: WEAR.clothingPerStep * 0.6, atZero: 'keep' }),
+  }),
+  'item.goggles': item('item.goggles', {
+    slots: ['face'],
+    tags: ['clothing', 'armor'],
+    noise: 30,
+    armor: armor(1, 0.03, 0.2),
+    passive: passive({ nerveFactor: 0.82 }),
+    wornPassive: passive({ nerveFactor: 0.97 }),
+    durability: worn(WEAR.fragileMax, {
+      perDamage: WEAR.fragilePerDamage,
+      atZero: 'destroy',
+    }),
+  }),
+
+  // ── clothes ──────────────────────────────────────────────────────────────
+  'item.jumpsuit': item('item.jumpsuit', {
+    slots: ['body'],
+    tags: ['clothing'],
+    noise: 30,
+    carry: pockets(2, 0),
+    passive: passive({ noiseFactor: 0.95 }),
+    wornPassive: passive({ noiseFactor: 1.15 }),
+    durability: worn(WEAR.clothingMax, {
+      perStep: WEAR.clothingPerStep,
+      perDamage: WEAR.clothingPerDamage,
+      atZero: 'keep',
+    }),
+  }),
+  'item.raincoat': item('item.raincoat', {
+    slots: ['body'],
+    tags: ['clothing'],
+    noise: 40,
+    carry: pockets(1, 0),
+    passive: passive({ noiseFactor: 1.35, wetNoiseFactor: 0.6, nerveFactor: 0.88 }),
+    wornPassive: passive({ noiseFactor: 1.6, wetNoiseFactor: 1, nerveFactor: 1 }),
+    durability: worn(WEAR.clothingMax, { perStep: WEAR.clothingPerStep, atZero: 'keep' }),
+  }),
+  'item.cargopants': item('item.cargopants', {
+    slots: ['legs'],
+    tags: ['clothing'],
+    noise: 30,
+    carry: pockets(2, 0),
+    passive: passive({ noiseFactor: 1.08 }),
+    wornPassive: passive({ noiseFactor: 1.25 }),
+    durability: worn(WEAR.clothingMax, {
+      perStep: WEAR.clothingPerStep,
+      perDamage: WEAR.clothingPerDamage,
+      atZero: 'keep',
+    }),
+  }),
+  'item.jeans': item('item.jeans', {
+    slots: ['legs'],
+    tags: ['clothing'],
+    noise: 30,
+    carry: pockets(1, 0),
+    passive: passive({ noiseFactor: 0.88 }),
+    wornPassive: passive({ noiseFactor: 1.05 }),
+    durability: worn(WEAR.clothingMax, { perStep: WEAR.clothingPerStep, atZero: 'keep' }),
+  }),
+  'item.sneakers': item('item.sneakers', {
+    slots: ['feet'],
+    tags: ['clothing'],
+    noise: 40,
+    passive: passive({ noiseFactor: 0.62, wetNoiseFactor: 1.25, speedFactor: 1.02 }),
+    wornPassive: passive({ noiseFactor: 1.1, wetNoiseFactor: 1.4, speedFactor: 1 }),
+    durability: worn(WEAR.bootsMax * 0.55, { perStep: WEAR.bootsPerStep * 2, atZero: 'keep' }),
+  }),
+
+  // ── armour ───────────────────────────────────────────────────────────────
+  'item.vest.kevlar': item('item.vest.kevlar', {
+    slots: ['vest'],
+    tags: ['armor'],
+    noise: 60,
+    armor: armor(2, 0.24, 0.3),
+    passive: passive({ speedFactor: 0.94, noiseFactor: 1.1 }),
+    wornPassive: passive({ speedFactor: 0.94, noiseFactor: 1.2 }),
+    durability: worn(WEAR.vestMax, { perDamage: WEAR.vestPerDamage, atZero: 'destroy' }),
+  }),
+  'item.vest.plate': item('item.vest.plate', {
+    slots: ['vest'],
+    tags: ['armor'],
+    noise: 120,
+    armor: armor(9, 0.12, 0.2),
+    passive: passive({ speedFactor: 0.84, noiseFactor: 1.3, staminaRegenFactor: 0.85 }),
+    wornPassive: passive({ speedFactor: 0.84, noiseFactor: 1.45, staminaRegenFactor: 0.85 }),
+    durability: worn(WEAR.vestMax * 1.4, {
+      perDamage: WEAR.vestPerDamage * 0.8,
+      atZero: 'destroy',
+    }),
+  }),
+
+  // ── packs ────────────────────────────────────────────────────────────────
+  'item.satchel': item('item.satchel', {
+    slots: ['back'],
+    tags: ['pack'],
+    noise: 40,
+    carry: pockets(2, 2),
+    passive: passive({ noiseFactor: 0.9 }),
+    durability: worn(WEAR.packMax * 1.5, { perStep: WEAR.packPerStep * 0.5, atZero: 'keep' }),
+  }),
+  'item.hikingpack': item('item.hikingpack', {
+    slots: ['back'],
+    tags: ['pack'],
+    noise: 80,
+    carry: pockets(9, 4),
+    passive: passive({ noiseFactor: 1.25, speedFactor: 0.95 }),
+    wornPassive: passive({ noiseFactor: 1.45, speedFactor: 0.95 }),
+    durability: worn(WEAR.packMax, { perStep: WEAR.packPerStep, atZero: 'keep' }),
+  }),
+
+  // ── things with a price ──────────────────────────────────────────────────
+  'item.stim': item('item.stim', {
+    slots: ['hand', 'offhand'],
+    maxStack: 3,
+    tags: ['medical'],
+    noise: 20,
+    durability: perishes(FRESHNESS.pills),
+    use: {
+      consumed: true,
+      effects: [
+        { kind: 'stat', stamina: 70, sanity: 10 },
+        { kind: 'lasting', seconds: 90, sanity: -34, stamina: -20 },
+      ],
+      spoiled: [
+        { kind: 'stat', stamina: 40 },
+        { kind: 'lasting', seconds: 90, sanity: -40, health: -10 },
+      ],
+    },
+  }),
+  'item.ducttape': item('item.ducttape', {
+    slots: ['hand', 'offhand'],
+    tags: ['tool'],
+    noise: 50,
+    durability: worn(WEAR.toolMax, { perUse: WEAR.toolPerUse, atZero: 'destroy' }),
+    use: {
+      consumed: false,
+      effects: [
+        { kind: 'repair', amount: WEAR.repairAmount },
+        { kind: 'noise', radius: 120 },
+      ],
+    },
+  }),
+  'item.glowstick': item('item.glowstick', {
+    slots: ['hand', 'offhand'],
+    maxStack: 3,
+    tags: ['light'],
+    noise: 20,
+    throwable: true,
+    charge: 150,
+    light: {
+      radius: LIGHTING.lampRadius,
+      halfAngle: Math.PI,
+      strength: LIGHTING.lampStrength * 0.7,
+    },
+  }),
+  'item.radio': item('item.radio', {
+    slots: ['hand', 'offhand'],
+    tags: ['lure'],
+    noise: 300,
+    throwable: true,
+    beacon: { radius: 420, seconds: 40, intervalSeconds: 1.5 },
+  }),
+
   'item.schoolbag': item('item.schoolbag', {
     slots: ['back'],
     tags: ['pack'],

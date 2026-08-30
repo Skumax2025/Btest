@@ -144,6 +144,8 @@ export const FRESHNESS = {
   soda: 1100,
   crackers: 900,
   canned: 2100,
+  /** Pills keep almost forever; the reason not to hoard them is the side effect. */
+  pills: 6000,
 } as const;
 
 /** Condition budgets for gear, and what one scuff or one hit takes off. */
@@ -164,6 +166,9 @@ export const WEAR = {
   repairAmount: 30,
   toolMax: 4,
   toolPerUse: 1,
+  /** Goggles and other thin gear: they protect, then they simply break. */
+  fragileMax: 30,
+  fragilePerDamage: 2.4,
 } as const;
 
 /**
@@ -234,6 +239,63 @@ export const WEAPONS: Readonly<Record<string, WeaponStats>> = {
     blockChance: 0.18,
     blockStaminaCost: 10,
     blockCooldownTicks: 120,
+  },
+  /**
+   * Short, quiet and quick. It kills nothing on its own; it is what you carry
+   * when the plan is to not be heard, and it wears out saying so.
+   */
+  knife: {
+    reach: 26,
+    damage: 16,
+    intervalTicks: 18,
+    windupTicks: 5,
+    staminaCost: 3,
+    staminaPerExtraTarget: 3,
+    noise: 70,
+    noisePerExtraTarget: 20,
+    wearPerHit: 1,
+    maxDurability: 22,
+    wornDamageFactor: 0.4,
+    blockChance: 0.08,
+    blockStaminaCost: 6,
+    blockCooldownTicks: 120,
+  },
+  /** A prying bar first and a weapon second: the swing is mediocre on purpose. */
+  crowbar: {
+    reach: 44,
+    damage: 24,
+    intervalTicks: 34,
+    windupTicks: 10,
+    staminaCost: 6,
+    staminaPerExtraTarget: 6,
+    noise: 150,
+    noisePerExtraTarget: 45,
+    wearPerHit: 0.5,
+    maxDurability: 70,
+    wornDamageFactor: 0.55,
+    blockChance: 0.2,
+    blockStaminaCost: 10,
+    blockCooldownTicks: 120,
+  },
+  /**
+   * A cafeteria tray. It does nothing at all except catch things, which is the
+   * point: the off hand is a decision, not a second weapon rack.
+   */
+  tray: {
+    reach: 20,
+    damage: 2,
+    intervalTicks: 40,
+    windupTicks: 14,
+    staminaCost: 5,
+    staminaPerExtraTarget: 4,
+    noise: 120,
+    noisePerExtraTarget: 30,
+    wearPerHit: 2,
+    maxDurability: 45,
+    wornDamageFactor: 0.5,
+    blockChance: 0.42,
+    blockStaminaCost: 9,
+    blockCooldownTicks: 90,
   },
   pipe: {
     reach: 50,
