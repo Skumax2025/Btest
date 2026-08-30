@@ -98,7 +98,7 @@ export class App {
     this.worldView = new WorldView(
       this.renderer,
       new PlaceholderSpriteProvider(SPRITES, domCanvasFactory, FALLBACK_SPRITE),
-      VIEW.lightCacheLimit,
+      VIEW.light.cacheLimit,
     );
     this.camera.zoom = CAMERA.zoom;
 

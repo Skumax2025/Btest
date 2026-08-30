@@ -70,6 +70,7 @@ export class WorldView {
       lighting: options.lighting,
       isSolid: run.isSolid,
       tileSize: run.config.geometry.tileSize,
+      geometryKey: run.level.geometryKey,
       lights: run.perception.lights,
       playerX: px,
       playerY: py,

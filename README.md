@@ -256,6 +256,12 @@ Nothing on either brief's cut list was cut. These are the honest gaps:
   chunks away.
 - **Lamp light is not intersected with creature vision** — creatures use line of
   sight and hearing only; they do not care whether they are standing in the dark.
+- **Shadows are cast by a ray fan, not by wall corners.** The angular gap between
+  two rays is the size of the jagged step a shadow edge can show, so the counts
+  in `VISION` are set to keep that gap under a tile out to the distance the
+  player can actually see. Beyond that, far shadow edges are approximate.
+- **Light is a flat overlay, so nothing is shaded by direction.** A wall's lit
+  face is the near half of its tile rather than a surface with a normal.
 - **No touch input.** The input layer is abstracted so an adapter that produces
   `InputFrame`s is all it would take, but the adapter is not written.
 - **Sound is synthesised placeholder tones**, like the sprites. Both sit behind

@@ -2,7 +2,7 @@
 
 import type { CameraView } from './camera';
 import type { Sprite } from './assets';
-import type { Renderer, SpriteOptions, TextStyle } from './renderer';
+import type { LightProfile, PolygonLight, Renderer, SpriteOptions, TextStyle } from './renderer';
 
 const applyWorldTransform = (
   ctx: CanvasRenderingContext2D,
@@ -15,10 +15,56 @@ const applyWorldTransform = (
   ctx.translate(-view.x, -view.y);
 };
 
+const tracePolygon = (ctx: CanvasRenderingContext2D, points: Float32Array): void => {
+  ctx.beginPath();
+  ctx.moveTo(points[0], points[1]);
+  for (let i = 2; i < points.length; i += 2) ctx.lineTo(points[i], points[i + 1]);
+  ctx.closePath();
+};
+
+/** Darkness is subtracted, so what it removes is alpha over black. */
+const BLACK = '0,0,0';
+
+const clamp01 = (value: number): number => (value < 0 ? 0 : value > 1 ? 1 : value);
+
+/**
+ * Fills a light's polygon with a radial gradient built from its profile. The
+ * profile decides the shape, the caller decides the colour channels: the
+ * darkness layer subtracts black, the bloom layer adds the lamp's own colour.
+ */
+const fillProfile = (
+  ctx: CanvasRenderingContext2D,
+  points: Float32Array,
+  light: PolygonLight,
+  strength: number,
+  profile: LightProfile,
+  channels: string,
+): void => {
+  const last = profile.length - 1;
+  if (last < 1) return;
+  ctx.save();
+  tracePolygon(ctx, points);
+  ctx.clip();
+  const gradient = ctx.createRadialGradient(light.x, light.y, 0, light.x, light.y, light.radius);
+  const peak = clamp01(strength);
+  for (let i = 0; i <= last; i++) {
+    gradient.addColorStop(i / last, `rgba(${channels},${peak * clamp01(profile[i])})`);
+  }
+  ctx.fillStyle = gradient;
+  ctx.fillRect(light.x - light.radius, light.y - light.radius, light.radius * 2, light.radius * 2);
+  ctx.restore();
+};
+
 export class Canvas2DRenderer implements Renderer {
   private readonly ctx: CanvasRenderingContext2D;
   private readonly darkCanvas: HTMLCanvasElement;
   private readonly darkCtx: CanvasRenderingContext2D;
+  private readonly glowCanvas: HTMLCanvasElement;
+  private readonly glowCtx: CanvasRenderingContext2D;
+  /** Both offscreen layers, so a visibility clip is applied to each of them. */
+  private readonly darknessLayers: readonly CanvasRenderingContext2D[];
+  /** Colour channels of a glow colour, resolved once by the context itself. */
+  private readonly channels = new Map<string, string>();
   private pixelRatio = 1;
   private worldDepth = 0;
   private visibilityDepth = 0;
@@ -34,6 +80,11 @@ export class Canvas2DRenderer implements Renderer {
     const darkCtx = this.darkCanvas.getContext('2d');
     if (!darkCtx) throw new Error('2d canvas context unavailable for the darkness layer');
     this.darkCtx = darkCtx;
+    this.glowCanvas = document.createElement('canvas');
+    const glowCtx = this.glowCanvas.getContext('2d');
+    if (!glowCtx) throw new Error('2d canvas context unavailable for the bloom layer');
+    this.glowCtx = glowCtx;
+    this.darknessLayers = [this.darkCtx, this.glowCtx];
     this.pixelRatio = Math.min(window.devicePixelRatio || 1, maxPixelRatio);
   }
 
@@ -52,6 +103,8 @@ export class Canvas2DRenderer implements Renderer {
     this.canvas.style.height = `${height}px`;
     this.darkCanvas.width = this.canvas.width;
     this.darkCanvas.height = this.canvas.height;
+    this.glowCanvas.width = this.canvas.width;
+    this.glowCanvas.height = this.canvas.height;
   }
 
   beginFrame(clearColor: string): void {
@@ -178,106 +231,90 @@ export class Canvas2DRenderer implements Renderer {
     this.ctx.globalAlpha = previousAlpha;
   }
 
+  /**
+   * The darkness pass runs on two offscreen layers. One is filled with the
+   * palette's darkness and has light *subtracted* from it, which is what makes
+   * an unlit room unreadable; the other collects the warm bloom lights add on
+   * top of the world. Painting light straight onto the frame cannot do the
+   * first, and subtracting alone cannot do the second.
+   */
   beginDarkness(color: string, view: CameraView): void {
     this.darkCtx.setTransform(1, 0, 0, 1, 0, 0);
     this.darkCtx.globalCompositeOperation = 'source-over';
     this.darkCtx.globalAlpha = 1;
     this.darkCtx.fillStyle = color;
     this.darkCtx.fillRect(0, 0, this.darkCanvas.width, this.darkCanvas.height);
+
+    this.glowCtx.setTransform(1, 0, 0, 1, 0, 0);
+    this.glowCtx.globalCompositeOperation = 'source-over';
+    this.glowCtx.globalAlpha = 1;
+    this.glowCtx.clearRect(0, 0, this.glowCanvas.width, this.glowCanvas.height);
+
     applyWorldTransform(this.darkCtx, view, this.pixelRatio);
+    applyWorldTransform(this.glowCtx, view, this.pixelRatio);
     this.darkCtx.globalCompositeOperation = 'destination-out';
-  }
-
-  punchLight(x: number, y: number, radius: number, strength: number): void {
-    if (radius <= 0 || strength <= 0) return;
-    const safeStrength = Math.max(0, Math.min(1, strength));
-    const gradient = this.darkCtx.createRadialGradient(x, y, 0, x, y, radius);
-    gradient.addColorStop(0, `rgba(0,0,0,${safeStrength})`);
-    gradient.addColorStop(0.32, `rgba(0,0,0,${safeStrength * 0.98})`);
-    gradient.addColorStop(0.68, `rgba(0,0,0,${safeStrength * 0.78})`);
-    gradient.addColorStop(0.88, `rgba(0,0,0,${safeStrength * 0.32})`);
-    gradient.addColorStop(1, 'rgba(0,0,0,0)');
-    this.darkCtx.fillStyle = gradient;
-    this.darkCtx.beginPath();
-    this.darkCtx.arc(x, y, radius, 0, Math.PI * 2);
-    this.darkCtx.fill();
-  }
-
-  punchCone(
-    x: number,
-    y: number,
-    angle: number,
-    halfAngle: number,
-    radius: number,
-    strength: number,
-  ): void {
-    if (radius <= 0 || strength <= 0) return;
-    this.darkCtx.save();
-    this.darkCtx.beginPath();
-    this.darkCtx.moveTo(x, y);
-    this.darkCtx.arc(x, y, radius, angle - halfAngle, angle + halfAngle);
-    this.darkCtx.closePath();
-    this.darkCtx.clip();
-    const safeStrength = Math.max(0, Math.min(1, strength));
-    const gradient = this.darkCtx.createRadialGradient(x, y, 0, x, y, radius);
-    gradient.addColorStop(0, `rgba(0,0,0,${safeStrength})`);
-    gradient.addColorStop(0.4, `rgba(0,0,0,${safeStrength * 0.88})`);
-    gradient.addColorStop(0.76, `rgba(0,0,0,${safeStrength * 0.48})`);
-    gradient.addColorStop(1, 'rgba(0,0,0,0)');
-    this.darkCtx.fillStyle = gradient;
-    this.darkCtx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
-    this.darkCtx.restore();
+    // Bloom accumulates: two lamps overlapping are brighter than either alone.
+    this.glowCtx.globalCompositeOperation = 'lighter';
   }
 
   beginVisibility(points: Float32Array): void {
     if (points.length < 6) return;
-    this.darkCtx.save();
-    this.darkCtx.beginPath();
-    this.darkCtx.moveTo(points[0], points[1]);
-    for (let i = 2; i < points.length; i += 2) this.darkCtx.lineTo(points[i], points[i + 1]);
-    this.darkCtx.closePath();
-    this.darkCtx.clip();
+    for (const ctx of this.darknessLayers) {
+      ctx.save();
+      tracePolygon(ctx, points);
+      ctx.clip();
+    }
     this.visibilityDepth++;
   }
 
   endVisibility(): void {
     if (this.visibilityDepth === 0) return;
-    this.darkCtx.restore();
+    for (const ctx of this.darknessLayers) ctx.restore();
     this.visibilityDepth--;
   }
 
-  punchPolygon(
-    points: Float32Array,
-    x: number,
-    y: number,
-    radius: number,
-    strength: number,
-  ): void {
-    if (points.length < 6 || radius <= 0 || strength <= 0) return;
-    this.darkCtx.save();
-    this.darkCtx.beginPath();
-    this.darkCtx.moveTo(points[0], points[1]);
-    for (let i = 2; i < points.length; i += 2) this.darkCtx.lineTo(points[i], points[i + 1]);
-    this.darkCtx.closePath();
-    this.darkCtx.clip();
-    const safeStrength = Math.max(0, Math.min(1, strength));
-    const gradient = this.darkCtx.createRadialGradient(x, y, 0, x, y, radius);
-    gradient.addColorStop(0, `rgba(0,0,0,${safeStrength})`);
-    gradient.addColorStop(0.32, `rgba(0,0,0,${safeStrength * 0.98})`);
-    gradient.addColorStop(0.68, `rgba(0,0,0,${safeStrength * 0.78})`);
-    gradient.addColorStop(0.88, `rgba(0,0,0,${safeStrength * 0.32})`);
-    gradient.addColorStop(1, 'rgba(0,0,0,0)');
-    this.darkCtx.fillStyle = gradient;
-    this.darkCtx.fillRect(x - radius, y - radius, radius * 2, radius * 2);
-    this.darkCtx.restore();
+  punchPolygon(points: Float32Array, light: PolygonLight): void {
+    if (points.length < 6 || light.radius <= 0) return;
+    if (light.strength > 0) {
+      fillProfile(this.darkCtx, points, light, light.strength, light.profile, BLACK);
+    }
+    const { glow } = light;
+    if (glow && glow.strength > 0) {
+      fillProfile(this.glowCtx, points, light, glow.strength, glow.profile, this.channelsOf(glow.colour));
+    }
+  }
+
+  /**
+   * `#fff3c4` as `255,243,196`. The context normalises whatever notation the
+   * palette used, so this never has to know about named or short-hex colours.
+   */
+  private channelsOf(colour: string): string {
+    const cached = this.channels.get(colour);
+    if (cached) return cached;
+    this.glowCtx.fillStyle = '#000000';
+    this.glowCtx.fillStyle = colour;
+    const normalised = this.glowCtx.fillStyle;
+    const hex = typeof normalised === 'string' && /^#[0-9a-f]{6}$/i.test(normalised)
+      ? normalised
+      : '#ffffff';
+    const value = parseInt(hex.slice(1), 16);
+    const channels = `${(value >> 16) & 255},${(value >> 8) & 255},${value & 255}`;
+    this.channels.set(colour, channels);
+    return channels;
   }
 
   endDarkness(): void {
     this.darkCtx.globalCompositeOperation = 'source-over';
+    this.glowCtx.globalCompositeOperation = 'source-over';
     this.ctx.save();
     this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.ctx.globalAlpha = 1;
+    // Dim first, then let the lights themselves put colour back into what is lit.
+    this.ctx.globalCompositeOperation = 'source-over';
     this.ctx.drawImage(this.darkCanvas, 0, 0);
+    this.ctx.globalCompositeOperation = 'lighter';
+    this.ctx.drawImage(this.glowCanvas, 0, 0);
+    this.ctx.globalCompositeOperation = 'source-over';
     this.ctx.restore();
   }
 }

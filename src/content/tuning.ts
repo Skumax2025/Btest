@@ -58,21 +58,33 @@ export const PLAYER = {
   pickupRange: 30,
 } as const;
 
+/**
+ * Reach is deliberately generous: the darkness reads as a pressure, not as a
+ * blindfold, and a corridor you can see the end of is a corridor you can make a
+ * decision about. What keeps it tense is the gap between `lampRadius` — how far
+ * a lamp is *visible* — and how far it actually holds `darkThreshold` back,
+ * which the falloff exponent keeps at roughly four tiles.
+ */
 export const LIGHTING = {
-  lampRadius: 150,
-  lampStrength: 0.9,
-  falloffExponent: 1.55,
-  flickerPeriod: 7,
-  flickerOnChance: 0.62,
-  visionRadius: 220,
-  darkVisionRadius: 94,
-  flashlightRadius: 430,
-  flashlightHalfAngle: 0.42,
+  lampRadius: 240,
+  lampStrength: 0.92,
+  falloffExponent: 1.7,
+  flickerPeriod: 11,
+  flickerOnChance: 0.66,
+  /** A failing tube browns out; it does not switch itself off eight times a second. */
+  flickerLow: 0.08,
+  steadyPulse: 0.07,
+  steadyPulsePeriod: 97,
+  litThreshold: 0.16,
+  visionRadius: 300,
+  darkVisionRadius: 112,
+  flashlightRadius: 620,
+  flashlightHalfAngle: 0.46,
   flashlightStrength: 1,
   darkThreshold: 0.22,
   flashlightLightLevel: 0.34,
   /** How far a lit room stays visible down an unobstructed line of sight. */
-  losRadius: 1100,
+  losRadius: 1500,
 } as const;
 
 /**
@@ -219,11 +231,17 @@ export const AI = {
   waypointReachedFactor: 0.4,
 } as const;
 
+/**
+ * Rays per fan. Every ray is one DDA walk, and the angular gap between two of
+ * them is the size of the jagged step a shadow edge shows: at the player's line
+ * of sight radius, `playerRays` has to keep that gap under a tile or the world
+ * visibly wobbles as you walk. Lamp fans are cached per lamp, so their count is
+ * close to free.
+ */
 export const VISION = {
-  /** Rays per light. Higher is smoother and costs a raycast each. */
-  lightRays: 48,
-  playerRays: 72,
-  flashlightRays: 40,
+  lightRays: 72,
+  playerRays: 256,
+  flashlightRays: 48,
 } as const;
 
 export const KEY_BINDINGS = {

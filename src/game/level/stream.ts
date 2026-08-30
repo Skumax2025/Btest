@@ -32,6 +32,12 @@ export class LevelStream {
   private readonly deltas = new Map<string, ChunkDelta>();
   private readonly loadedQueue: Chunk[] = [];
   private readonly unloadedQueue: Array<{ cx: number; cy: number }> = [];
+  /**
+   * Bumped whenever a chunk appears or disappears. An unloaded chunk reads as
+   * solid, so anything that caches a shape traced against the grid — lamp
+   * shadows, above all — has to know that the grid it traced is gone.
+   */
+  private revision = 0;
 
   constructor(
     private readonly seed: number,
@@ -51,6 +57,11 @@ export class LevelStream {
 
   get loadedChunkCount(): number {
     return this.chunks.size;
+  }
+
+  /** Identity of the tile grid as it stands: same string, same walls. */
+  get geometryKey(): string {
+    return `${this.levelIndex}:${this.revision}`;
   }
 
   chunkCoordAt(worldX: number, worldY: number): { cx: number; cy: number } {
@@ -97,6 +108,7 @@ export class LevelStream {
     });
     this.chunks.set(key, chunk);
     this.loadedQueue.push(chunk);
+    this.revision++;
     return true;
   }
 
@@ -106,6 +118,7 @@ export class LevelStream {
       if (distance > this.options.keepRadius) {
         this.chunks.delete(key);
         this.unloadedQueue.push({ cx: chunk.cx, cy: chunk.cy });
+        this.revision++;
       }
     }
   }

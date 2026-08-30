@@ -24,6 +24,32 @@ export interface SpriteOptions {
   readonly alpha?: number;
 }
 
+/**
+ * Brightness of a light sampled at evenly spaced offsets from its centre to its
+ * rim, first sample at the centre. The shape of a light is a game number, so it
+ * is decided above this layer and handed down; the backend only turns the
+ * samples into a gradient.
+ */
+export type LightProfile = readonly number[];
+
+/** The warm bloom a real light source adds on top of simply being visible. */
+export interface LightGlow {
+  readonly colour: string;
+  readonly strength: number;
+  readonly profile: LightProfile;
+}
+
+export interface PolygonLight {
+  readonly x: number;
+  readonly y: number;
+  readonly radius: number;
+  /** Brightness at the centre, 0..1. */
+  readonly strength: number;
+  readonly profile: LightProfile;
+  /** Omitted by light that only reveals, such as the player's own eyes. */
+  readonly glow?: LightGlow;
+}
+
 export interface Renderer {
   readonly width: number;
   readonly height: number;
@@ -52,15 +78,6 @@ export interface Renderer {
   overlay(color: string, alpha: number): void;
   /** Starts a darkness pass; light is subtracted from it until `endDarkness`. */
   beginDarkness(color: string, view: CameraView): void;
-  punchLight(x: number, y: number, radius: number, strength: number): void;
-  punchCone(
-    x: number,
-    y: number,
-    angle: number,
-    halfAngle: number,
-    radius: number,
-    strength: number,
-  ): void;
   /**
    * Restricts every following light punch to a polygon — the player's own line
    * of sight. Without it a lit room is visible through the wall in front of it.
@@ -68,12 +85,6 @@ export interface Renderer {
   beginVisibility(points: Float32Array): void;
   endVisibility(): void;
   /** Light clipped to a visibility ring, so walls actually cast shadows. */
-  punchPolygon(
-    points: Float32Array,
-    x: number,
-    y: number,
-    radius: number,
-    strength: number,
-  ): void;
+  punchPolygon(points: Float32Array, light: PolygonLight): void;
   endDarkness(): void;
 }
