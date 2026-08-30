@@ -4,8 +4,8 @@ A single-run, top-down survival demo set in an endless yellow building. Find
 supplies, watch your body, avoid what lives here, find the way down, and
 eventually stop. Death is permanent; the next run is a new seed.
 
-TypeScript, Canvas 2D, no game libraries. Vite, Vitest and ESLint are the only
-dependencies.
+Russian and English, switchable mid-run. TypeScript, Canvas 2D, no game
+libraries. Vite, Vitest and ESLint are the only dependencies.
 
 ## Running it
 
@@ -25,19 +25,22 @@ npm run check      # typecheck + lint + tests
 | `W A S D` / arrows | Move (eight directions) |
 | Mouse | Look — your eyes and your flashlight point at the cursor |
 | `Shift` | Sprint. Fast, loud, costs breath |
-| `Ctrl` / `C` | Crouch. Slow and silent |
+| `Ctrl` / `C` | Crouch. Slow, silent, and never swings |
 | `E` | Search a container, pick something up, take the way down |
 | `F` | Use what is in your hand |
 | `R` | Switch the flashlight on or off |
 | `Q` | Throw what is in your hand |
-| `G` | Drop what is in your hand |
-| `Space` | Swing |
+| `G` | Put down what is in your hand |
 | `Tab` | Bag. Drag to move a stack, right click to put one in hand |
+| `H` | Guidebook |
+| `Esc` | Pause; from a screen, back |
 | `F3` / `` ` `` | Debug overlay |
 | `Enter` | After death: go back in with a new seed |
 
-Rebinding is supported at runtime through `InputDevice.rebind(action, codes)`;
-the default table is `KEY_BINDINGS` in `src/content/tuning.ts`.
+There is no attack key: melee is automatic (see below). Every key can be rebound
+in the settings, and the change applies immediately — including to every hint in
+the game and to the controls table in the guidebook, which are all generated from
+the live bindings. The default table is `KEY_BINDINGS` in `src/content/tuning.ts`.
 
 ## How it plays
 
@@ -46,14 +49,67 @@ total silence, and near anything living — and silence is the trap, because the
 cheapest way to keep your nerve is to make noise, and noise is what everything
 here listens for. Sprinting is the loudest thing you can do; crouching is free.
 
-Fighting is the worst option available and is meant to stay that way. The hunter
-is faster than your sprint but has to stop and breathe; break line of sight and
-outlast it. The stationary threat kills on contact and is drawn even in the dark,
-so you can see it before it matters — walk around it.
-
 Landmarks are the only navigation there is: no map, no compass, no coordinates.
 The generator guarantees one memorable room every few chunks and one way down
 every few chunks after that.
+
+### Fighting
+
+Melee runs itself. While anything stands inside the reach of the item in your
+hand, you swing on that weapon's own interval — a ring shows the reach the moment
+something enters it, and a second ring closing in on it is the time to your next
+swing. A swing catches **everything** inside the ring, not the nearest thing.
+
+You pay for the width, and you pay in breath and in noise rather than in damage:
+every extra body caught adds to both. One or two is expensive. Five empties the
+bar in two swings and shouts far enough to bring more, and then you are standing
+still with nothing left — which is how the game intends you to die if you choose
+to fight a crowd.
+
+A block swallows one incoming hit whole — not part of it — on a cooldown, for
+breath, and not at all at zero breath. Only one hit per tick: if three of them
+land together you turn aside one and take two.
+
+There are exactly two ways to refuse a fight, and both are guaranteed: **crouch**,
+or carry **nothing in your hand slot**. Neither will ever swing. Weapons blunt as
+you use them, hit weaker as they go, and a broken one is bare hands — which are
+themselves an ordinary entry in the item catalogue rather than a special case.
+
+Trading blows with the hunter, head on, is always fatal. That is a designed
+property, checked by a test.
+
+## Menus and settings
+
+The game opens on a main menu and runs a five-state machine — menu, playing,
+paused, guidebook, death screen. The simulation advances in exactly one of them,
+so a pause or an open guidebook stops the world completely: stats, timers,
+creatures and the ambient hum together.
+
+Settings (reachable from the main menu and from a pause, the same screen in both):
+language, master/effects/ambient volume, brightness, interface scale, the debug
+overlay, full key rebinding with conflict handling and a reset, and confirmed
+wipes of the saved run and of the settings themselves. They live under their own
+storage key, so erasing a run never costs you your language, keys or volume.
+
+## Guidebook
+
+Eight sections, available from the menu, from a pause, and on `H` in play. It
+describes only mechanics that exist in the code, and every number in it is
+substituted from the tuning tables in `src/content/` — re-balancing the game
+rewrites the guidebook with it, and a test fails if a paragraph asks for a value
+its section does not supply.
+
+## Localization
+
+Russian by default, English complete, switchable at any moment without losing the
+run. `src/content/locales/ru.ts` is the source of truth for the key set;
+`en.ts` is typed against it, so a missing English string is a compile error. Key
+names never appear inside a locale string — hints take the key as a parameter and
+the interface fills it from the live bindings.
+
+To add a language: add a locale file, type it as `Record<TextKey, LocaleString>`,
+and add one entry to `src/content/locales/index.ts`. Plural rules live in
+`src/core/i18n.ts`; Russian uses one/few/many including the 11-14 exception.
 
 ## Structure
 
@@ -66,13 +122,14 @@ cycles.
 src/
   core/      L0  loop, entity/component store, event bus, seeded RNG, input,
                  renderer interface, camera, spatial index, assets, audio,
-                 serialization                       — no game words at all
+                 localization, serialization         — no game words at all
   systems/   L1  collision, ray marching, visibility, pathfinding, sound
   game/      L2  level generation and streaming, player, stats, inventory,
-                 items, loot, lighting, creature AI, the run itself
-  content/   L3  data only: rooms, levels, items, loot tables, creatures,
-                 palettes, sprites, audio cues, texts, every tuning number
-  ui/, view/ L4  DOM overlay, canvas rendering, the entry point
+                 items, loot, lighting, melee, creature AI, the run itself
+  content/   L3  data only: rooms, levels, items, weapons, loot tables,
+                 creatures, palettes, sprites, audio cues, locales, guidebook
+                 structure, every tuning number
+  ui/, view/ L4  DOM overlay, screens, canvas rendering, the entry point
 ```
 
 Two things follow from the ordering, and both are deliberate (see DECISIONS.md):
@@ -102,21 +159,34 @@ and world generation derived from stateless coordinate hashes.
 ### Add an item
 
 1. Add an entry to `ITEMS` in `src/content/items.ts` — footprint in cells, stack
-   size, weight, tags, what using one does, melee damage, how loud it is when it
-   lands.
-2. Add a sprite spec under the same `sprite` id in `src/content/sprites.ts`.
-3. Put it in a loot table in `src/content/loot-tables.ts`.
+   size, weight, tags, what using one does, how loud it is when it lands, and
+   `melee: null` or one of the `WEAPONS` stat blocks in `src/content/tuning.ts`.
+2. Add `item.<id>.name` and `item.<id>.desc` to both locale files.
+3. Add a sprite spec under the same `sprite` id in `src/content/sprites.ts`.
+4. Put it in a loot table in `src/content/loot-tables.ts`.
 
-No module above L3 changes. `tests/survival.test.ts` will fail if a loot table
-points at an item that does not exist.
+No module above L3 changes. The tests fail if a loot table points at an item that
+does not exist, or if either locale is missing a key.
+
+### Add a weapon
+
+A weapon is an item whose `melee` field is a `WeaponStats` block: reach, damage,
+swing interval, wind-up, stamina cost and its growth per extra body caught, noise
+and its growth, wear per swing, durability, the damage floor when nearly broken,
+and block chance, cost and cooldown. Add the block to `WEAPONS` in
+`src/content/tuning.ts` and point an item at it. Bare hands (`item.hands`) are
+one of these, which is why nothing above L3 has a branch for "no weapon".
 
 ### Add a creature
 
 1. Add an entry to `CREATURES` in `src/content/entities.ts`, picking one of the
    three archetypes: `wanderer` (hears only), `hunter` (hears and sees, commits,
-   then has to rest) or `sentinel` (never moves, lethal, telegraphed).
-2. Add a sprite spec with the same `sprite` id.
-3. Add its id with a weight to a level's `creatures` list in
+   then has to rest) or `sentinel` (never moves, lethal, telegraphed). The block
+   fields (`blockChance`, `blockCooldownTicks`) are data too — a creature that
+   parries incoming swings is a table edit.
+2. Add `creature.<id>.name` to both locale files.
+3. Add a sprite spec with the same `sprite` id.
+4. Add its id with a weight to a level's `creatures` list in
    `src/content/levels.ts`.
 
 A genuinely new *behaviour* — not a reskin of the three — is the one case that
@@ -152,7 +222,7 @@ walks the array in order.
 ## Performance
 
 60 FPS with the debug overlay open, measured in Chromium at 1280x720: about
-0.6 ms of simulation and 6 ms of rendering per frame with 20 creatures and 9
+0.9 ms of simulation and 6.4 ms of rendering per frame with 20 creatures and 9
 chunks live. `tests/performance.test.ts` steps 200 active creatures and asserts
 the tick stays under 4 ms (it is around 2 ms), which is really a guard against an
 accidental O(n²) — the uniform grid and the source-bucketed noise field exist to
@@ -160,7 +230,15 @@ keep it linear.
 
 ## What is not done
 
-Nothing on the brief's cut list was cut, but these are the honest gaps:
+Nothing on either brief's cut list was cut. These are the honest gaps:
+
+- **The guidebook has no illustrations** and no per-item pages; it describes
+  systems, not the catalogue.
+- **Settings have no gamepad or touch section**, because neither input exists.
+- **Creature block chance is data but almost entirely unused** — only the hound
+  has a non-zero value.
+- **The reach ring is a circle, not the weapon's silhouette.** A swing really is
+  radial, so the circle is honest, but it does not communicate facing.
 
 - **Only two levels.** Level 1 differs in palette, room set, lattice period,
   lighting and creature mix, which is enough to feel the change, and the exit on
@@ -192,12 +270,14 @@ src/core/          fixed-step loop, ECS store, event bus, RNG, input, camera,
                    audio, save/serialize, math
 src/systems/       collision, raycast, vision, pathfinding, sound
 src/game/level/    chunk generation, carving, streaming, chunk deltas
-src/game/run/      the tick order, player actions and their effects, creatures,
-                   perception, prop index, save
-src/game/          player body, stats, inventory, items, loot, lighting, AI
-src/content/       all data and all numbers
-src/view/          tiles, props, lighting, debug drawing
-src/ui/            app shell, HUD, bag, summary, debug overlay, audio view
+src/game/run/      the tick order, player actions and their effects, melee,
+                   creatures, perception, prop index, save
+src/game/          player body, stats, inventory, items, combat, loot, lighting,
+                   AI
+src/content/       all data and all numbers, locales, guidebook structure
+src/view/          tiles, props, lighting, combat marks, prompts, debug drawing
+src/ui/            app shell and state machine, HUD, bag, menu, settings,
+                   guidebook, summary, debug overlay, audio view
 tests/             layer/cycle guard, determinism, generation, survival, AI,
-                   input, gameplay loop, frame budget
+                   input, localization, combat, gameplay loop, frame budget
 ```

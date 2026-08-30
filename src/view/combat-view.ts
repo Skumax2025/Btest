@@ -11,9 +11,6 @@ import type { CombatEvent } from '@game/run';
 import type { Run } from '@game/run';
 import type { CombatViewConfig } from '@content/view';
 
-/** Full ticks an event mark lives, matching the simulation's own window. */
-const EVENT_TICKS = 40;
-
 const colourFor = (event: CombatEvent, config: CombatViewConfig): string => {
   switch (event) {
     case 'hit':
@@ -40,8 +37,9 @@ export const drawCombat = (
 ): void => {
   const combat = run.combat;
 
-  // The ring appears the moment something is standing in it, and not before.
-  if (combat.targets > 0 && combat.reach > 0) {
+  // The ring appears the moment something is standing in it, and not before —
+  // and never when a swing could not happen anyway.
+  if (combat.canFight && combat.targets > 0 && combat.reach > 0) {
     const radius = combat.reach + config.ringPadding;
     const winding = combat.windup > 0;
     const colour = winding
@@ -59,7 +57,7 @@ export const drawCombat = (
   }
 
   if (combat.event && combat.eventTicks > 0) {
-    const age = 1 - combat.eventTicks / EVENT_TICKS;
+    const age = 1 - combat.eventTicks / Math.max(1, run.config.combat.eventTicks);
     const radius = combat.reach * 0.5 + config.eventGrowth * age;
     renderer.setAlpha(1 - age);
     renderer.strokeCircle(x, y, radius, colourFor(combat.event, config), config.eventWidth);

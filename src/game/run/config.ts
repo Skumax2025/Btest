@@ -70,6 +70,12 @@ export interface InteractionConfig {
   readonly searchCancelFactor: number;
 }
 
+/** Timing that belongs to melee feedback rather than to melee balance. */
+export interface CombatConfig {
+  /** Ticks a combat event stays reported, on screen and in the ear. */
+  readonly eventTicks: number;
+}
+
 export interface InventoryConfig {
   readonly width: number;
   readonly height: number;
@@ -90,6 +96,7 @@ export interface RunConfig {
   readonly sound: SoundConfig;
   readonly noise: NoiseConfig;
   readonly interaction: InteractionConfig;
+  readonly combat: CombatConfig;
   readonly ai: AiConfig;
   readonly actions: ActionNames;
   /** Length of one simulation step in seconds. */

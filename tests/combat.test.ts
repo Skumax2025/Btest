@@ -20,7 +20,7 @@ import type { CreatureState } from '@game/ai';
 import { createRunConfig } from '@content/run-config';
 import { ITEMS } from '@content/items';
 import { CREATURES } from '@content/entities';
-import { STATS, WEAPONS } from '@content/tuning';
+import { COMBAT, STATS, WEAPONS } from '@content/tuning';
 
 const hands = WEAPONS.hands;
 const pipe = WEAPONS.pipe;
@@ -347,6 +347,7 @@ describe('melee inside a run', () => {
       swings += run.noise.recent().filter((e) => e.source === 'melee' && e.tick === run.tick).length;
     }
     const unlimited = 600 / (WEAPONS.pipe.intervalTicks + WEAPONS.pipe.windupTicks);
+    expect(COMBAT.eventTicks).toBeGreaterThan(0);
     expect(ranOut).toBe(true);
     // Breath, not the interval, is what caps the swing rate against five.
     expect(swings).toBeLessThan(unlimited / 2);

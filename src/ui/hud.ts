@@ -132,7 +132,7 @@ export class Hud {
   private updateCalm(run: Run, statsMoved: boolean): void {
     const busy =
       statsMoved ||
-      run.combat.targets > 0 ||
+      (run.combat.canFight && run.combat.targets > 0) ||
       run.combat.eventTicks > 0 ||
       (run.hint !== null && !STEADY.has(run.hint));
     if (busy) this.calmCountdown = this.config.calmTicks;

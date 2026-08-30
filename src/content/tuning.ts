@@ -204,6 +204,11 @@ export const INTERACTION = {
   searchCancelFactor: 1.5,
 } as const;
 
+export const COMBAT = {
+  /** How long a hit, a block or a miss stays reported. Feedback, not balance. */
+  eventTicks: 40,
+} as const;
+
 export const AI = {
   pathNodes: 320,
   repathTicks: 24,

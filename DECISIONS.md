@@ -250,3 +250,21 @@ I went, so the order is roughly chronological.
 - **Only implemented mechanics are described.** Every claim in the text
   corresponds to code in this repository; a test checks the keys and the numbers,
   and the writing was done by reading the modules rather than the design brief.
+
+## Polish (G5)
+
+- **The reach ring is only drawn when a swing could actually happen** — something
+  in hand, not crouching. Drawing it with empty hands would have promised an
+  attack that never comes.
+- **The combat feedback window moved to L3.** It was the same number written in
+  two files (the simulation and the view); now both read it from the tuning
+  table, which is also what the rule about numbers living in L3 is for.
+- **Guide distances are metres, not tiles.** "0.9 шага" was nonsense next to
+  "шаг слышно за 4 шага"; a tile is about a metre and the word stops colliding
+  with the action.
+- **Verified by driving the real game, not only by tests**: the world frozen in
+  pause and in the guidebook (tick counter standing still), a language switch
+  mid-run rewriting the HUD, the guidebook and the generated controls table, a
+  rebind from E to K propagating to every hint, volume and brightness applying
+  live, a run wipe leaving language, keys and volume intact, an automatic fight
+  against three at once, and a sweep of every screen for untranslated keys.

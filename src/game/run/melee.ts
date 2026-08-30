@@ -25,15 +25,12 @@ import type { Combatant, WeaponStats } from '@game/combat';
 import { applyDamage } from '@game/stats';
 import type { CombatEvent, RunWorld } from './world-access';
 
-/** Ticks a combat mark stays on screen. Presentation timing, not balance. */
-const EVENT_TICKS = 40;
-
 const note = (world: RunWorld, event: CombatEvent, count = 1): void => {
   const combat = world.combat;
   combat.event = event;
   combat.eventCount = count;
   combat.eventSerial++;
-  combat.eventTicks = EVENT_TICKS;
+  combat.eventTicks = world.config.combat.eventTicks;
 };
 
 const handsStats = (world: RunWorld): WeaponStats | null =>
@@ -83,6 +80,8 @@ export const stepMelee = (world: RunWorld): void => {
   combat.durability = weapon.stack?.durability ?? 0;
   combat.maxDurability = weapon.def?.melee?.maxDurability ?? 0;
 
+  const crouching = world.player.stance === 'crouch';
+  combat.canFight = weapon.stack !== null && !crouching;
   const targets = targetsInReach(
     world.player.x,
     world.player.y,
@@ -104,7 +103,7 @@ export const stepMelee = (world: RunWorld): void => {
   const veto = attackVeto({
     cooldown: combat.cooldown,
     stamina: world.stats.stamina,
-    crouching: world.player.stance === 'crouch',
+    crouching,
     hasItemInHand: weapon.stack !== null,
     targetCount: targets.length,
     stats: weapon.stats,

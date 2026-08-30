@@ -61,6 +61,12 @@ export interface CombatState {
   maxDurability: number;
   /** True when the item in hand has failed and the body is doing the work. */
   broken: boolean;
+  /**
+   * Whether a swing could happen at all right now — something in hand and not
+   * crouching. The reach ring is only drawn when it is true, so it never
+   * promises an attack that will not come.
+   */
+  canFight: boolean;
   event: CombatEvent | null;
   /** Bodies involved in that event, for "caught 3 at once". */
   eventCount: number;
@@ -81,6 +87,7 @@ export const createCombatState = (): CombatState => ({
   durability: 0,
   maxDurability: 0,
   broken: false,
+  canFight: false,
   event: null,
   eventCount: 0,
   eventSerial: 0,
