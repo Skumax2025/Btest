@@ -160,6 +160,8 @@ export interface LightDef {
   readonly radius: number;
   readonly halfAngle: number;
   readonly strength: number;
+  /** What colour this thing burns. A chemical stick is not a torch bulb. */
+  readonly tint: string;
 }
 
 /** A thrown item that keeps making noise where it landed. */

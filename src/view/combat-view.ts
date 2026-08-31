@@ -33,6 +33,7 @@ export const drawCombat = (
   run: Run,
   x: number,
   y: number,
+  facing: number,
   config: CombatViewConfig,
 ): void => {
   const combat = run.combat;
@@ -63,6 +64,24 @@ export const drawCombat = (
     renderer.strokeCircle(x, y, radius, colourFor(combat.event, config), config.eventWidth);
     if (combat.event === 'broke' || combat.event === 'tired') {
       renderer.strokeCircle(x, y, radius * 0.6, colourFor(combat.event, config), 1.5);
+    }
+    // The swing itself. The ring says where the reach is; this says a swing just
+    // went through it, and which way the body turned to do it. It sweeps outward
+    // over the life of the event rather than appearing whole, so a fast weapon
+    // reads as a flurry instead of as a strobe.
+    if (combat.event === 'hit' || combat.event === 'miss' || combat.event === 'blockedByThem') {
+      const span = Math.PI * 2 * config.arcSpan;
+      const centre = facing - span / 2 + span * age;
+      const sweep = span * (0.35 + 0.35 * (1 - age));
+      renderer.strokeArc(
+        x,
+        y,
+        combat.reach * (0.62 + 0.3 * age),
+        centre - sweep / 2,
+        centre + sweep / 2,
+        config.arcColour,
+        config.arcWidth * (1 - age * 0.5),
+      );
     }
     renderer.setAlpha(1);
   }

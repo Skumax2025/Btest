@@ -37,9 +37,31 @@ export const CAMERA = {
   zoom: 1.65,
   /** Fraction of the remaining distance covered per tick. */
   smoothing: 0.14,
+  /**
+   * How far the view leans towards where the player is looking, as a share of
+   * the distance to the cursor. It buys sight down the corridor being aimed at,
+   * and it is the difference between steering a character and dragging a dot.
+   */
+  lead: 0.18,
+  /** Ceiling on that lean, in world units. */
+  maxLead: 130,
+  /**
+   * Zoom by stance. Running pulls back — partly to see what you are running
+   * into, mostly because a widening view is what speed feels like. Crouching
+   * leans in, which is the whole of what being careful looks like.
+   */
+  sprintZoom: 0.93,
+  crouchZoom: 1.05,
+  /** Fraction of the remaining zoom gap closed per tick. */
+  zoomSmoothing: 0.05,
   shakeDecay: 0.86,
   /** Camera kick, in world units, when the player is hurt. */
   hitShake: 7,
+  /** Kick when a swing lands, plus this much again for every extra body caught. */
+  swingShake: 1.8,
+  swingShakePerTarget: 0.7,
+  /** Kick when the thing in your hand comes apart. */
+  breakShake: 5,
   maxPixelRatio: 2,
 } as const;
 
@@ -83,6 +105,14 @@ export const LIGHTING = {
   flashlightStrength: 1,
   darkThreshold: 0.22,
   flashlightLightLevel: 0.34,
+  /**
+   * What each portable light burns like. A torch is a cold filament, a head
+   * lamp a warmer one, a chemical stick is not a filament at all — and a beam
+   * the colour of the ceiling tubes is a beam nobody notices they are holding.
+   */
+  torchTint: '#ffeec4',
+  headlampTint: '#ffe2a8',
+  glowstickTint: '#9cf2b4',
   /** How far a lit room stays visible down an unobstructed line of sight. */
   losRadius: 1500,
 } as const;

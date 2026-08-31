@@ -196,6 +196,7 @@ export const ITEMS: ItemCatalog = {
       radius: LIGHTING.flashlightRadius,
       halfAngle: LIGHTING.flashlightHalfAngle,
       strength: LIGHTING.flashlightStrength,
+      tint: LIGHTING.torchTint,
     },
   }),
   'item.battery': item('item.battery', {
@@ -282,6 +283,7 @@ export const ITEMS: ItemCatalog = {
       radius: LIGHTING.flashlightRadius * 0.7,
       halfAngle: LIGHTING.flashlightHalfAngle * 1.3,
       strength: LIGHTING.flashlightStrength * 0.8,
+      tint: LIGHTING.headlampTint,
     },
   }),
   'item.respirator': item('item.respirator', {
@@ -447,6 +449,7 @@ export const ITEMS: ItemCatalog = {
       radius: LIGHTING.lampRadius,
       halfAngle: Math.PI,
       strength: LIGHTING.lampStrength * 0.7,
+      tint: LIGHTING.glowstickTint,
     },
   }),
   'item.radio': item('item.radio', {

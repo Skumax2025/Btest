@@ -10,12 +10,14 @@ export interface ViewConfig {
   readonly light: LightViewConfig;
   /** Height of a wall's lit cap and dark skirt, as a share of a tile. */
   readonly wallFaceHeight: number;
-  /** One floor tile in this many gets the alternate shade. */
-  readonly floorVariationEvery: number;
+  /** Width of the dark edge down a wall's flanks, as a share of a tile. */
+  readonly wallSideWidth: number;
   readonly markerTiles: number;
   readonly markerAlpha: number;
   readonly groundItemSize: number;
   readonly projectileSize: number;
+  /** Radians a thrown item turns per tick left of its flight. */
+  readonly throwSpin: number;
   readonly playerSpriteSize: number;
   readonly crouchScale: number;
   readonly shadowOffset: number;
@@ -60,6 +62,13 @@ export interface LightViewConfig {
   readonly sightCore: number;
   /** Warm bloom a lamp adds on top of merely being visible. */
   readonly lampGlow: number;
+  /**
+   * A second, much tighter pool at a lamp's centre. A tube is a bright *object*
+   * as well as a light: without this it is a gradient with a fitting drawn in
+   * the middle of it, and the eye reads the fitting as unlit.
+   */
+  readonly lampCore: number;
+  readonly lampCoreRadius: number;
   /** Exponent tightening the bloom into the middle of a light. Higher is tighter. */
   readonly glowConcentration: number;
   /**
@@ -82,9 +91,25 @@ export interface LightViewConfig {
    *  off like a bare bulb, so this stays modest. */
   readonly beamFade: number;
   readonly flashlightGlow: number;
+  /**
+   * A hand-held torch is held by a hand. The beam breathes by this much, in
+   * radians, over `swayPeriod` seconds — far too little to aim differently and
+   * just enough that the light is not welded to the character.
+   */
+  readonly beamSway: number;
+  readonly beamSwaySeconds: number;
   /** Light bouncing back off the floor at the player's feet, in world units. */
   readonly flashlightSpill: number;
   readonly flashlightSpillStrength: number;
+  /**
+   * Dark adaptation. Stepping out of the light does not blind you and then let
+   * you see: the eye takes a moment. This is the share of the sight bubble's
+   * brightness that is withheld the instant the light goes, recovered at
+   * `adaptationRate` per frame — a purely visual memory the simulation never
+   * reads, so the vision *radius* it agrees with the game about is untouched.
+   */
+  readonly adaptation: number;
+  readonly adaptationRate: number;
 }
 
 /**
@@ -100,6 +125,13 @@ export interface HudConfig {
   readonly changeEpsilon: number;
   /** Opacity of the interface once it has gone quiet. */
   readonly calmOpacity: number;
+  /**
+   * Damage that fills the hurt flash completely, and how much of it drains per
+   * frame. A hit has to be felt at the edges of the screen before it is read on
+   * a bar, or a fight that runs itself is a fight that happens to somebody else.
+   */
+  readonly hurtFlashDamage: number;
+  readonly hurtFade: number;
   /** World units above a target that its key prompt is drawn. */
   readonly promptOffset: number;
   readonly promptFont: string;
@@ -128,6 +160,14 @@ export interface CombatViewConfig {
   readonly missColour: string;
   readonly breakColour: string;
   readonly tiredColour: string;
+  /** The arc a landed swing sweeps, drawn across the facing. */
+  readonly arcColour: string;
+  readonly arcWidth: number;
+  /** Share of a turn the arc covers. */
+  readonly arcSpan: number;
+  /** Flash over everything the swing caught, so a hit lands on a body. */
+  readonly impactColour: string;
+  readonly impactScale: number;
 }
 
 export const VIEW: ViewConfig = {
@@ -138,21 +178,28 @@ export const VIEW: ViewConfig = {
     playerLightStrength: 0.88,
     sightCore: 0.5,
     lampGlow: 0.3,
+    lampCore: 0.55,
+    lampCoreRadius: 0.28,
     glowConcentration: 2.1,
     beamSegments: 12,
     beamClip: 2.4,
     beamNear: 30,
     beamFade: 0.3,
     flashlightGlow: 0.26,
+    beamSway: 0.035,
+    beamSwaySeconds: 3.1,
     flashlightSpill: 96,
     flashlightSpillStrength: 0.34,
+    adaptation: 0.4,
+    adaptationRate: 0.035,
   },
   wallFaceHeight: 0.22,
-  floorVariationEvery: 5,
+  wallSideWidth: 0.09,
   markerTiles: 3,
   markerAlpha: 0.85,
   groundItemSize: 18,
-  projectileSize: 14,
+  projectileSize: 20,
+  throwSpin: 0.12,
   playerSpriteSize: 24,
   crouchScale: 0.8,
   shadowOffset: 3,
@@ -172,6 +219,8 @@ export const VIEW: ViewConfig = {
     calmTicks: 150,
     changeEpsilon: 0.4,
     calmOpacity: 0.3,
+    hurtFlashDamage: 24,
+    hurtFade: 0.035,
     promptOffset: 32,
     promptFont: '14px ui-monospace, "DejaVu Sans Mono", monospace',
     scale: 1.28,
@@ -191,5 +240,10 @@ export const VIEW: ViewConfig = {
     missColour: 'rgba(190, 180, 150, 0.5)',
     breakColour: 'rgba(230, 90, 70, 0.95)',
     tiredColour: 'rgba(150, 190, 130, 0.7)',
+    arcColour: 'rgba(255, 240, 200, 0.75)',
+    arcWidth: 4,
+    arcSpan: 0.42,
+    impactColour: 'rgba(255, 226, 180, 0.85)',
+    impactScale: 1.35,
   },
 };

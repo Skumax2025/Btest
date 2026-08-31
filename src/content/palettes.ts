@@ -2,9 +2,24 @@
  * L3: colour. Level 0 is yellowed wallpaper and damp carpet — no saturated
  * colour anywhere except items and danger, which is why those two have their
  * own entries.
+ *
+ * A palette also names the tile textures painted with it. The names are declared
+ * here and the specs are built from these same colours in `sprites.ts`, which is
+ * the way round that keeps the two files from importing each other.
  */
 
+/** Sprite ids of the surfaces a level is built from. */
+export interface PaletteTextures {
+  /** Interchangeable floor tiles; the view picks one per cell from its position. */
+  readonly floor: readonly string[];
+  readonly stain: string;
+  readonly wet: string;
+  readonly wall: readonly string[];
+  readonly pillar: string;
+}
+
 export interface Palette {
+  readonly id: string;
   readonly background: string;
   readonly wall: string;
   readonly wallShade: string;
@@ -22,10 +37,24 @@ export interface Palette {
   readonly exit: string;
   readonly text: string;
   readonly textDim: string;
+  readonly textures: PaletteTextures;
 }
+
+/** Floor variants per palette. Four is enough that no repeat is ever adjacent. */
+export const FLOOR_VARIANTS = 4;
+export const WALL_VARIANTS = 3;
+
+const textures = (id: string): PaletteTextures => ({
+  floor: Array.from({ length: FLOOR_VARIANTS }, (_, i) => `tile.${id}.floor.${i}`),
+  stain: `tile.${id}.stain`,
+  wet: `tile.${id}.wet`,
+  wall: Array.from({ length: WALL_VARIANTS }, (_, i) => `tile.${id}.wall.${i}`),
+  pillar: `tile.${id}.pillar`,
+});
 
 export const PALETTES: Readonly<Record<string, Palette>> = {
   'level0.yellow': {
+    id: 'level0.yellow',
     background: '#0a0907',
     wall: '#dcc57c',
     wallShade: '#937c3d',
@@ -43,8 +72,10 @@ export const PALETTES: Readonly<Record<string, Palette>> = {
     exit: '#9ad7a0',
     text: '#efe3bb',
     textDim: '#9a8f6f',
+    textures: textures('level0.yellow'),
   },
   'level1.grey': {
+    id: 'level1.grey',
     background: '#07080a',
     wall: '#8d9296',
     wallShade: '#6e7377',
@@ -62,6 +93,7 @@ export const PALETTES: Readonly<Record<string, Palette>> = {
     exit: '#9ad7a0',
     text: '#dfe6ea',
     textDim: '#8b9398',
+    textures: textures('level1.grey'),
   },
 };
 

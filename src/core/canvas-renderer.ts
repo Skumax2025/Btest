@@ -168,6 +168,24 @@ export class Canvas2DRenderer implements Renderer {
     this.ctx.stroke();
   }
 
+  strokeArc(
+    x: number,
+    y: number,
+    radius: number,
+    from: number,
+    to: number,
+    color: string,
+    lineWidth: number,
+  ): void {
+    this.ctx.strokeStyle = color;
+    this.ctx.lineWidth = lineWidth;
+    this.ctx.lineCap = 'round';
+    this.ctx.beginPath();
+    this.ctx.arc(x, y, Math.max(0, radius), from, to);
+    this.ctx.stroke();
+    this.ctx.lineCap = 'butt';
+  }
+
   line(x1: number, y1: number, x2: number, y2: number, color: string, lineWidth: number): void {
     this.ctx.strokeStyle = color;
     this.ctx.lineWidth = lineWidth;

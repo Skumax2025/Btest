@@ -54,6 +54,7 @@ import { createUiContext } from './context';
 import type { UiContext } from './context';
 import { DebugOverlay } from './debug-overlay';
 import { GuidebookScreen } from './guidebook';
+import { IconSource } from './icons';
 import { Hud } from './hud';
 import { InventoryUi } from './inventory-ui';
 import { MenuScreen } from './menu';
@@ -69,6 +70,7 @@ export type AppState = 'menu' | 'playing' | 'paused' | 'guide' | 'dead';
 export class App {
   private readonly canvas: HTMLCanvasElement;
   private readonly renderer: Canvas2DRenderer;
+  private readonly sprites: PlaceholderSpriteProvider;
   private readonly camera = new Camera();
   private readonly input: InputDevice;
   private readonly worldView: WorldView;
@@ -81,6 +83,8 @@ export class App {
   private readonly audioView: AudioView;
   private readonly hud: Hud;
   private readonly worldTooltip: HTMLElement;
+  private readonly worldTooltipIcon: HTMLElement;
+  private readonly worldTooltipText: HTMLElement;
   private readonly bag: InventoryUi;
   private readonly summary: SummaryScreen;
   private readonly debug: DebugOverlay;
@@ -94,6 +98,8 @@ export class App {
   /** False until a run has actually been entered; the menu reads it. */
   private runActive = false;
   private lastHealth = Number.POSITIVE_INFINITY;
+  /** Combat events are counted, so each one kicks the camera exactly once. */
+  private lastCombatSerial = 0;
 
   constructor(private readonly root: HTMLElement) {
     this.settings = loadSettings(this.storage);
@@ -105,11 +111,10 @@ export class App {
     this.renderer = new Canvas2DRenderer(this.canvas, CAMERA.maxPixelRatio);
     this.input = new InputDevice(this.settings.bindings ?? KEY_BINDINGS, AXIS_BINDINGS);
     this.input.attach(this.canvas, window);
-    this.worldView = new WorldView(
-      this.renderer,
-      new PlaceholderSpriteProvider(SPRITES, domCanvasFactory, FALLBACK_SPRITE),
-      VIEW.light.cacheLimit,
-    );
+    // One store of art for the whole application: the world draws its canvases
+    // and the interface hangs the same ones on DOM nodes as icons.
+    this.sprites = new PlaceholderSpriteProvider(SPRITES, domCanvasFactory, FALLBACK_SPRITE);
+    this.worldView = new WorldView(this.renderer, this.sprites, VIEW.light.cacheLimit);
     this.camera.zoom = CAMERA.zoom;
 
     const restored = this.loadSave();
@@ -121,7 +126,11 @@ export class App {
     this.overlay.className = 'overlay';
     root.appendChild(this.overlay);
 
-    this.ui = createUiContext(this.localizer, () => this.input.getBindings());
+    this.ui = createUiContext(
+      this.localizer,
+      () => this.input.getBindings(),
+      new IconSource(this.sprites),
+    );
     this.localizer.onChange(() => {
       this.ui.binder.refresh();
       this.menu.refresh();
@@ -136,6 +145,11 @@ export class App {
     this.worldTooltip = document.createElement('div');
     this.worldTooltip.className = 'world-tooltip';
     this.worldTooltip.hidden = true;
+    this.worldTooltipIcon = document.createElement('span');
+    this.worldTooltipIcon.className = 'world-tooltip-icon';
+    this.worldTooltipText = document.createElement('span');
+    this.worldTooltipText.className = 'world-tooltip-text';
+    this.worldTooltip.append(this.worldTooltipIcon, this.worldTooltipText);
     this.overlay.appendChild(this.worldTooltip);
     this.summary = new SummaryScreen(this.overlay, this.ui);
     this.debug = new DebugOverlay(this.overlay);
@@ -357,15 +371,61 @@ export class App {
     }
 
     this.run.step(frame);
-    // Getting hit is the one thing that shakes the camera; it reads before the
-    // health bar does.
-    if (this.run.stats.health < this.lastHealth - 0.5) this.camera.addShake(CAMERA.hitShake);
+    // Getting hit is the loudest thing that shakes the camera; it reads before
+    // the health bar does, and the screen reddens with it.
+    const lost = this.lastHealth - this.run.stats.health;
+    if (lost > 0.5) {
+      this.camera.addShake(CAMERA.hitShake);
+      this.hud.registerDamage(lost);
+    }
     this.lastHealth = this.run.stats.health;
-    this.camera.follow(this.run.player.x, this.run.player.y, CAMERA.smoothing);
+    this.shakeForCombat();
+    const target = this.cameraTarget(world.x, world.y);
+    this.camera.follow(target.x, target.y, CAMERA.smoothing);
+    this.camera.zoomTowards(this.zoomTarget(), CAMERA.zoomSmoothing);
     if (this.run.tick % SIM.autosaveTicks === 0) this.persist();
     if (this.run.phase === 'dead') {
       this.persist();
       this.setState('dead');
+    }
+  }
+
+  /**
+   * The camera sits between the player and what they are aiming at, which is
+   * how a top-down view shows the corridor you are about to walk into rather
+   * than the one behind you. The lean is capped, so a cursor at the edge of the
+   * screen never leaves the character out of it.
+   */
+  private cameraTarget(aimX: number, aimY: number): { x: number; y: number } {
+    const { player } = this.run;
+    const dx = (aimX - player.x) * CAMERA.lead;
+    const dy = (aimY - player.y) * CAMERA.lead;
+    const distance = Math.hypot(dx, dy);
+    const scale = distance > CAMERA.maxLead ? CAMERA.maxLead / distance : 1;
+    return { x: player.x + dx * scale, y: player.y + dy * scale };
+  }
+
+  /** Speed widens the view and care narrows it. Nothing else touches the zoom. */
+  private zoomTarget(): number {
+    const stance = this.run.player.stance;
+    if (stance === 'sprint') return CAMERA.zoom * CAMERA.sprintZoom;
+    if (stance === 'crouch') return CAMERA.zoom * CAMERA.crouchZoom;
+    return CAMERA.zoom;
+  }
+
+  /**
+   * Melee runs itself, so the swing has to be felt rather than pressed. A kick
+   * per landed swing, more of one for every extra body caught, and a hard one
+   * when the weapon comes apart in your hands.
+   */
+  private shakeForCombat(): void {
+    const combat = this.run.combat;
+    if (combat.eventSerial === this.lastCombatSerial) return;
+    this.lastCombatSerial = combat.eventSerial;
+    if (combat.event === 'hit') {
+      this.camera.addShake(CAMERA.swingShake + CAMERA.swingShakePerTarget * (combat.eventCount - 1));
+    } else if (combat.event === 'broke') {
+      this.camera.addShake(CAMERA.breakShake);
     }
   }
 
@@ -432,7 +492,8 @@ export class App {
     }
     const name = this.localizer.t(def.nameKey);
     const desc = this.localizer.t(def.descriptionKey);
-    this.worldTooltip.textContent = `${name}\n${desc}`;
+    this.ui.icons.paint(this.worldTooltipIcon, def.sprite);
+    this.worldTooltipText.textContent = `${name}\n${desc}`;
     this.worldTooltip.style.left = `${pointer.x + 18}px`;
     this.worldTooltip.style.top = `${pointer.y + 18}px`;
     this.worldTooltip.hidden = false;

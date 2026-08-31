@@ -100,6 +100,7 @@ const LEGEND: readonly LegendRow[] = [
 interface BeltSlot {
   readonly root: HTMLElement;
   readonly key: HTMLElement;
+  readonly icon: HTMLElement;
   readonly name: HTMLElement;
   readonly count: HTMLElement;
   readonly wear: HTMLElement;
@@ -109,6 +110,7 @@ interface BeltSlot {
 interface HandRow {
   readonly root: HTMLElement;
   readonly key: HTMLElement;
+  readonly icon: HTMLElement;
   readonly name: HTMLElement;
   readonly state: HTMLElement;
   readonly wear: HTMLElement;
@@ -142,6 +144,8 @@ export class Hud {
   private readonly combatLine: HTMLElement;
   private readonly previous = new Map<BarKey, number>();
   private calmCountdown = 0;
+  /** How red the edges of the screen currently are, in [0, 1]. */
+  private hurt = 0;
 
   constructor(
     parent: HTMLElement,
@@ -182,14 +186,17 @@ export class Hud {
     ui.binder.bind(el('div', 'hud-panel-title', hands), 'hud.hand');
     for (const slot of ['hand', 'offhand'] as const) {
       const row = el('div', `hud-hand-row hud-hand-row--${slot}`, hands);
-      const head = el('div', 'hud-hand-head', row);
+      const icon = el('span', 'hud-hand-icon', row);
+      const column = el('div', 'hud-hand-body', row);
+      const head = el('div', 'hud-hand-head', column);
       const key = el('span', 'hud-chip', head);
       const name = el('span', 'hud-hand-name', head);
       const state = el('span', 'hud-hand-state', head);
-      const wear = el('div', 'hud-hand-wear', row);
+      const wear = el('div', 'hud-hand-wear', column);
       this.hands.set(slot, {
         root: row,
         key,
+        icon,
         name,
         state,
         wear,
@@ -239,6 +246,15 @@ export class Hud {
     return row.join === 'range' ? labels.join('-') : labels[0];
   }
 
+  /**
+   * Something took a bite out of you. The display answers at the edges of the
+   * screen rather than on the health bar, because the bar is where you look
+   * afterwards and the edges are what you see during.
+   */
+  registerDamage(amount: number): void {
+    this.hurt = Math.min(1, this.hurt + amount / Math.max(1, this.config.hurtFlashDamage));
+  }
+
   /** The legend is the one part of the display a player is meant to outgrow. */
   setControlsVisible(visible: boolean): void {
     this.keys.classList.toggle('hud-keys--collapsed', !visible);
@@ -278,6 +294,8 @@ export class Hud {
     setText(this.hint, this.hintText(run));
     setText(this.combatLine, this.combatText(run));
     this.root.classList.toggle('hud--strained', isLowSanity(run.stats, config));
+    this.hurt = Math.max(0, this.hurt - this.config.hurtFade);
+    setStyle(this.root, '--hurt', this.hurt.toFixed(3));
     this.updateCalm(run, moved);
   }
 
@@ -313,6 +331,7 @@ export class Hud {
       setText(row.key, actionLabel(t, bindings, action));
       const stack = equippedStack(run.inventory, slot);
       const def = stack ? catalog[stack.itemId] : undefined;
+      this.ui.icons.paint(row.icon, def ? def.sprite : null);
       setText(row.name, def ? t(def.nameKey) : t('hud.empty'));
       row.root.classList.toggle('hud-hand-row--empty', !stack);
 
@@ -348,12 +367,14 @@ export class Hud {
       const root = el('button', 'hud-belt-slot', this.beltSlots);
       root.addEventListener('click', () => this.host.useBelt(index));
       const key = el('span', 'hud-belt-key', root);
+      const icon = el('span', 'hud-belt-icon', root);
       const name = el('span', 'hud-belt-name', root);
       const count = el('span', 'hud-belt-count', root);
       const wear = el('div', 'hud-belt-wear', root);
       this.belt.push({
         root,
         key,
+        icon,
         name,
         count,
         wear,
@@ -366,6 +387,7 @@ export class Hud {
       const stack = quickStack(run.inventory, index);
       const def = stack ? catalog[stack.itemId] : undefined;
       setText(slot.key, actionLabel(t, bindings, `quick${index + 1}`));
+      this.ui.icons.paint(slot.icon, def ? def.sprite : null);
       setText(slot.name, def ? t(def.nameKey) : '');
       setText(slot.count, stack && stack.count > 1 ? `x${stack.count}` : '');
       slot.root.classList.toggle('hud-belt-slot--empty', !stack);

@@ -45,6 +45,12 @@ export interface DarknessParams {
   /** How far the player can see lit places down an open corridor. */
   readonly losRadius: number;
   readonly flashlightOn: boolean;
+  /** Colour of the light in hand, when it has one of its own. */
+  readonly beamTint: string | null;
+  /** How lit the player is standing, straight from the simulation. Drives adaptation. */
+  readonly lightLevel: number;
+  /** Seconds of run time, interpolated. The only thing the sway is a function of. */
+  readonly time: number;
   /**
    * Changes whenever the tile grid does — a chunk streamed in, or a new level.
    * Cached lamp shadows are only valid for the geometry they were traced against.
@@ -94,6 +100,7 @@ const flatProfile = (samples: number, core: number, tighten = 1): number[] => {
 interface Profiles {
   readonly lamp: LightProfile;
   readonly lampGlow: LightProfile;
+  readonly lampCore: LightProfile;
   readonly sight: LightProfile;
 }
 
@@ -104,6 +111,8 @@ export class LightingView {
   private profileKey?: LightingConfig;
   private viewKey?: LightViewConfig;
   private readonly sightFan: Fan = createFan();
+  /** How far the eye has come towards the dark it is standing in, in [0, 1]. */
+  private adapted = 0;
   private scratchLos?: Float32Array;
   private scratchSight?: Float32Array;
   private scratchSpill?: Float32Array;
@@ -133,7 +142,7 @@ export class LightingView {
       x: params.playerX,
       y: params.playerY,
       radius: params.sightRadius,
-      strength: light.playerLightStrength,
+      strength: light.playerLightStrength * this.adapt(params.lightLevel, light),
       profile: profiles.sight,
     });
 
@@ -141,9 +150,24 @@ export class LightingView {
     renderer.endDarkness();
   }
 
+  /**
+   * Dark adaptation, as a multiplier on how much the eye is currently getting
+   * out of the dark. Stepping out of a lit room is briefly worse than standing
+   * in the dark already was — which is exactly the moment the game wants the
+   * player to hesitate. It never touches the sight *radius*: that number is the
+   * simulation's, and the view is not allowed to disagree with it.
+   */
+  private adapt(lightLevel: number, config: LightViewConfig): number {
+    const needed = 1 - Math.max(0, Math.min(1, lightLevel));
+    const rate = Math.max(0, Math.min(1, config.adaptationRate));
+    this.adapted += (needed - this.adapted) * rate;
+    return 1 - config.adaptation * Math.max(0, needed - this.adapted);
+  }
+
   private drawLamps(renderer: Renderer, params: DarknessParams, profiles: Profiles): void {
     const bounds = viewBounds(params.view, params.tileSize * 2);
-    const glow = params.config.light.lampGlow;
+    const light = params.config.light;
+    const glow = light.lampGlow;
     for (const source of params.lights) {
       if (
         source.x + source.radius < bounds.minX ||
@@ -153,16 +177,28 @@ export class LightingView {
       ) {
         continue;
       }
-      renderer.punchPolygon(this.cachedPolygon(source, params), {
+      const polygon = this.cachedPolygon(source, params);
+      const colour = source.tint ?? params.palette.lampGlow;
+      renderer.punchPolygon(polygon, {
         x: source.x,
         y: source.y,
         radius: source.radius,
         strength: source.strength,
         profile: profiles.lamp,
+        glow: { colour, strength: source.strength * glow, profile: profiles.lampGlow },
+      });
+      // The fitting itself. Without a second, much tighter pool the brightest
+      // thing on screen is a patch of floor rather than the tube over it.
+      renderer.punchPolygon(polygon, {
+        x: source.x,
+        y: source.y,
+        radius: source.radius * light.lampCoreRadius,
+        strength: source.strength * light.lampCore,
+        profile: profiles.lampCore,
         glow: {
-          colour: params.palette.lampGlow,
-          strength: source.strength * glow,
-          profile: profiles.lampGlow,
+          colour,
+          strength: source.strength * light.lampCore * glow,
+          profile: profiles.lampCore,
         },
       });
     }
@@ -179,9 +215,15 @@ export class LightingView {
   private drawFlashlight(renderer: Renderer, params: DarknessParams, profiles: Profiles): void {
     const light = params.config.light;
     const { lighting } = params;
-    const facingX = Math.cos(params.playerFacing);
-    const facingY = Math.sin(params.playerFacing);
-    const clip = this.beamCone(params);
+    // A torch is held in a hand, and a hand is never quite still. One phase for
+    // the beam and its clip, or the pools would drift out of the cone.
+    const facing =
+      params.playerFacing +
+      Math.sin((params.time / Math.max(0.1, light.beamSwaySeconds)) * Math.PI * 2) * light.beamSway;
+    const tint = params.beamTint ?? params.palette.lampGlow;
+    const facingX = Math.cos(facing);
+    const facingY = Math.sin(facing);
+    const clip = this.beamCone(params, facing);
     const segments = Math.max(1, Math.round(light.beamSegments));
     // A pool this wide at this distance subtends exactly the beam's half-angle,
     // so the chain's envelope is the cone the config asked for.
@@ -205,7 +247,7 @@ export class LightingView {
         strength,
         profile: profiles.lamp,
         glow: {
-          colour: params.palette.lampGlow,
+          colour: tint,
           // Bloom is additive, so it is shared out across the chain rather than
           // paid in full by each pool.
           strength: (strength * light.flashlightGlow) / segments,
@@ -223,7 +265,7 @@ export class LightingView {
       strength: light.flashlightSpillStrength,
       profile: profiles.lamp,
       glow: {
-        colour: params.palette.lampGlow,
+        colour: tint,
         strength: light.flashlightSpillStrength * light.flashlightGlow,
         profile: profiles.lampGlow,
       },
@@ -236,7 +278,7 @@ export class LightingView {
   }
 
   /** What the beam is allowed to reach at all: one cast, shared by every pool. */
-  private beamCone(params: DarknessParams): Float32Array {
+  private beamCone(params: DarknessParams, facing: number): Float32Array {
     const options: FanOptions = {
       rayCount: params.rays.flashlightRays,
       tileSize: params.tileSize,
@@ -245,7 +287,7 @@ export class LightingView {
         params.lighting.flashlightHalfAngle * params.config.light.beamClip,
         Math.PI * 0.49,
       ),
-      facing: params.playerFacing,
+      facing,
       wallPenetration: params.config.light.wallPenetration,
     };
     const arc = visibilityPolygon(
@@ -275,6 +317,7 @@ export class LightingView {
     this.profiles = {
       lamp: falloffProfile(samples, lighting),
       lampGlow: falloffProfile(samples, lighting, config.glowConcentration),
+      lampCore: falloffProfile(samples, lighting, config.glowConcentration * 0.5),
       sight: flatProfile(samples, config.sightCore),
     };
     this.profileKey = lighting;

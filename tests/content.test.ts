@@ -8,6 +8,7 @@
 import { describe, expect, it } from 'vitest';
 import { ITEMS } from '@content/items';
 import { SPRITES } from '@content/sprites';
+import { PALETTES } from '@content/palettes';
 import { LOOT_TABLES, CONTAINERS } from '@content/loot-tables';
 import { CREATURES } from '@content/entities';
 import { LEVELS, SANDBOX_LEVEL } from '@content/levels';
@@ -25,6 +26,45 @@ describe('content consistency', () => {
       if (!(def.sprite in SPRITES)) missing.push(`${id}: no sprite ${def.sprite}`);
       if (!KEYS.has(def.nameKey)) missing.push(`${id}: no ${def.nameKey}`);
       if (!KEYS.has(def.descriptionKey)) missing.push(`${id}: no ${def.descriptionKey}`);
+    }
+    expect(missing).toEqual([]);
+  });
+
+  /**
+   * The catalogue is read by silhouette before it is read by name, in the bag,
+   * on the belt and on the carpet. An item that falls back to the shared ground
+   * marker is an item nobody can tell from any other one.
+   */
+  it('gives every item an icon of its own', () => {
+    const shared: string[] = [];
+    const seen = new Map<string, string>();
+    for (const [id, def] of Object.entries(ITEMS)) {
+      // Bare hands are a stat block, never spawned and never carried.
+      if (id === 'item.hands') continue;
+      if (def.sprite === 'item.ground') shared.push(`${id}: still on the fallback marker`);
+      const owner = seen.get(def.sprite);
+      if (owner) shared.push(`${id}: shares ${def.sprite} with ${owner}`);
+      seen.set(def.sprite, id);
+    }
+    expect(shared).toEqual([]);
+  });
+
+  it('paints every surface a palette asks for', () => {
+    const missing: string[] = [];
+    for (const [id, palette] of Object.entries(PALETTES)) {
+      if (palette.id !== id) missing.push(`${id}: id field says ${palette.id}`);
+      const ids = [
+        ...palette.textures.floor,
+        ...palette.textures.wall,
+        palette.textures.stain,
+        palette.textures.wet,
+        palette.textures.pillar,
+      ];
+      for (const texture of ids) {
+        if (!(texture in SPRITES)) missing.push(`${id}: no sprite ${texture}`);
+      }
+      if (palette.textures.floor.length === 0) missing.push(`${id}: no floor variants`);
+      if (palette.textures.wall.length === 0) missing.push(`${id}: no wall variants`);
     }
     expect(missing).toEqual([]);
   });

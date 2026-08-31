@@ -51,6 +51,11 @@ export interface LightSource {
   readonly y: number;
   readonly radius: number;
   readonly strength: number;
+  /**
+   * Colour of this particular light. Omitted by anything wired into the
+   * building, which burns whatever colour the level's own bulbs do.
+   */
+  readonly tint?: string;
 }
 
 /** Smoothstep — flat at both ends, which is what stops a light having an edge. */

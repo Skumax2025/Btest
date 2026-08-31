@@ -71,6 +71,16 @@ export interface Renderer {
   ): void;
   fillCircle(x: number, y: number, radius: number, color: string): void;
   strokeCircle(x: number, y: number, radius: number, color: string, lineWidth: number): void;
+  /** A slice of that circle, from `from` to `to` in radians, clockwise. */
+  strokeArc(
+    x: number,
+    y: number,
+    radius: number,
+    from: number,
+    to: number,
+    color: string,
+    lineWidth: number,
+  ): void;
   line(x1: number, y1: number, x2: number, y2: number, color: string, lineWidth: number): void;
   drawSprite(sprite: Sprite, x: number, y: number, options?: SpriteOptions): void;
   drawText(text: string, x: number, y: number, style: TextStyle): void;

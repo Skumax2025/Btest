@@ -58,7 +58,7 @@ export class WorldView {
     renderer.beginFrame(options.palette.background);
     renderer.pushWorld(view);
 
-    drawTiles(renderer, run.level, view, options.palette, options.view);
+    drawTiles(renderer, this.sprites, run.level, view, options.palette, options.view);
     drawProps(renderer, this.sprites, run, view, options.lighting, options.view);
     drawGround(renderer, this.sprites, run, bounds, options.view);
     drawCreatures(renderer, this.sprites, run, alpha, options.palette, options);
@@ -88,11 +88,14 @@ export class WorldView {
       sightRadius: run.perception.sightRadius,
       losRadius: options.losRadius,
       flashlightOn: run.flashlightOn,
+      beamTint: shape ? shape.tint : null,
+      lightLevel: run.perception.lightLevel,
+      time: (run.tick + alpha) * run.config.stepSeconds,
       rays: options.rays,
       config: options.view,
     });
     drawTelegraphs(renderer, run, options.palette, options.view);
-    drawCombat(renderer, run, px, py, options.view.combat);
+    drawCombat(renderer, run, px, py, facingAt(run.player, alpha), options.view.combat);
     if (options.prompt) {
       drawPrompt(renderer, options.prompt, options.palette, options.view.hud);
     }

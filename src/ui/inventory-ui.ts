@@ -74,6 +74,8 @@ export class InventoryUi {
   private readonly belt: HTMLElement;
   private readonly cellsLabel: HTMLElement;
   private readonly tooltip: HTMLElement;
+  private readonly tooltipIcon: HTMLElement;
+  private readonly tooltipText: HTMLElement;
   private readonly confirmBar: HTMLElement;
   private readonly confirmText: HTMLElement;
   private readonly menu: HTMLElement;
@@ -124,6 +126,8 @@ export class InventoryUi {
     }));
 
     this.tooltip = el('div', 'bag-tooltip', this.root);
+    this.tooltipIcon = el('span', 'bag-tooltip-icon', this.tooltip);
+    this.tooltipText = el('span', 'bag-tooltip-text', this.tooltip);
     this.tooltip.hidden = true;
     this.menu = el('div', 'bag-menu', this.root);
     this.menu.hidden = true;
@@ -256,6 +260,7 @@ export class InventoryUi {
     if (existing) return existing;
     const node = el('div', 'bag-item');
     node.dataset.stackId = String(stack.id);
+    el('span', 'bag-item-icon', node);
     el('span', 'bag-item-name', node);
     el('span', 'bag-item-count', node);
     el('span', 'bag-item-pocket', node);
@@ -268,6 +273,8 @@ export class InventoryUi {
   /** Wear is always on the icon: a bar, not a number hidden in a panel. */
   private paint(node: HTMLElement, stack: InventoryStack): void {
     const def = this.catalog[stack.itemId];
+    const icon = node.querySelector('.bag-item-icon');
+    if (icon instanceof HTMLElement) this.ui.icons.paint(icon, def ? def.sprite : null);
     const name = node.querySelector('.bag-item-name');
     const count = node.querySelector('.bag-item-count');
     const track = node.querySelector('.bag-item-wear');
@@ -549,7 +556,8 @@ export class InventoryUi {
       this.hideTooltip();
       return;
     }
-    setText(this.tooltip, this.describe(def, stack));
+    this.ui.icons.paint(this.tooltipIcon, def.sprite);
+    setText(this.tooltipText, this.describe(def, stack));
     const rect = this.root.getBoundingClientRect();
     setStyle(this.tooltip, 'left', `${event.clientX - rect.left + 16}px`);
     setStyle(this.tooltip, 'top', `${event.clientY - rect.top + 16}px`);

@@ -44,6 +44,15 @@ export class Camera {
     this.y = lerp(this.y, targetY, t);
   }
 
+  /**
+   * Eases the zoom towards a target. Assigning `zoom` is a cut; this is a move,
+   * which is what lets the view breathe with how fast the target is going
+   * without the change ever being the thing the player notices.
+   */
+  zoomTowards(target: number, smoothing: number): void {
+    this.zoom = lerp(this.zoom, target, clamp(smoothing, 0, 1));
+  }
+
   addShake(amount: number): void {
     this.shakeAmount = Math.max(this.shakeAmount, amount);
   }

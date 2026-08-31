@@ -3,7 +3,7 @@
 import type { CameraView } from '@core/camera';
 import { viewBounds } from '@core/camera';
 import type { Renderer } from '@core/renderer';
-import type { SpriteProvider } from '@core/assets';
+import type { Sprite, SpriteProvider } from '@core/assets';
 import { hashInts } from '@core/rng';
 import type { PropSpawn } from '@game/level';
 import { LAMP_DEAD, LAMP_FLICKER } from '@game/level';
@@ -57,7 +57,12 @@ export const drawProps = (
   }
   for (const prop of visible) {
     if (prop.kind === 'marker' || prop.kind === 'creature') continue;
-    renderer.drawSprite(sprites.sprite(spriteIdFor(prop, run, lighting)), prop.x, prop.y);
+    // Props are authored at more than one pixel per world unit, so the size they
+    // occupy in the world is stated rather than taken from the texture.
+    renderer.drawSprite(sprites.sprite(spriteIdFor(prop, run, lighting)), prop.x, prop.y, {
+      width: tileSize,
+      height: tileSize,
+    });
   }
 };
 
@@ -67,6 +72,16 @@ export interface Bounds {
   readonly maxX: number;
   readonly maxY: number;
 }
+
+/**
+ * An icon is authored in its own proportions — a pipe is three cells tall and a
+ * tray two wide — so what is fixed on the floor is the longer side. Squaring
+ * them here would make every one of them the same silhouette again.
+ */
+const fit = (sprite: Sprite, longest: number): { width: number; height: number } => {
+  const scale = longest / Math.max(sprite.width, sprite.height);
+  return { width: sprite.width * scale, height: sprite.height * scale };
+};
 
 export const drawGround = (
   renderer: Renderer,
@@ -80,19 +95,19 @@ export const drawGround = (
   const radius = Math.hypot(bounds.maxX - centreX, bounds.maxY - centreY);
   for (const item of run.groundItemsNear(centreX, centreY, radius)) {
     const def = run.config.content.items[item.itemId];
-    renderer.drawSprite(sprites.sprite(def ? def.sprite : 'item.ground'), item.x, item.y, {
-      width: config.groundItemSize,
-      height: config.groundItemSize,
-    });
+    const sprite = sprites.sprite(def ? def.sprite : 'item.ground');
+    // A dropped thing lies on the carpet, and things on carpets have shadows.
+    renderer.fillCircle(item.x, item.y + config.shadowOffset, config.groundItemSize * 0.4, 'rgba(0,0,0,0.35)');
+    renderer.drawSprite(sprite, item.x, item.y, fit(sprite, config.groundItemSize));
   }
   for (const projectile of run.projectiles.values()) {
     const def = run.config.content.items[projectile.itemId];
-    renderer.drawSprite(
-      sprites.sprite(def ? def.sprite : 'item.ground'),
-      projectile.x,
-      projectile.y,
-      { width: config.projectileSize, height: config.projectileSize },
-    );
+    const sprite = sprites.sprite(def ? def.sprite : 'item.ground');
+    // A thrown thing points where it is going, and tumbles as it slows.
+    renderer.drawSprite(sprite, projectile.x, projectile.y, {
+      ...fit(sprite, config.projectileSize),
+      rotation: Math.atan2(projectile.vy, projectile.vx) + projectile.ticksLeft * config.throwSpin,
+    });
   }
 };
 
@@ -105,17 +120,37 @@ export const drawCreatures = (
   options: { readonly derangement: number; readonly view: ViewConfig },
 ): void => {
   const config = options.view;
+  const combat = run.combat;
+  // A swing catches everything inside the ring, so everything inside the ring
+  // flinches. Read off the same event the ring is drawn from rather than from
+  // per-creature state: the simulation keeps no memory of being hit, and this is
+  // feedback, not information the player has to be able to trust later.
+  const impact =
+    combat.event === 'hit' && combat.eventTicks > 0
+      ? combat.eventTicks / Math.max(1, run.config.combat.eventTicks)
+      : 0;
   for (const creature of run.creatures.values()) {
     const def = run.config.content.creatures[creature.defId];
     if (!def) continue;
     const x = creature.prevX + (creature.x - creature.prevX) * alpha;
     const y = creature.prevY + (creature.y - creature.prevY) * alpha;
+    const caught =
+      impact > 0 &&
+      Math.hypot(creature.x - run.player.x, creature.y - run.player.y) <= combat.reach + def.radius
+        ? impact
+        : 0;
+    const size = def.radius * config.creatureSpriteScale * (1 + caught * 0.18);
     renderer.fillCircle(x, y + config.shadowOffset, def.radius, 'rgba(0,0,0,0.4)');
     renderer.drawSprite(sprites.sprite(def.sprite), x, y, {
-      width: def.radius * config.creatureSpriteScale,
-      height: def.radius * config.creatureSpriteScale,
+      width: size,
+      height: size,
       rotation: creature.facing,
     });
+    if (caught > 0) {
+      renderer.setAlpha(caught);
+      renderer.fillCircle(x, y, def.radius * config.combat.impactScale, config.combat.impactColour);
+      renderer.setAlpha(1);
+    }
     if (creature.mode === 'chase') {
       renderer.strokeCircle(x, y, def.radius + 4, palette.danger, 2);
     }

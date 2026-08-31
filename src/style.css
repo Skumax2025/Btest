@@ -70,6 +70,7 @@ body {
   letter-spacing: 0.06em;
   --hud-opacity: 1;
   --strain: 0;
+  --hurt: 0;
 }
 
 /* One panel treatment, used by every corner. */
@@ -229,6 +230,29 @@ body {
   border-top: 1px solid var(--hud-line);
 }
 
+.hud-hand-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.hud-hand-icon {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+}
+
+.hud-hand-icon[hidden] { display: none; }
+
+.hud-hand-body {
+  flex: 1;
+  min-width: 0;
+}
+
 .hud-hand-head {
   display: flex;
   align-items: baseline;
@@ -297,7 +321,7 @@ body {
 .hud-belt-slot {
   position: relative;
   width: var(--belt-slot-size, 96px);
-  min-height: 54px;
+  min-height: 84px;
   padding: 6px 8px 10px;
   background: var(--hud-panel);
   border: 1px solid var(--hud-line);
@@ -326,15 +350,28 @@ body {
   letter-spacing: 0.18em;
 }
 
+.hud-belt-icon {
+  display: block;
+  height: 26px;
+  margin-top: 2px;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+}
+
+.hud-belt-icon[hidden] { display: none; }
+
 .hud-belt-name {
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   line-clamp: 2;
   overflow: hidden;
-  margin-top: 3px;
+  margin-top: 2px;
   color: var(--hud-text);
   height: 2.5em;
+  font-size: 10px;
 }
 
 .hud-belt-count {
@@ -380,6 +417,22 @@ body {
 
 .hud-breath--spent .hud-breath-fill {
   background: linear-gradient(90deg, rgba(216, 115, 92, 0.35), var(--hud-bad));
+}
+
+/* Being hurt reddens the edges of the screen for a moment. Same trick as the
+   strain vignette, different reason and a much faster fade. */
+.hud::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: var(--hurt, 0);
+  background: radial-gradient(
+    ellipse at center,
+    rgba(120, 12, 8, 0) 30%,
+    rgba(150, 18, 10, 0.75) 100%
+  );
 }
 
 /* Running out of air tightens the edges of the screen instead of turning a
@@ -497,9 +550,11 @@ body {
 .world-tooltip {
   position: absolute;
   z-index: 30;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
   width: 250px;
   padding: 12px 14px;
-  white-space: pre-line;
   background: #0d0b08;
   border: 1px solid var(--hud-line-strong);
   color: var(--hud-text);
@@ -507,6 +562,26 @@ body {
   line-height: 1.5;
   pointer-events: none;
   box-shadow: 0 12px 30px rgba(0,0,0,0.55);
+}
+
+.world-tooltip[hidden] { display: none; }
+
+.world-tooltip-icon {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+}
+
+.world-tooltip-icon[hidden] { display: none; }
+
+.world-tooltip-text {
+  flex: 1;
+  min-width: 0;
+  white-space: pre-line;
 }
 
 .bag {
@@ -587,7 +662,7 @@ body {
   border: 1px solid var(--hud-line);
   border-radius: var(--hud-radius);
   background: var(--hud-inset);
-  min-height: 52px;
+  min-height: 64px;
   transition: border-color 140ms ease;
 }
 
@@ -624,7 +699,7 @@ body {
   gap: 4px;
 }
 
-.bag-quick { width: 52px; }
+.bag-quick { width: 64px; }
 
 .bag-quick-key {
   position: absolute;
@@ -644,22 +719,38 @@ body {
   border-radius: var(--hud-radius);
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  padding: 4px;
+  padding: 3px;
   font-size: 9px;
   line-height: 1.2;
   cursor: grab;
   overflow: hidden;
 }
 
+/* The icon is the item. The name under it is the caption, not the label. */
+.bag-item-icon {
+  flex: 1 1 auto;
+  min-height: 20px;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55));
+  pointer-events: none;
+}
+
+.bag-item-icon[hidden] { display: none; }
+
 /* A long name is clipped by lines rather than mid-word. */
 .bag-item-name {
+  flex: 0 0 auto;
   display: -webkit-box;
   -webkit-box-orient: vertical;
-  -webkit-line-clamp: 4;
-  line-clamp: 4;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   overflow: hidden;
   word-break: break-word;
+  text-align: center;
+  color: var(--hud-dim);
+  font-size: 8.5px;
 }
 
 .bag-item--worn { border-color: #a08a4e; }
@@ -720,10 +811,32 @@ body {
 }
 
 .bag-tooltip {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
   width: 240px;
   padding: 10px;
-  white-space: pre-line;
   pointer-events: none;
+}
+
+.bag-tooltip[hidden] { display: none; }
+
+.bag-tooltip-icon {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+}
+
+.bag-tooltip-icon[hidden] { display: none; }
+
+.bag-tooltip-text {
+  flex: 1;
+  min-width: 0;
+  white-space: pre-line;
 }
 
 .bag-menu[hidden] { display: none; }
