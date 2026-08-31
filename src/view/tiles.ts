@@ -176,6 +176,7 @@ const drawWalls = (
   // at a point one unit off-centre.
   const lift = config.height / Math.max(1e-3, config.cameraHeight);
   const crest = tileSize * Math.min(config.crest, 1);
+  const split = Math.min(Math.max(config.faceSplit, 0), 1);
 
   for (let ty = range.minTy; ty <= range.maxTy; ty++) {
     for (let tx = range.minTx; tx <= range.maxTx; tx++) {
@@ -196,14 +197,15 @@ const drawWalls = (
       const facesNorth = topNorth > north && !isSolid(level, tx, ty - 1);
       const facesSouth = !facesNorth && topSouth < south && !isSolid(level, tx, ty + 1);
       if (facesNorth) {
-        fill(renderer, west, north, east, north, topEast, topNorth, topWest, topNorth, palette.wallShade);
+        shade(renderer, west, north, east, north, topEast, topNorth, topWest, topNorth, palette, split);
       } else if (facesSouth) {
+        // The one side the light never reaches down: south faces stay flat dark.
         fill(renderer, west, south, east, south, topEast, topSouth, topWest, topSouth, palette.wallFaceDark);
       }
       if (topWest > west && !isSolid(level, tx - 1, ty)) {
-        fill(renderer, west, north, west, south, topWest, topSouth, topWest, topNorth, palette.wallShade);
+        shade(renderer, west, north, west, south, topWest, topSouth, topWest, topNorth, palette, split);
       } else if (topEast < east && !isSolid(level, tx + 1, ty)) {
-        fill(renderer, east, north, east, south, topEast, topSouth, topEast, topNorth, palette.wallShade);
+        shade(renderer, east, north, east, south, topEast, topSouth, topEast, topNorth, palette, split);
       }
 
       const top = tile === TILE.WALL ? palette.wall : palette.pillar;
@@ -218,6 +220,33 @@ const drawWalls = (
       }
     }
   }
+};
+
+/**
+ * A wall's side in two tones: dark where it meets the floor, lighter towards the
+ * crest. One flat colour reads as a stripe painted beside the wall; the moment
+ * the bottom of it is darker than the top, it reads as a surface going away
+ * under the light.
+ */
+const shade = (
+  renderer: Renderer,
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number,
+  cx: number,
+  cy: number,
+  dx: number,
+  dy: number,
+  palette: Palette,
+  split: number,
+): void => {
+  const midAx = ax + (dx - ax) * split;
+  const midAy = ay + (dy - ay) * split;
+  const midBx = bx + (cx - bx) * split;
+  const midBy = by + (cy - by) * split;
+  fill(renderer, ax, ay, bx, by, midBx, midBy, midAx, midAy, palette.wallFaceDark);
+  fill(renderer, midAx, midAy, midBx, midBy, cx, cy, dx, dy, palette.wallShade);
 };
 
 const fill = (

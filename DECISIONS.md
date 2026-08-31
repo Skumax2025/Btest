@@ -515,3 +515,9 @@ of `tests/invariants.test.ts` and `tests/content.test.ts` now being in the suite
   fills in the frame four times over. Blurring at that size makes the penumbra
   and the halo close to free; a scene full of lamps is now faster than it was
   before any of this.
+- **Lamps blinked into being as you walked towards them.** Perception collected
+  lamps within two lamp radii of the player and the view draws exactly that list,
+  so on a wide screen a lamp far enough out to be culled still had half its pool
+  inside the frame. Four radii now, and props are gathered four tiles past the
+  edge of the view rather than two, because a lamp hung off the top of the screen
+  leans back into it.

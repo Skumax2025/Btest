@@ -355,7 +355,11 @@ export class Run implements RunWorld {
 
   private perceiveNow(): Perception {
     return perceive({
-      props: this.propsNear(this.player.x, this.player.y, this.config.lighting.lampRadius * 2),
+      // Four lamp radii, not two: the view draws the lamps this list holds, and a
+      // lamp far enough off screen to be culled here can still have half its pool
+      // inside it. At two radii those pools blinked into being as the player
+      // walked towards them.
+      props: this.propsNear(this.player.x, this.player.y, this.config.lighting.lampRadius * 4),
       creatures: this.creatures.values(),
       creatureDefs: this.config.content.creatures,
       tick: this.tick,

@@ -327,9 +327,17 @@ Nothing on either brief's cut list was cut. These are the honest gaps:
 - **Shadows are cast by a ray fan, not by wall corners.** The angular gap between
   two rays is the size of the jagged step a shadow edge can show, so the counts
   in `VISION` are set to keep that gap under a tile out to the distance the
-  player can actually see. Beyond that, far shadow edges are approximate.
-- **Light is a flat overlay, so nothing is shaded by direction.** A wall's lit
-  face is the near half of its tile rather than a surface with a normal.
+  player can actually see. Beyond that, far shadow edges are approximate, and the
+  penumbra every edge is given is what hides the difference.
+- **Light is gathered at a quarter of the screen's resolution.** It is blurred
+  before it is used, so the detail is not missed, but a lit sliver narrower than
+  four device pixels will not be resolved.
+- **Nothing is shaded by a surface normal.** Walls are drawn standing — the top
+  pushed away from the middle of the screen by its height over the camera's, the
+  strip that opens up being the side — and the sides are shaded by which way they
+  face and how far up they are, not by where the light is. What makes a wall
+  brighter on the side nearest a lamp is that light stops halfway into its tile,
+  not that the surface knows where the lamp is.
 - **No touch input.** The input layer is abstracted so an adapter that produces
   `InputFrame`s is all it would take, but the adapter is not written.
 - **Sound is synthesised placeholder tones**, like the sprites. Both sit behind

@@ -54,7 +54,9 @@ export const drawProps = (
 ): void => {
   const tileSize = run.config.geometry.tileSize;
   const wall = config.wall;
-  const bounds = viewBounds(view, tileSize * 2);
+  // Four tiles of margin: a lamp hung off the top of the screen still leans
+  // back into it.
+  const bounds = viewBounds(view, tileSize * 4);
   const visible = run.propsInRect(bounds.minX, bounds.minY, bounds.maxX, bounds.maxY);
   for (const prop of visible) {
     if (prop.kind !== 'marker') continue;

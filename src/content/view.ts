@@ -113,8 +113,10 @@ export interface WallViewConfig {
   readonly height: number;
   /** How far above the floor the camera sits, in tiles. Larger is flatter. */
   readonly cameraHeight: number;
-  /** The bright line along a wall's north crest, as a share of a tile. */
+  /** The bright line along the crest of a wall, as a share of a tile. */
   readonly crest: number;
+  /** Share of a wall's side, from the floor up, that stays in its own shadow. */
+  readonly faceSplit: number;
   /** How far a wall's shadow reaches onto the floor beside it, in tiles. */
   readonly contactShadow: number;
   readonly contactShadowColour: string;
@@ -199,7 +201,8 @@ export const VIEW: ViewConfig = {
   wall: {
     height: 0.62,
     cameraHeight: 16,
-    crest: 0.1,
+    crest: 0.08,
+    faceSplit: 0.45,
     contactShadow: 0.42,
     contactShadowColour: 'rgba(9,7,4,0.55)',
     propHeight: 0.5,
