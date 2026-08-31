@@ -244,7 +244,12 @@ export const applyContactDamage = (world: RunWorld): void => {
       continue;
     }
 
-    const raw = def.killsOnContact ? world.config.stats.maxHealth : def.damage;
-    applyDamage(world.stats, throughArmor(world, raw), 'injury', world.config.stats);
+    // A thing that kills by touching you is not a blow armour stands in front
+    // of — that is the whole of what the flag means, and plate must not turn it
+    // into a survivable scratch.
+    const damage = def.killsOnContact
+      ? world.config.stats.maxHealth
+      : throughArmor(world, def.damage);
+    applyDamage(world.stats, damage, 'injury', world.config.stats);
   }
 };

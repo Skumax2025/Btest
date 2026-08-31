@@ -198,8 +198,24 @@ export class LevelStream {
     if (!delta.opened.includes(key)) delta.opened.push(key);
   }
 
-  drop(itemId: string, count: number, worldX: number, worldY: number): void {
-    this.deltaForWorld(worldX, worldY).dropped.push({ itemId, count, x: worldX, y: worldY });
+  /**
+   * Puts a stack on the floor. Its condition travels with it, so a nearly-broken
+   * weapon does not come back off the ground as good as new.
+   */
+  drop(
+    itemId: string,
+    count: number,
+    worldX: number,
+    worldY: number,
+    condition?: { durability: number; charge: number },
+  ): void {
+    this.deltaForWorld(worldX, worldY).dropped.push({
+      itemId,
+      count,
+      x: worldX,
+      y: worldY,
+      ...(condition ?? {}),
+    });
   }
 
   /** Removes one dropped stack; returns false when it was already gone. */

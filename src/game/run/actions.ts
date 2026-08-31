@@ -10,11 +10,13 @@ import type { InputFrame } from '@core/input';
 import { wasPressed } from '@core/input';
 import { streamFor } from '@core/rng';
 import {
+  activeLight,
   addItem,
   equip,
   equippedStack,
   findStack,
   heldStack,
+  isEquipped,
   passives,
   quickStack,
   removeStack,
@@ -85,11 +87,14 @@ const beginSearch = (world: RunWorld, prop: PropSpawn): void => {
     Math.round((def?.searchTicks ?? world.config.interaction.searchFallbackTicks) * factor),
   );
   world.search = { key: prop.key, x: prop.x, y: prop.y, ticksLeft: ticks, total: ticks };
+  // A tool that opens a crate faster opens it more quietly too: the factor is
+  // about how much prying the lid takes, and prying is the noise.
   world.emitNoise(
     prop.x,
     prop.y,
     (def?.searchNoise ?? world.config.noise.searchFallback) *
-      world.config.interaction.searchStartNoiseFactor,
+      world.config.interaction.searchStartNoiseFactor *
+      factor,
     'search',
   );
 };
@@ -104,7 +109,8 @@ export const finishSearch = (world: RunWorld, prop: PropSpawn): void => {
   world.emitNoise(
     prop.x,
     prop.y,
-    containerDef?.searchNoise ?? world.config.noise.searchFallback,
+    (containerDef?.searchNoise ?? world.config.noise.searchFallback) *
+      passives(world.inventory, world.config.content.items).searchFactor,
     'search',
   );
   if (!table) return;
@@ -126,7 +132,17 @@ export const finishSearch = (world: RunWorld, prop: PropSpawn): void => {
 };
 
 const pickUp = (world: RunWorld, ground: GroundItem): void => {
-  const leftover = addItem(world.inventory, world.config.content.items, ground.itemId, ground.count);
+  const condition =
+    ground.durability === undefined && ground.charge === undefined
+      ? undefined
+      : { durability: ground.durability, charge: ground.charge };
+  const leftover = addItem(
+    world.inventory,
+    world.config.content.items,
+    ground.itemId,
+    ground.count,
+    condition,
+  );
   const taken = ground.count - leftover;
   if (taken <= 0) {
     world.setHint('full');
@@ -134,7 +150,12 @@ const pickUp = (world: RunWorld, ground: GroundItem): void => {
   }
   world.collected += taken;
   world.level.undrop(ground.x, ground.y, ground.index);
-  if (leftover > 0) world.level.drop(ground.itemId, leftover, ground.x, ground.y);
+  if (leftover > 0) {
+    world.level.drop(ground.itemId, leftover, ground.x, ground.y, {
+      durability: ground.durability ?? 0,
+      charge: ground.charge ?? 0,
+    });
+  }
 };
 
 /**
@@ -180,8 +201,8 @@ const applyEffects = (world: RunWorld, effects: readonly ItemEffect[]): void => 
   }
 };
 
-/** The tape goes on whatever is closest to falling apart. */
-const repairWorst = (world: RunWorld, amount: number): void => {
+/** Whatever being worn is closest to falling apart, or nothing if all is well. */
+const worstWorn = (world: RunWorld): number | null => {
   let worst: { id: number; share: number } | null = null;
   for (const slot of EQUIP_SLOTS) {
     const stack = equippedStack(world.inventory, slot);
@@ -192,11 +213,14 @@ const repairWorst = (world: RunWorld, amount: number): void => {
     if (share >= 1) continue;
     if (!worst || share < worst.share) worst = { id: stack.id, share };
   }
-  if (!worst) {
-    world.setHint('nothing');
-    return;
-  }
-  const stack = findStack(world.inventory, worst.id);
+  return worst ? worst.id : null;
+};
+
+/** The tape goes on whatever is closest to falling apart. */
+const repairWorst = (world: RunWorld, amount: number): void => {
+  const id = worstWorn(world);
+  if (id === null) return;
+  const stack = findStack(world.inventory, id);
   const def = stack ? world.config.content.items[stack.itemId] : undefined;
   if (stack && def?.durability) {
     stack.durability = Math.min(def.durability.max, stack.durability + amount);
@@ -220,7 +244,14 @@ export const useStack = (world: RunWorld, id: number): boolean => {
   const use = def.use;
   if (!use) return false;
 
-  applyEffects(world, effectsOf(def, stack.durability));
+  // Tape spent on a set of gear that is all still good would be a use thrown
+  // away for nothing; it refuses instead.
+  const effects = effectsOf(def, stack.durability);
+  if (effects.some((effect) => effect.kind === 'repair') && worstWorn(world) === null) {
+    world.setHint('nothing');
+    return false;
+  }
+  applyEffects(world, effects);
   if (def.durability?.perUse) {
     wearStack(world.inventory, world.config.content.items, id, def.durability.perUse);
   }
@@ -269,7 +300,10 @@ export const defaultSlotFor = (world: RunWorld, id: number): EquipSlot | null =>
 };
 
 const dropStackOnFloor = (world: RunWorld, stack: InventoryStack): void => {
-  world.level.drop(stack.itemId, stack.count, world.player.x, world.player.y);
+  world.level.drop(stack.itemId, stack.count, world.player.x, world.player.y, {
+    durability: stack.durability,
+    charge: stack.charge,
+  });
 };
 
 /**
@@ -285,36 +319,46 @@ export const dropStack = (world: RunWorld, id: number): boolean => {
   return true;
 };
 
+/** A battery goes into the lamp being used, not into whichever was found first. */
 const rechargeLight = (world: RunWorld, amount: number): void => {
-  for (const stack of world.inventory.stacks) {
-    const def = world.config.content.items[stack.itemId];
-    if (def && isLightSource(def)) {
-      stack.charge = Math.min(def.charge, stack.charge + amount);
-      return;
-    }
-  }
+  const stack = activeLight(world.inventory, world.config.content.items);
+  const def = stack ? world.config.content.items[stack.itemId] : undefined;
+  if (stack && def) stack.charge = Math.min(def.charge, stack.charge + amount);
 };
 
 /**
- * A belt slot is used where it hangs. Nothing that needs a hand can be on the
- * belt in the first place, so there is no case to branch on.
+ * A belt slot does the obvious thing with what hangs on it: you eat the food,
+ * you switch the light on, and a lure — which has no other use — you throw.
  */
-export const useQuickSlot = (world: RunWorld, index: number): void => {
+export const useQuickSlot = (world: RunWorld, index: number, aim: Aim): void => {
   const stack = quickStack(world.inventory, index);
-  if (stack) useStack(world, stack.id);
+  const def = stack ? world.config.content.items[stack.itemId] : undefined;
+  if (!stack || !def) return;
+  if (!def.use && !isLightSource(def) && def.throwable) {
+    throwStack(world, stack, aim);
+    return;
+  }
+  useStack(world, stack.id);
 };
 
-const throwHeld = (world: RunWorld, input: InputFrame): void => {
-  const held = heldStack(world.inventory);
-  if (!held) return;
-  const def = world.config.content.items[held.itemId];
-  if (!def || !def.throwable) return;
-  const dx = input.pointerX - world.player.x;
-  const dy = input.pointerY - world.player.y;
+/** Where a throw is aimed. The pointer while playing; the cursor from a click. */
+export interface Aim {
+  readonly x: number;
+  readonly y: number;
+}
+
+/** Sends one unit of a stack flying, from wherever that stack is sitting. */
+const throwStack = (world: RunWorld, stack: InventoryStack, aim: Aim): boolean => {
+  const def = world.config.content.items[stack.itemId];
+  if (!def || !def.throwable) return false;
+  const dx = aim.x - world.player.x;
+  const dy = aim.y - world.player.y;
   const length = Math.hypot(dx, dy) || 1;
   const speed = world.config.interaction.throwSpeed;
   world.spawn(world.projectiles, {
-    itemId: held.itemId,
+    itemId: stack.itemId,
+    durability: stack.durability,
+    charge: stack.charge,
     x: world.player.x,
     y: world.player.y,
     vx: (dx / length) * speed,
@@ -323,7 +367,13 @@ const throwHeld = (world: RunWorld, input: InputFrame): void => {
       world.config.interaction.throwRange / (speed * world.config.stepSeconds),
     ),
   });
-  takeFrom(world.inventory, held.id, 1);
+  takeFrom(world.inventory, stack.id, 1);
+  return true;
+};
+
+const throwHeld = (world: RunWorld, input: InputFrame): void => {
+  const held = heldStack(world.inventory);
+  if (held) throwStack(world, held, { x: input.pointerX, y: input.pointerY });
 };
 
 const dropHeld = (world: RunWorld): void => {
@@ -331,18 +381,19 @@ const dropHeld = (world: RunWorld): void => {
   if (held) dropStack(world, held.id);
 };
 
-/** R works whether or not the light is the item in hand. */
+/** R works whether or not the lamp is the item in hand. */
 const toggleLight = (world: RunWorld): void => {
-  for (const stack of world.inventory.stacks) {
-    const def = world.config.content.items[stack.itemId];
-    if (!def || !isLightSource(def)) continue;
-    if (stack.charge <= 0) {
-      world.flashlightOn = false;
-      return;
-    }
-    world.flashlightOn = !world.flashlightOn;
-    if (world.inventory.equipment.hand === null) equipStack(world, stack.id, 'hand');
+  const stack = activeLight(world.inventory, world.config.content.items);
+  if (!stack) return;
+  if (stack.charge <= 0) {
+    world.flashlightOn = false;
     return;
+  }
+  world.flashlightOn = !world.flashlightOn;
+  // A lamp switched on out of the bag goes into a free hand, so it is obvious
+  // which one is burning.
+  if (!isEquipped(world.inventory, stack.id) && world.inventory.equipment.hand === null) {
+    equipStack(world, stack.id, 'hand');
   }
 };
 
@@ -359,8 +410,12 @@ export const handleActions = (world: RunWorld, input: InputFrame): void => {
   if (wasPressed(input, actions.flashlight)) toggleLight(world);
   if (wasPressed(input, actions.throwItem)) throwHeld(world, input);
   if (wasPressed(input, actions.drop)) dropHeld(world);
-  if (wasPressed(input, actions.swapHands)) swapHands(world.inventory);
+  if (wasPressed(input, actions.swapHands)) {
+    swapHands(world.inventory, world.config.content.items);
+  }
   actions.quick.forEach((name, index) => {
-    if (wasPressed(input, name)) useQuickSlot(world, index);
+    if (wasPressed(input, name)) {
+      useQuickSlot(world, index, { x: input.pointerX, y: input.pointerY });
+    }
   });
 };

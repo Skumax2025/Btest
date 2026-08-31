@@ -142,7 +142,15 @@ export interface ChunkDelta {
   /** Prop keys of containers that have already been searched. */
   opened: string[];
   /** Items dropped on the floor by the player, in world units. */
-  dropped: Array<{ itemId: string; count: number; x: number; y: number }>;
+  dropped: Array<{
+    itemId: string;
+    count: number;
+    x: number;
+    y: number;
+    /** Condition and charge the stack had when it was put down, if any. */
+    durability?: number;
+    charge?: number;
+  }>;
 }
 
 export const emptyDelta = (): ChunkDelta => ({ consumed: [], opened: [], dropped: [] });

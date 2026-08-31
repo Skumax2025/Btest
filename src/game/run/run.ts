@@ -19,16 +19,17 @@ import type { LevelSpec, PropSpawn } from '@game/level';
 import { createPlayer, stepPlayer } from '@game/player';
 import type { PlayerState } from '@game/player';
 import {
+  activeLight,
   addItem,
   createInventory,
-  evictPockets,
   passives,
+  settle,
   stepWear,
   tickWear,
   withContents,
 } from '@game/inventory';
 import type { InventoryState } from '@game/inventory';
-import { NEUTRAL_PASSIVE, isLightSource } from '@game/items';
+import { NEUTRAL_PASSIVE } from '@game/items';
 import type { LightDef, PassiveDef } from '@game/items';
 import { canSprint, createStats, isDead, stepStats } from '@game/stats';
 import type { StatsState } from '@game/stats';
@@ -182,11 +183,12 @@ export class Run implements RunWorld {
   }
 
   /**
-   * A pack that has worn through loses pockets, and what was in them has to go
-   * somewhere. It goes on the floor, at your feet, loudly enough to notice.
+   * A pack that has worn through holds fewer cells and fewer pockets, and a pack
+   * dropped off your back takes its cells with it. What no longer fits goes on
+   * the floor, at your feet, loudly enough to notice.
    */
-  private spillWornPockets(): void {
-    const ejected = evictPockets(this.inventory, this.config.content.items);
+  private settleInventory(): void {
+    const ejected = settle(this.inventory, this.config.content.items);
     if (ejected.length === 0) return;
     for (const stack of ejected) {
       for (const piece of withContents(stack)) {
@@ -254,7 +256,7 @@ export class Run implements RunWorld {
     this.perception = this.perceiveNow();
     this.passives = passives(this.inventory, this.config.content.items);
     tickWear(this.inventory, this.config.content.items, this.config.stepSeconds);
-    this.spillWornPockets();
+    this.settleInventory();
 
     stepPlayer(this.player, {
       input,
@@ -341,11 +343,9 @@ export class Run implements RunWorld {
    * the difference is in the catalogue, not here.
    */
   get lightShape(): LightDef | null {
-    for (const stack of this.inventory.stacks) {
-      const def = this.config.content.items[stack.itemId];
-      if (def && isLightSource(def) && stack.charge > 0) return def.light;
-    }
-    return null;
+    const stack = activeLight(this.inventory, this.config.content.items);
+    const def = stack ? this.config.content.items[stack.itemId] : undefined;
+    return stack && def && stack.charge > 0 ? def.light : null;
   }
 
   /** Seconds the run has lasted, from the only clock the simulation has. */

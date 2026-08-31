@@ -17,6 +17,7 @@
 import type { Run } from '@game/run';
 import type { HintKey } from '@game/run';
 import {
+  activeLight,
   armorPieces,
   capacity,
   equippedStack,
@@ -24,7 +25,7 @@ import {
   quickStack,
   usedCells,
 } from '@game/inventory';
-import { condition, isLightSource } from '@game/items';
+import { condition } from '@game/items';
 import type { EquipSlot } from '@game/items';
 import { isLowSanity } from '@game/stats';
 import type { HudConfig } from '@content/view';
@@ -379,20 +380,14 @@ export class Hud {
 
     setText(this.carryValue, `${usedCells(run.inventory)}/${capacity(run.inventory, catalog)}`);
 
-    // The lamp is the one carried thing that runs down whether or not it is held.
-    let charge = 0;
-    let hasLight = false;
-    for (const stack of run.inventory.stacks) {
-      const def = catalog[stack.itemId];
-      if (!def || !isLightSource(def)) continue;
-      hasLight = true;
-      charge = Math.max(charge, stack.charge);
-    }
-    this.lightRow.hidden = !hasLight;
-    if (hasLight) {
-      const seconds = t('ui.seconds', { value: Math.ceil(charge) });
+    // The lamp is the one carried thing that runs down whether or not it is held,
+    // and only the one actually burning is worth a readout.
+    const lamp = activeLight(run.inventory, catalog);
+    this.lightRow.hidden = lamp === null;
+    if (lamp) {
+      const seconds = t('ui.seconds', { value: Math.ceil(lamp.charge) });
       setText(this.lightValue, `${seconds} · ${t(run.flashlightOn ? 'ui.on' : 'ui.off')}`);
-      this.lightRow.classList.toggle('hud-belt-meta-item--critical', charge <= 0);
+      this.lightRow.classList.toggle('hud-belt-meta-item--critical', lamp.charge <= 0);
     }
   }
 

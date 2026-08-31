@@ -129,7 +129,7 @@ export class App {
     });
 
     this.hud = new Hud(this.overlay, this.ui, VIEW.hud, {
-      useBelt: (index) => useQuickSlot(this.run, index),
+      useBelt: (index) => useQuickSlot(this.run, index, this.pointerWorld()),
       toggleControls: () =>
         this.applySettings({ ...this.settings, showControls: !this.settings.showControls }),
     });
@@ -310,6 +310,12 @@ export class App {
     // Rebinding a key rewrites every label that names one, here and in the bag.
     this.ui.binder.refresh();
     saveSettings(this.storage, settings);
+  }
+
+  /** Where the cursor is pointing, in world units — what a thrown thing aims at. */
+  private pointerWorld(): { x: number; y: number } {
+    const pointer = this.input.pointerScreen;
+    return this.camera.screenToWorld(pointer.x, pointer.y);
   }
 
   private readonly resize = (): void => {

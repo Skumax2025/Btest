@@ -15,10 +15,13 @@ import {
   containerStacks,
   equippedStack,
   findStack,
+  freeCells,
+  isEquipped,
   mergeStacks,
   moveToContainer,
   overflowFor,
   pocketRoom,
+  quickIndexOf,
   quickStack,
   setQuick,
   splitStack,
@@ -383,7 +386,7 @@ export class InventoryUi {
     }
     switch (target.kind) {
       case 'container':
-        moveToContainer(this.state, stack.id);
+        this.intoBag(stack.id);
         break;
       case 'slot':
         this.requestEquip(stack.id, target.slot);
@@ -398,6 +401,21 @@ export class InventoryUi {
     }
     this.render();
   };
+
+  /**
+   * Into the bag from wherever it was. Taking a worn piece off goes through the
+   * run, which refuses when there is no cell for it; coming off the belt is
+   * refused here for the same reason. Neither may quietly push something else
+   * out of the bag and onto the floor.
+   */
+  private intoBag(id: number): void {
+    if (isEquipped(this.state, id)) {
+      this.host.unequip(id);
+      return;
+    }
+    if (quickIndexOf(this.state, id) >= 0 && freeCells(this.state, this.catalog) <= 0) return;
+    moveToContainer(this.state, id);
+  }
 
   /**
    * A smaller pack costs whatever no longer fits. What another pocket will take

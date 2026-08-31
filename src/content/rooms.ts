@@ -965,7 +965,8 @@ export const LEVEL1_LANDMARKS: readonly LandmarkTemplate[] = [
       '....,,,,,,,....',
       '....,.....,....',
       '....,.....,....',
-      // Deliberately open on the right: the ring has one way in.
+      // The stain ring is deliberately broken on one side; `,` is a mark on the
+      // floor, not a wall, so nothing is being kept in or out by it.
       '....,..........',
       '....,.....,....',
       '....,.....,....',

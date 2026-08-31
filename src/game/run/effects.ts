@@ -7,7 +7,7 @@
 
 import { castRay } from '@systems/raycast';
 import { clamp } from '@core/math';
-import { isLightSource } from '@game/items';
+import { activeLight } from '@game/inventory';
 import { finishSearch } from './actions';
 import type { Beacon, RunWorld } from './world-access';
 
@@ -32,7 +32,10 @@ export const stepProjectiles = (world: RunWorld): void => {
       const landX = hit.blocked ? projectile.x : nextX;
       const landY = hit.blocked ? projectile.y : nextY;
       const def = world.config.content.items[projectile.itemId];
-      world.level.drop(projectile.itemId, 1, landX, landY);
+      world.level.drop(projectile.itemId, 1, landX, landY, {
+        durability: projectile.durability,
+        charge: projectile.charge,
+      });
       if (def) world.emitNoise(landX, landY, def.noise, 'impact');
       if (def?.beacon) {
         const beacon: Beacon = {
@@ -111,15 +114,14 @@ export const stepSearch = (world: RunWorld): void => {
 
 /** Burns the light source down while it is on; returns the charge left. */
 export const stepLight = (world: RunWorld): number => {
-  let charge = 0;
-  for (const stack of world.inventory.stacks) {
-    const def = world.config.content.items[stack.itemId];
-    if (!def || !isLightSource(def)) continue;
-    if (world.flashlightOn) {
-      stack.charge = Math.max(0, stack.charge - world.config.stepSeconds);
-    }
-    charge = Math.max(charge, stack.charge);
+  const stack = activeLight(world.inventory, world.config.content.items);
+  if (!stack) {
+    world.flashlightOn = false;
+    return 0;
   }
-  if (charge <= 0) world.flashlightOn = false;
-  return charge;
+  if (world.flashlightOn) {
+    stack.charge = Math.max(0, stack.charge - world.config.stepSeconds);
+  }
+  if (stack.charge <= 0) world.flashlightOn = false;
+  return stack.charge;
 };

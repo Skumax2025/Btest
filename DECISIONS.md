@@ -434,3 +434,38 @@ I went, so the order is roughly chronological.
   at mid-stride without being searched for, and a corner made them something to
   find. They are centred again and half as large again, with the level line left
   alone in the corner they vacated.
+
+## The bug sweep (G10)
+
+Found by hammering invariants and by reading, not by playing — which is the point
+of `tests/invariants.test.ts` and `tests/content.test.ts` now being in the suite.
+
+- **Swapping hands ignored what fits where.** `swapHands` traded the two slot ids
+  without asking the catalogue, so a pipe — main hand only, by design — ended up
+  in the off hand, where it then offered to block. It now refuses a swap that
+  would put something where it does not belong.
+- **Capacity could shrink without the bag being trimmed.** Wearing a pack through,
+  or dropping the one off your back, took cells away while the contents stayed.
+  `settle` now runs every tick: overflow goes to pockets first and to the floor
+  second, which is the same rule swapping packs already followed.
+- **Every lamp burned at once.** `stepLight` walked the whole bag, so a spare
+  torch and three glow sticks drained together. One lamp is active — worn or held
+  first, then the bag — and it is the one that burns, the one a battery fills and
+  the one the display reports.
+- **Armour softened a creature that kills by touching you.** `killsOnContact`
+  went through the armour formula and came out survivable. It bypasses armour
+  now; that flag is the whole of what those creatures are.
+- **Putting something down repaired it.** Dropped and thrown items carried only
+  an id and a count, so a pipe one swing from breaking came back off the floor as
+  good as new. Condition and charge travel with a stack onto the ground and back.
+- **Two UI paths could push the bag past its cells.** Dragging a worn piece or a
+  belt item into the bag called the unguarded move rather than the guarded one;
+  with `settle` running, the excess would have quietly hit the floor. Both now go
+  through the same refusal the context menu already used.
+- **Tape was spent on gear that needed nothing**, and the crowbar promised a
+  quieter search while only making it faster. Both now do what they say.
+- **Three belt items did nothing when their key was pressed.** A lure has no
+  `use`, so the belt did nothing with it; the belt now throws what it cannot eat
+  or switch on, which is what a lure on a belt is for.
+- **The belt overlapped the key legend at 1024 wide.** The adaptive breakpoint sat
+  at 860 and the collision starts at about 1200.

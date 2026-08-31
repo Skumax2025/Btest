@@ -20,7 +20,7 @@ export {
   useQuickSlot,
   useStack,
 } from './actions';
-export type { Interactable } from './actions';
+export type { Aim, Interactable } from './actions';
 export { SAVE_VERSION, restoreRun, snapshotRun } from './save';
 export type { RunSave } from './save';
 export type {

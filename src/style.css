@@ -470,12 +470,18 @@ body {
   .hud-bar { min-width: 128px; }
 }
 
-@media (max-width: 860px) {
+/* Below this the belt, centred, reaches the legend in the corner: the legend
+   goes to one column and the slots give up some width. */
+@media (max-width: 1200px) {
   .hud-keys-grid { grid-template-columns: auto; }
-  .hud-belt-slot { width: 76px; }
+  .hud-belt-slot { width: 78px; }
+}
+
+@media (max-width: 860px) {
   .hud-hands { width: 220px; }
   .hud-vitals { flex-wrap: wrap; max-width: calc(100vw - 28px); }
   .hud-bar { min-width: calc(50% - 8px); }
+  .hud-belt-slot { width: 68px; }
 }
 
 @keyframes strain {

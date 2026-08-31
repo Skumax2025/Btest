@@ -106,6 +106,9 @@ export interface GroundItem {
   readonly cy: number;
   /** Index inside that chunk's dropped list. */
   readonly index: number;
+  /** Condition it was put down with; absent for loot that was never carried. */
+  readonly durability?: number;
+  readonly charge?: number;
 }
 
 /**
@@ -135,6 +138,9 @@ export interface Beacon {
 
 export interface Projectile {
   itemId: string;
+  /** Carried along so a thrown weapon lands as worn as it was thrown. */
+  durability: number;
+  charge: number;
   x: number;
   y: number;
   vx: number;

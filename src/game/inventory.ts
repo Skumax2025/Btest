@@ -20,6 +20,7 @@ import {
   fitsBelt,
   fitsSlot,
   hasPockets,
+  isLightSource,
   maxDurability,
   passiveOf,
 } from './items';
@@ -132,13 +133,24 @@ export const usedCells = (state: InventoryState): number => containerStacks(stat
 export const freeCells = (state: InventoryState, catalog: ItemCatalog): number =>
   capacity(state, catalog) - usedCells(state);
 
-/** One stack of one item, born at whatever condition the catalogue says. */
-const newStack = (state: InventoryState, def: ItemDef, count: number): InventoryStack => ({
+/** The part of a stack's state that survives being put down and picked up. */
+export interface StackCondition {
+  readonly durability?: number;
+  readonly charge?: number;
+}
+
+/** One stack of one item, born at whatever condition it is handed. */
+const newStack = (
+  state: InventoryState,
+  def: ItemDef,
+  count: number,
+  condition?: StackCondition,
+): InventoryStack => ({
   id: state.nextId++,
   itemId: def.id,
   count,
-  charge: def.charge,
-  durability: maxDurability(def),
+  charge: Math.min(def.charge, condition?.charge ?? def.charge),
+  durability: Math.min(maxDurability(def), condition?.durability ?? maxDurability(def)),
   contents: [],
 });
 
@@ -154,9 +166,12 @@ export const addItem = (
   catalog: ItemCatalog,
   itemId: string,
   count: number,
+  condition?: StackCondition,
 ): number => {
   const def = catalog[itemId];
   if (!def || count <= 0) return count;
+  const durability = Math.min(maxDurability(def), condition?.durability ?? maxDurability(def));
+  const charge = Math.min(def.charge, condition?.charge ?? def.charge);
   let remaining = count;
 
   for (const stack of state.stacks) {
@@ -165,13 +180,14 @@ export const addItem = (
     if (isEquipped(state, stack.id)) continue;
     const taken = Math.min(def.maxStack - stack.count, remaining);
     stack.count += taken;
-    stack.durability = Math.min(stack.durability, maxDurability(def));
+    stack.durability = Math.min(stack.durability, durability);
+    stack.charge = Math.min(stack.charge, charge);
     remaining -= taken;
   }
 
   while (remaining > 0 && freeCells(state, catalog) > 0) {
     const taken = Math.min(def.maxStack, remaining);
-    state.stacks.push(newStack(state, def, taken));
+    state.stacks.push(newStack(state, def, taken, condition));
     remaining -= taken;
   }
   return remaining;
@@ -269,6 +285,20 @@ export const evictPockets = (
     }
   }
   return ejected;
+};
+
+/**
+ * Brings the bag back inside what it can actually hold, and hands back whatever
+ * has to leave. Capacity is not constant: a pack wears through and loses cells,
+ * and one dropped off your back takes its cells with it. Anything the bag can no
+ * longer hold is offered to the pockets of what is left before it is given up.
+ */
+export const settle = (
+  state: InventoryState,
+  catalog: ItemCatalog,
+): InventoryStack[] => {
+  const { spilled } = trimOverflow(state, catalog);
+  return [...spilled, ...evictPockets(state, catalog)];
 };
 
 /** Everything a stack is carrying, itself included — used when it leaves the bag. */
@@ -457,11 +487,51 @@ export const setHand = (
   return equip(state, catalog, id, 'hand').ok;
 };
 
-/** Swaps primary and secondary. Neither has to be there for it to make sense. */
-export const swapHands = (state: InventoryState): void => {
+/**
+ * Swaps primary and secondary. Neither has to be there for it to make sense —
+ * but both have to be allowed where they land, or a two-handed pipe ends up in
+ * the off hand offering to block with itself.
+ */
+export const swapHands = (state: InventoryState, catalog: ItemCatalog): boolean => {
   const hand = state.equipment.hand;
-  state.equipment.hand = state.equipment.offhand;
+  const offhand = state.equipment.offhand;
+  const fits = (id: number | null, slot: EquipSlot): boolean => {
+    if (id === null) return true;
+    const stack = findStack(state, id);
+    return stack !== undefined && canEquip(catalog, stack.itemId, slot);
+  };
+  if (!fits(hand, 'offhand') || !fits(offhand, 'hand')) return false;
+  state.equipment.hand = offhand;
   state.equipment.offhand = hand;
+  return true;
+};
+
+/**
+ * The lamp actually in use: one that is worn or held first, then whatever else
+ * is in the bag. Exactly one lamp burns at a time, so carrying a spare is
+ * carrying a spare rather than burning two at once.
+ */
+export const activeLight = (
+  state: InventoryState,
+  catalog: ItemCatalog,
+): InventoryStack | null => {
+  let spent: InventoryStack | null = null;
+  const consider = (stack: InventoryStack | null): InventoryStack | null => {
+    const def = stack ? catalog[stack.itemId] : undefined;
+    if (!stack || !def || !isLightSource(def)) return null;
+    if (stack.charge > 0) return stack;
+    spent = spent ?? stack;
+    return null;
+  };
+  for (const slot of EQUIP_SLOTS) {
+    const found = consider(equippedStack(state, slot));
+    if (found) return found;
+  }
+  for (const stack of state.stacks) {
+    const found = consider(stack);
+    if (found) return found;
+  }
+  return spent;
 };
 
 /** Multipliers from everything worn, worn-down values included. */

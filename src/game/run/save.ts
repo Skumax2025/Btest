@@ -19,7 +19,7 @@ import type { CombatState, LastingEffect, SearchProgress } from './world-access'
  * Bumped whenever the shape changes. A mismatch throws the old run away and
  * starts a new one — settings live under their own key and are untouched.
  */
-export const SAVE_VERSION = 7;
+export const SAVE_VERSION = 8;
 
 export interface RunSave {
   readonly seed: number;

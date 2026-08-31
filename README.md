@@ -195,6 +195,16 @@ Two things follow from the ordering, and both are deliberate (see DECISIONS.md):
 
 Each L2 module opens with a comment saying what it knows and what it does not.
 
+### Invariants
+
+`tests/invariants.test.ts` plays thousands of ticks of seeded nonsense through
+`Run` and hammers the inventory API directly, asserting the rules no single
+feature owns: a stack is in exactly one place, the bag never holds more than its
+cells, a worn thing is worn where it fits, nothing becomes NaN, and a save is the
+run it came from. `tests/content.test.ts` checks the cross-references between the
+L3 tables — sprites, loot, creatures, levels and the keys the interface builds at
+runtime — which a compiler cannot see.
+
 ### Determinism
 
 The same seed and the same sequence of input frames produce the same world, tick
