@@ -521,3 +521,8 @@ of `tests/invariants.test.ts` and `tests/content.test.ts` now being in the suite
   inside the frame. Four radii now, and props are gathered four tiles past the
   edge of the view rather than two, because a lamp hung off the top of the screen
   leans back into it.
+- **A glow stick lit only what was in front of you.** Its catalogue entry asks
+  for a whole circle, but the beam path clipped every held light to just under a
+  half turn, so the room behind the player stayed dark and a seam ran down either
+  side of them. A held light with no direction is now drawn as a lamp in the
+  hand.

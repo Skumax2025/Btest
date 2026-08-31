@@ -111,6 +111,7 @@ export class LightingView {
   private scratchLos?: Float32Array;
   private scratchSight?: Float32Array;
   private scratchSpill?: Float32Array;
+  private scratchBulb?: Float32Array;
 
   constructor(private readonly cacheLimit: number) {}
 
@@ -192,6 +193,28 @@ export class LightingView {
   private drawFlashlight(renderer: Renderer, params: DarknessParams, profiles: Profiles): void {
     const light = params.config.light;
     const { lighting } = params;
+    // A glow stick asks for a whole circle, and a cone clipped to just under a
+    // half turn is not one: it left the room behind the player dark and put a
+    // seam down either side of them. A light that points nowhere is a lamp in
+    // the hand, so it is drawn as one.
+    if (lighting.flashlightHalfAngle >= Math.PI * 0.98) {
+      const reach = Math.min(lighting.flashlightRadius, params.losRadius);
+      this.scratchBulb = this.polygonAt(params, reach, this.scratchBulb);
+      const strength = lighting.flashlightStrength * this.torchFlutter(params);
+      renderer.punchPolygon(this.scratchBulb, {
+        x: params.playerX,
+        y: params.playerY,
+        radius: reach,
+        strength,
+        profile: profiles.lamp,
+        glow: {
+          colour: params.palette.lampGlow,
+          strength: strength * light.lampGlow,
+          profile: profiles.lampGlow,
+        },
+      });
+      return;
+    }
     const aim = this.torchAim(params);
     const strength = lighting.flashlightStrength * this.torchFlutter(params);
     const cone = {
