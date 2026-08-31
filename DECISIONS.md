@@ -525,3 +525,57 @@ of `tests/invariants.test.ts` and `tests/content.test.ts` now being in the suite
   cursor is fixed on the screen, so an uncapped lean would chase itself outward.
   Stance moves the zoom rather than the speed: running widens the view, crouching
   narrows it, and neither is meant to be noticed as a zoom.
+
+## The optimization pass (H2)
+
+Everything here was measured before it was changed. Two profiles decided the
+whole session: a `--cpu-prof` of two thousand ticks with two hundred creatures,
+and a CDP profile of the page walking down a lit corridor. Neither agreed with
+what I would have guessed.
+
+- **The tick was three quarters pathfinding, and most of that was one bug.** A
+  creature with no route to its target got `null` back and stored an empty path.
+  The next tick, "has the path run out?" was true — an empty path has always run
+  out — so it searched again, to the whole node budget, and again, sixty times a
+  second. The fix is that an empty path is not an exhausted one; it waits for the
+  timer. Worth recording because the code read correctly: the bug was in what
+  emptiness meant, not in what the line said.
+- **`tileAt` was the hottest function in the game**, and its cost was a string.
+  Chunks were keyed `"cx,cy"`, so every ray step, every A* neighbour and every
+  collision test allocated and hashed one. The map is keyed by a packed number
+  now, with a memo of the chunk the last sample landed in — rays and paths walk
+  in straight lines, so the memo hits almost always. Dropped: a flat global tile
+  array, which would have bounded the world.
+- **Rendering was 96% one pass.** Not the textures, not the sprites, not the
+  interface: the darkness. Ablating it took the frame from 41 ms to 1.6 ms. Every
+  render decision after that measurement was about fill rate and nothing else.
+- **Light is drawn smaller than the frame and stretched.** It is the least
+  detailed thing on screen and the most expensive, which makes it the first
+  thing to give up resolution — long before anything the player is actually
+  looking at. Dropped: fewer lights, a smaller lamp radius, a shorter beam;
+  those change the game, and resolution does not.
+- **Two clocks, not one.** The first version of the governor read frame time
+  alone and could never promote anything: a machine drawing comfortably at 60 Hz
+  reports 16.6 ms, which is not "fast" by any threshold that also has to call
+  33 ms slow. Frame time says whether the player is suffering; our own sim and
+  render time says whether we are the cause and whether there is room for more.
+  A tab throttled to 30 Hz now keeps its tier instead of being punished for a
+  frame rate it was handed.
+- **Slow frames are counted, not averaged.** One 200 ms frame in a window of
+  forty-five drags a mean over any threshold worth having. It cannot outvote
+  forty-four good ones now.
+- **Auto starts in the middle.** A strong machine climbs out within a couple of
+  seconds and never notices; a weak one is spared the second in which it would
+  have discovered it could not draw the top tier. Dropped: starting at the top,
+  which reads better in a screenshot and worse on the device that needs help.
+- **The tiers are three, and named.** A continuous dial would use a machine's
+  capacity more exactly and would be untestable, unnameable in a settings screen
+  and impossible to reason about in a bug report.
+- **A pixel ratio is not a bound.** A 4K display at two device pixels per CSS
+  pixel is thirty-three million pixels, and there are three buffers of them. The
+  tiers cap the backing store by area as well, and past it the ratio comes down
+  — on a screen that large, nobody can see the difference.
+- **The interface is part of the frame.** A `backdrop-filter` is a full-screen
+  composite per panel and the low-nerve strain animation filters the whole
+  overlay every frame it runs. Both are given up at the bottom tier, in CSS,
+  from one attribute the renderer's tier writes on the root.

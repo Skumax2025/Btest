@@ -153,8 +153,8 @@ so a pause or an open guidebook stops the world completely: stats, timers,
 creatures and the ambient hum together.
 
 Settings (reachable from the main menu and from a pause, the same screen in both):
-language, master/effects/ambient volume, brightness, interface scale, the debug
-overlay, full key rebinding with conflict handling and a reset, and confirmed
+language, master/effects/ambient volume, quality, brightness, interface scale, the
+debug overlay, full key rebinding with conflict handling and a reset, and confirmed
 wipes of the saved run and of the settings themselves. They live under their own
 storage key, so erasing a run never costs you your language, keys or volume.
 
@@ -295,6 +295,15 @@ plus a `marker` decal id, in `LEVEL0_LANDMARKS`.
 `tests/levelgen.test.ts` checks every template's size and characters, and checks
 connectivity and density for every level.
 
+### Change what a frame costs
+
+`QUALITY` in `src/content/view.ts` is the whole of it: three tiers, each naming a
+pixel ratio, a backing-store ceiling, the share of the frame light is computed
+over, ray counts, beam pools and whether bloom and lamp cores are drawn at all.
+`viewFor(tier)` derives the `ViewConfig` the view actually reads, and a tier may
+only ever turn a number down — a test asserts that. `QUALITY_GOVERNOR` holds the
+thresholds the frame clock is judged against.
+
 ### Add a level
 
 Add a `LevelSpec` to `LEVELS` in `src/content/levels.ts`: its own rooms,
@@ -307,16 +316,82 @@ array in order.
 
 ## Performance
 
-60 FPS with the debug overlay open, measured in Chromium at 1280x720: about
-0.9 ms of simulation and 6.4 ms of rendering per frame with 20 creatures and 9
-chunks live. That figure predates the texture pass, which is now the largest
-draw in a frame: against the same scene, a software-rendered Chromium in a
-container puts the textured floor at roughly a sixth more render time than the
-flat fills it replaced, which would land the number above nearer 7.5 ms. The
-simulation is untouched by any of it. `tests/performance.test.ts` steps 200 active creatures and asserts
-the tick stays under 4 ms (it is around 2 ms), which is really a guard against an
-accidental O(n²) — the uniform grid and the source-bucketed noise field exist to
-keep it linear.
+The frame decides for itself how much work it is allowed to be.
+
+Almost the whole cost of a frame is the darkness pass — full-screen fill, one
+gradient per light — and what it costs scales with the number of pixels it is
+computed over, which is a property of the machine rather than of anything the
+player chose. So `QUALITY` in `src/content/view.ts` is three tiers of the same
+picture at three prices, and a governor moves between them from the clock.
+
+| | low | medium | high |
+| --- | --- | --- | --- |
+| device pixels per CSS pixel, at most | 1 | 1.5 | 2 |
+| backing store ceiling | 1.6 MP | 3.0 MP | 4.6 MP |
+| light computed at, share of the frame | 0.40 | 0.60 | 0.85 |
+| rays: lamp / sight / beam | 40 / 96 / 28 | 56 / 160 / 36 | 72 / 256 / 48 |
+| pools along the torch beam | 6 | 9 | 12 |
+| bloom, lamp cores, false silhouettes | — | full | full |
+
+The governor reads two clocks, because one of them lies. The frame time is what
+the player feels, but the browser pins it to the refresh rate: a machine drawing
+comfortably at 60 Hz reports 16.6 ms whether it spent one millisecond of that on
+us or fifteen. So quality is given up only when the frame is long **and** our own
+work is the reason it is long, and taken back when our own work is small,
+whatever the display is doing — which is what lets a tab throttled to 30 Hz keep
+a tier it can plainly afford. It counts slow frames rather than averaging them,
+so one 200 ms frame — a tab coming back, a chunk streaming in, a collection —
+cannot cost a tier on its own. `tests/quality.test.ts` covers all of it,
+including that a machine sitting between two tiers does not oscillate.
+
+Auto starts in the middle and settles within a few seconds. The setting is in
+**Settings → Picture → Quality**, and picking a tier by hand pins it.
+
+Measured on the worst machine available — a headless Chromium in a container
+with no GPU at all, where everything below is software-rasterised, 1280x760,
+walking through a lit corridor with the torch on:
+
+| | before | after |
+| --- | --- | --- |
+| render, per frame | 41 ms | 5.0 ms (low), 17 ms (medium), 29 ms (high) |
+| frames per second | 18 | 57-61, auto |
+| simulation, 200 creatures | 4.7 ms | 0.6 ms |
+
+On hardware with a GPU the top tier is the one that runs, and the old figure —
+about 6.4 ms of rendering per frame in Chromium at 1280x720 — is the one to
+compare against; the changes below take work out of the frame rather than adding
+any. A 46-second soak with streaming, torch and bag use holds 57 FPS and does not
+move the heap (10.1 MB at both ends).
+
+Where the time went, and where it went instead:
+
+- **A failed path was searched again every tick.** A creature that could not
+  reach its target got an empty path back, which read as a path that had run
+  out, so it ran a full A* to the whole node budget on the next tick, and the
+  next. It waits for the repath timer now. This alone was 46% of the tick.
+- **`tileAt` built a string key per sample.** Every ray, path expansion and
+  collision test goes through it; the `"cx,cy"` key and its hash were a quarter
+  of the tick. Chunks are keyed by number, with a memo of the last one — rays and
+  paths are spatially coherent, so most samples never reach the map at all.
+- **A\* allocates nothing per search**: one heap in three parallel arrays,
+  reused maps, no object per pushed node.
+- **Creatures stagger their timers** from their spawn seed, so a chunk full of
+  them is not one spike per repath and one per noise pulse.
+- **Light is computed on smaller layers** and stretched back over the frame,
+  without resampling on the way.
+- **Every light fill is clipped to the visible rectangle**, lights entirely off
+  screen are rejected once for both layers, the bloom layer is not composited in
+  a frame where nothing glowed, and the torch beam pays for its bloom once
+  rather than once per pool.
+- **The backing store is capped by area as well as by ratio.** A 4K display at
+  two device pixels per CSS pixel is thirty-three million pixels, three buffers
+  over.
+- **The interface gives up its blurs** and its full-screen filter animation at
+  the bottom tier: a `backdrop-filter` is a full-screen composite per panel.
+
+`tests/performance.test.ts` steps 200 active creatures and asserts the tick stays
+under 2 ms, which is really a guard against an accidental O(n²) — and, now,
+against the failed-path regression above coming back.
 
 ## What is not done
 
@@ -375,6 +450,18 @@ Nothing on either brief's cut list was cut. These are the honest gaps:
 - **The floor is four tiles and the walls three**, picked per cell from its own
   coordinates. That is enough that no repeat is ever adjacent to itself, but it
   is not the same as a building that is genuinely different everywhere.
+- **Quality moves in three steps, not continuously.** A machine between two
+  tiers gets the lower one and its spare capacity goes unused; the alternative
+  is a dial with no name, which is harder to reason about and harder to test.
+- **No touch input, so a phone can run it but not play it.** The frame fits a
+  phone — the pixel budget and the tiers see to that — but there is no adapter
+  producing `InputFrame`s from touches, so the controls are still a keyboard and
+  a mouse. Below 700 px wide the display drops the key legend and stacks the
+  belt above the hands rather than across them, which is a small window being
+  made legible, not a phone being supported.
+- **A failed path is retried on a timer, not on a change.** A creature whose
+  route opens up waits out the rest of its repath interval before noticing,
+  which is up to two fifths of a second of standing still.
 
 ## Layout
 

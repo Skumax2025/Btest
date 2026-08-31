@@ -539,6 +539,26 @@ body {
   .hud-belt-slot { width: 68px; }
 }
 
+/* A narrow window — a phone held upright, a browser at a quarter of a desktop.
+   Four corners cannot all be occupied at this width, so the display becomes
+   three: the body at the top, the hands in their corner, and the belt moved up
+   to sit above them instead of across them. */
+@media (max-width: 700px) {
+  .hud { --hud-scale: 0.86; }
+  .hud-hands { width: min(210px, 58vw); }
+  .hud-belt { bottom: 128px; }
+  .hud-belt-slot { width: 60px; min-height: 74px; }
+  .hud-belt-icon { height: 20px; }
+  .bag { padding: 14px; }
+}
+
+/* The legend is the one panel a player is meant to outgrow, so it is the one
+   that goes when a window has no room for four of them — and a window this
+   small is one nobody is reading a keyboard reference in anyway. */
+@media (max-width: 700px), (max-height: 560px) {
+  .hud-keys { display: none; }
+}
+
 @keyframes strain {
   0%,
   100% {

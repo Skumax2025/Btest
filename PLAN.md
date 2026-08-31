@@ -119,3 +119,38 @@ mod  src/view/combat-view.ts, src/view/props.ts  (swing arc, impact flash)
 
 ## H5 — documentation
 README.md, DECISIONS.md, PLAN.md
+
+---
+
+# Fourth pass: making the frame fit the device
+
+## I0 — measure
+`--cpu-prof` over 2000 ticks with 200 creatures; a CDP profile of the page;
+ablation of each render stage. Findings: 75% of the tick in A*, 96% of the
+frame in the darkness pass.
+
+## I1 — the tick
+mod  src/game/run/creatures.ts             (a failed path waits for the timer; staggered spawn timers)
+mod  src/game/level/stream.ts              (numeric chunk keys, memo of the last chunk)
+mod  src/systems/pathfinding.ts            (typed-array heap, reused containers, no allocation)
+mod  src/game/run/run.ts                   (staggered sandbox spawns)
+mod  tests/performance.test.ts             (budget 4 ms -> 2 ms)
+
+## I2 — the frame
+mod  src/core/canvas-renderer.ts           (scaled light layers, fill clipped to view, glow skipped, unsmoothed composite, pixel budget)
+mod  src/view/lighting-view.ts             (one bloom for the beam)
+mod  src/core/loop.ts                      (frameMs in the stats)
+mod  src/ui/app.ts                         (no-op brightness filter dropped, one sizing path)
+
+## I3 — tiers and the governor
+mod  src/content/view.ts                   (L3: QUALITY, QUALITY_GOVERNOR, viewFor, DEFAULT_QUALITY)
+new  src/ui/quality.ts                      (L4: the governor)
+mod  src/ui/{settings,settings-store,screen,app,debug-overlay}.ts
+mod  src/content/locales/{ru,en}.ts, src/style.css
+new  tests/quality.test.ts
+
+## I4 — cleanup and small screens
+del  VISION (now the top tier), canAttack, conditionOf, isStackable, rayReach export
+mod  src/core/audio.ts                     (a refused audio context is silence, not a crash)
+mod  src/style.css                          (narrow and short window layouts)
+mod  README.md, DECISIONS.md, PLAN.md
