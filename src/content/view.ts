@@ -118,6 +118,13 @@ export interface WallViewConfig {
   /** How far a wall's shadow reaches onto the floor beside it, in tiles. */
   readonly contactShadow: number;
   readonly contactShadowColour: string;
+  /** Apparent height of a thing standing on the floor, in tiles. */
+  readonly propHeight: number;
+  /** Apparent height of a thing hung from the ceiling, in tiles. */
+  readonly ceilingHeight: number;
+  /** Radius of the shadow a prop drops, as a share of its sprite. */
+  readonly propShadow: number;
+  readonly propShadowColour: string;
 }
 
 /**
@@ -172,9 +179,9 @@ export const VIEW: ViewConfig = {
     sightCore: 0.42,
     lampGlow: 0.2,
     glowConcentration: 2.1,
-    softness: 7,
-    bloom: 20,
-    bloomStrength: 0.42,
+    softness: 6,
+    bloom: 26,
+    bloomStrength: 0.5,
     vignette: 0.42,
     vignetteInner: 0.26,
     vignetteColour: 'rgba(3,2,7,0.92)',
@@ -195,6 +202,10 @@ export const VIEW: ViewConfig = {
     crest: 0.1,
     contactShadow: 0.42,
     contactShadowColour: 'rgba(9,7,4,0.55)',
+    propHeight: 0.5,
+    ceilingHeight: 1.9,
+    propShadow: 0.36,
+    propShadowColour: 'rgba(0,0,0,0.4)',
   },
   floorVariationEvery: 5,
   markerTiles: 3,

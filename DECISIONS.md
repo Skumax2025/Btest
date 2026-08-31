@@ -503,3 +503,15 @@ of `tests/invariants.test.ts` and `tests/content.test.ts` now being in the suite
   part of the device pixel under it and neither covered all of it, so the
   background showed through as a grid. Every tile is drawn half a unit past its
   own edge.
+- **Props sat on the floor whatever they were.** A tube bolted to the ceiling and
+  a crate standing on it now slide past the camera at their own rates, on the
+  same projection the walls use, and everything on the floor drops a shadow at
+  the spot it actually occupies. The pool a lamp casts stays under the lamp, not
+  under the picture of it.
+- **The darkness pass cost more than the rest of the frame.** Light is gathered
+  at a quarter of the screen's resolution and the bloom at a sixteenth: every
+  pixel of it is about to be blurred and then used only to say how much darkness
+  to take away, so a full-resolution pass buys nothing and costs the largest
+  fills in the frame four times over. Blurring at that size makes the penumbra
+  and the halo close to free; a scene full of lamps is now faster than it was
+  before any of this.

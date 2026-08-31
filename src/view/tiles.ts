@@ -193,9 +193,11 @@ const drawWalls = (
       // The side of a raised wall the camera can see is the one turned towards
       // it, and it stands between that edge of the footprint and the same edge of
       // the lifted top. A side with more wall behind it is not a side at all.
-      if (topNorth > north && !isSolid(level, tx, ty - 1)) {
+      const facesNorth = topNorth > north && !isSolid(level, tx, ty - 1);
+      const facesSouth = !facesNorth && topSouth < south && !isSolid(level, tx, ty + 1);
+      if (facesNorth) {
         fill(renderer, west, north, east, north, topEast, topNorth, topWest, topNorth, palette.wallShade);
-      } else if (topSouth < south && !isSolid(level, tx, ty + 1)) {
+      } else if (facesSouth) {
         fill(renderer, west, south, east, south, topEast, topSouth, topWest, topSouth, palette.wallFaceDark);
       }
       if (topWest > west && !isSolid(level, tx - 1, ty)) {
@@ -206,12 +208,13 @@ const drawWalls = (
 
       const top = tile === TILE.WALL ? palette.wall : palette.pillar;
       fill(renderer, topWest, topNorth, topEast, topNorth, topEast, topSouth, topWest, topSouth, top);
-      // One bright line along the north crest, the same place a ceiling light
-      // would catch it. Everything else about a wall's brightness is the
-      // darkness pass's business.
-      if (crest > 0 && !isSolid(level, tx, ty - 1)) {
-        const inner = lifted(north + crest, view.y, lift);
-        fill(renderer, topWest, topNorth, topEast, topNorth, topEast, inner, topWest, inner, palette.wallEdge);
+      // The one bright line on a wall sits where its top folds over into the side
+      // the camera can see. Anywhere else it reads as a stripe painted on the
+      // floor; there it reads as an edge.
+      if (crest > 0 && (facesNorth || facesSouth)) {
+        const edge = facesNorth ? topNorth : topSouth;
+        const inner = lifted(facesNorth ? north + crest : south - crest, view.y, lift);
+        fill(renderer, topWest, edge, topEast, edge, topEast, inner, topWest, inner, palette.wallEdge);
       }
     }
   }

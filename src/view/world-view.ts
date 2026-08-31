@@ -61,7 +61,7 @@ export class WorldView {
     drawTiles(renderer, run.level, view, options.palette, options.view);
     drawProps(renderer, this.sprites, run, view, options.lighting, options.view);
     drawGround(renderer, this.sprites, run, bounds, options.view);
-    drawCreatures(renderer, this.sprites, run, alpha, options.palette, options);
+    drawCreatures(renderer, this.sprites, run, alpha, options.palette, view, options);
     drawPlayer(renderer, this.sprites, run.player, alpha, options.palette, options.view);
 
     // The lamp in hand decides the cone, so a head torch and a glow stick are

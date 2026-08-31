@@ -35,6 +35,14 @@ const spriteIdFor = (prop: PropSpawn, run: Run, lighting: LightingConfig): strin
   }
 };
 
+/**
+ * Where a thing at height `height` appears, given that the camera looks straight
+ * down at its focus and increasingly across everything else. The same projection
+ * the walls use, so a crate and the wall behind it lean the same way.
+ */
+export const lifted = (value: number, focus: number, height: number, cameraHeight: number): number =>
+  value + (value - focus) * (height / Math.max(1e-3, cameraHeight));
+
 /** Decals first so props sit on top of them. */
 export const drawProps = (
   renderer: Renderer,
@@ -45,6 +53,7 @@ export const drawProps = (
   config: ViewConfig,
 ): void => {
   const tileSize = run.config.geometry.tileSize;
+  const wall = config.wall;
   const bounds = viewBounds(view, tileSize * 2);
   const visible = run.propsInRect(bounds.minX, bounds.minY, bounds.maxX, bounds.maxY);
   for (const prop of visible) {
@@ -57,7 +66,26 @@ export const drawProps = (
   }
   for (const prop of visible) {
     if (prop.kind === 'marker' || prop.kind === 'creature') continue;
-    renderer.drawSprite(sprites.sprite(spriteIdFor(prop, run, lighting)), prop.x, prop.y);
+    const sprite = sprites.sprite(spriteIdFor(prop, run, lighting));
+    // A tube is bolted to the ceiling and a crate stands on the floor, so they
+    // slide past the camera at very different rates. The light a lamp casts stays
+    // on its tile whatever its housing appears to do: the pool on the floor is
+    // under the lamp, not under the picture of it.
+    const overhead = prop.kind === 'lamp';
+    const height = overhead ? wall.ceilingHeight : wall.propHeight;
+    if (!overhead && wall.propShadow > 0) {
+      renderer.fillCircle(
+        prop.x,
+        prop.y + config.shadowOffset,
+        sprite.width * wall.propShadow,
+        wall.propShadowColour,
+      );
+    }
+    renderer.drawSprite(
+      sprite,
+      lifted(prop.x, view.x, height, wall.cameraHeight),
+      lifted(prop.y, view.y, height, wall.cameraHeight),
+    );
   }
 };
 
@@ -102,16 +130,22 @@ export const drawCreatures = (
   run: Run,
   alpha: number,
   palette: Palette,
+  view: CameraView,
   options: { readonly derangement: number; readonly view: ViewConfig },
 ): void => {
   const config = options.view;
+  const wall = config.wall;
   for (const creature of run.creatures.values()) {
     const def = run.config.content.creatures[creature.defId];
     if (!def) continue;
     const x = creature.prevX + (creature.x - creature.prevX) * alpha;
     const y = creature.prevY + (creature.y - creature.prevY) * alpha;
-    renderer.fillCircle(x, y + config.shadowOffset, def.radius, 'rgba(0,0,0,0.4)');
-    renderer.drawSprite(sprites.sprite(def.sprite), x, y, {
+    renderer.fillCircle(x, y + config.shadowOffset, def.radius, wall.propShadowColour);
+    renderer.drawSprite(
+      sprites.sprite(def.sprite),
+      lifted(x, view.x, wall.propHeight, wall.cameraHeight),
+      lifted(y, view.y, wall.propHeight, wall.cameraHeight),
+      {
       width: def.radius * config.creatureSpriteScale,
       height: def.radius * config.creatureSpriteScale,
       rotation: creature.facing,

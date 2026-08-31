@@ -35,6 +35,16 @@ const WHITE = '255,255,255';
 
 const clamp01 = (value: number): number => (value < 0 ? 0 : value > 1 ? 1 : value);
 
+/**
+ * Halvings of the resolution light is gathered at, and a further halving for the
+ * bloom. Every pixel of the light mask is about to be blurred by several of its
+ * neighbours and then used only to say how much darkness to take away, so
+ * gathering it at full resolution buys nothing and costs the largest fills in
+ * the frame four times over.
+ */
+const LIGHT_SHIFT = 2;
+const BLOOM_SHIFT = 1;
+
 /** Edge of a beam mask, in texels. Bigger only buys smoothness the blur adds anyway. */
 const BEAM_MASK = 256;
 
@@ -92,6 +102,11 @@ export class Canvas2DRenderer implements Renderer {
   private readonly lightCtx: CanvasRenderingContext2D;
   private readonly glowCanvas: HTMLCanvasElement;
   private readonly glowCtx: CanvasRenderingContext2D;
+  /** Where the mask is blurred, and where the bloom is blurred smaller still. */
+  private readonly softCanvas: HTMLCanvasElement;
+  private readonly softCtx: CanvasRenderingContext2D;
+  private readonly bloomCanvas: HTMLCanvasElement;
+  private readonly bloomCtx: CanvasRenderingContext2D;
   /** Both light layers, so a visibility clip is applied to each of them. */
   private readonly darknessLayers: readonly CanvasRenderingContext2D[];
   /** Colour channels of a glow colour, resolved once by the context itself. */
@@ -127,6 +142,14 @@ export class Canvas2DRenderer implements Renderer {
     const glowCtx = this.glowCanvas.getContext('2d');
     if (!glowCtx) throw new Error('2d canvas context unavailable for the bloom layer');
     this.glowCtx = glowCtx;
+    this.softCanvas = document.createElement('canvas');
+    const softCtx = this.softCanvas.getContext('2d');
+    if (!softCtx) throw new Error('2d canvas context unavailable for the penumbra layer');
+    this.softCtx = softCtx;
+    this.bloomCanvas = document.createElement('canvas');
+    const bloomCtx = this.bloomCanvas.getContext('2d');
+    if (!bloomCtx) throw new Error('2d canvas context unavailable for the bloom layer');
+    this.bloomCtx = bloomCtx;
     this.darknessLayers = [this.lightCtx, this.glowCtx];
     this.pixelRatio = Math.min(window.devicePixelRatio || 1, maxPixelRatio);
   }
@@ -146,10 +169,14 @@ export class Canvas2DRenderer implements Renderer {
     this.canvas.style.height = `${height}px`;
     this.darkCanvas.width = this.canvas.width;
     this.darkCanvas.height = this.canvas.height;
-    this.lightCanvas.width = this.canvas.width;
-    this.lightCanvas.height = this.canvas.height;
-    this.glowCanvas.width = this.canvas.width;
-    this.glowCanvas.height = this.canvas.height;
+    this.lightCanvas.width = Math.max(1, this.canvas.width >> LIGHT_SHIFT);
+    this.lightCanvas.height = Math.max(1, this.canvas.height >> LIGHT_SHIFT);
+    this.glowCanvas.width = this.lightCanvas.width;
+    this.glowCanvas.height = this.lightCanvas.height;
+    this.bloomCanvas.width = Math.max(1, this.lightCanvas.width >> BLOOM_SHIFT);
+    this.bloomCanvas.height = Math.max(1, this.lightCanvas.height >> BLOOM_SHIFT);
+    this.softCanvas.width = this.lightCanvas.width;
+    this.softCanvas.height = this.lightCanvas.height;
     this.vignetteFill = undefined;
     this.vignetteKey = '';
   }
@@ -369,7 +396,7 @@ export class Canvas2DRenderer implements Renderer {
       ctx.globalAlpha = 1;
       ctx.filter = 'none';
       ctx.clearRect(0, 0, this.lightCanvas.width, this.lightCanvas.height);
-      applyWorldTransform(ctx, view, this.pixelRatio);
+      applyWorldTransform(ctx, view, this.pixelRatio / (1 << LIGHT_SHIFT));
     }
     // Two lights over the same floor leave it as bright as the brighter of them
     // plus what the other still has to give — the same diminishing sum the
@@ -541,9 +568,11 @@ export class Canvas2DRenderer implements Renderer {
     }
     this.darkCtx.setTransform(1, 0, 0, 1, 0, 0);
     this.darkCtx.globalCompositeOperation = 'destination-out';
-    this.darkCtx.filter = softness > 0 ? `blur(${softness * this.pixelRatio}px)` : 'none';
-    this.darkCtx.drawImage(this.lightCanvas, 0, 0);
-    this.darkCtx.filter = 'none';
+    const mask =
+      softness > 0
+        ? this.reduce(this.softCtx, this.softCanvas, this.lightCanvas, softness, LIGHT_SHIFT)
+        : this.lightCanvas;
+    this.darkCtx.drawImage(mask, 0, 0, this.darkCanvas.width, this.darkCanvas.height);
     this.darkCtx.globalCompositeOperation = 'source-over';
 
     this.ctx.save();
@@ -553,15 +582,43 @@ export class Canvas2DRenderer implements Renderer {
     this.ctx.globalCompositeOperation = 'source-over';
     this.ctx.drawImage(this.darkCanvas, 0, 0);
     this.ctx.globalCompositeOperation = 'lighter';
-    this.ctx.drawImage(this.glowCanvas, 0, 0);
+    this.ctx.drawImage(this.glowCanvas, 0, 0, this.canvas.width, this.canvas.height);
     if (bloom > 0 && bloomStrength > 0) {
-      this.ctx.filter = `blur(${bloom * this.pixelRatio}px)`;
+      const halo = this.reduce(
+        this.bloomCtx,
+        this.bloomCanvas,
+        this.glowCanvas,
+        bloom,
+        LIGHT_SHIFT + BLOOM_SHIFT,
+      );
       this.ctx.globalAlpha = clamp01(bloomStrength);
-      this.ctx.drawImage(this.glowCanvas, 0, 0);
-      this.ctx.filter = 'none';
+      this.ctx.drawImage(halo, 0, 0, this.canvas.width, this.canvas.height);
       this.ctx.globalAlpha = 1;
     }
     this.ctx.globalCompositeOperation = 'source-over';
     this.ctx.restore();
+  }
+
+  /** One layer, blurred at a fraction of its size. `copy` saves clearing it first. */
+  private reduce(
+    ctx: CanvasRenderingContext2D,
+    into: HTMLCanvasElement,
+    source: HTMLCanvasElement,
+    blur: number,
+    shift: number,
+  ): HTMLCanvasElement {
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'copy';
+    // Shrinking a layer and stretching it back is itself a blur — a box one
+    // reduced pixel wide. Below the point where an explicit blur would add
+    // anything to that, it is skipped, because a filtered draw is the most
+    // expensive kind there is.
+    const radius = (blur * this.pixelRatio) / (1 << shift);
+    if (radius >= 0.6) ctx.filter = `blur(${radius}px)`;
+    ctx.drawImage(source, 0, 0, into.width, into.height);
+    ctx.filter = 'none';
+    ctx.globalCompositeOperation = 'source-over';
+    return into;
   }
 }
