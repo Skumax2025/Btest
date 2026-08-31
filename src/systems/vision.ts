@@ -28,6 +28,13 @@
  * neighbouring rays disagree wildly there is a corner between them, and a few
  * bisections find the angle of it. The polygon then pivots about the corner
  * itself, which is what the eye expects.
+ *
+ * A corner only exists where a ray actually met a wall. Two rays that both ran
+ * out at the radius end in whatever tile they happened to stop in, and treating
+ * those tiles as surfaces spent the whole refinement budget on open floor while
+ * stitching unrelated end tiles into spikes of geometry that were never there.
+ * Every test below the even pass therefore asks first whether the ray was
+ * blocked at all.
  */
 
 import { castRay } from './raycast';
@@ -48,7 +55,8 @@ export interface FanOptions {
   readonly wallPenetration: number;
 }
 
-const rayCountOf = (options: FanOptions): number => Math.max(3, options.rayCount);
+const rayCountOf = (options: FanOptions): number =>
+  Math.min(MAX_RAYS, Math.max(3, options.rayCount | 0));
 
 /** Direction of ray `index`. A full circle is anchored to the world, not to the
  *  viewer, so the fan does not swim while the player turns on the spot. */
@@ -66,11 +74,13 @@ export const fanAngle = (index: number, options: FanOptions): number => {
 let lastHitTx = 0;
 let lastHitTy = 0;
 let lastHitAxis: 0 | 1 = 0;
+let lastHitBlocked = false;
 
 const MAX_RAYS = 2048; // С запасом под плотные лучи
 const scratchTx = new Int16Array(MAX_RAYS);
 const scratchTy = new Int16Array(MAX_RAYS);
 const scratchAxis = new Int8Array(MAX_RAYS);
+const scratchBlocked = new Uint8Array(MAX_RAYS);
 
 export const rayReach = (
   originX: number,
@@ -95,6 +105,7 @@ export const rayReach = (
   lastHitTx = hit.tx;
   lastHitTy = hit.ty;
   lastHitAxis = hit.axis;
+  lastHitBlocked = hit.blocked;
 
   if (!hit.blocked) return radius;
 
@@ -247,6 +258,7 @@ export const traceFan = (
     scratchTx[i] = lastHitTx;
     scratchTy[i] = lastHitTy;
     scratchAxis[i] = lastHitAxis;
+    scratchBlocked[i] = lastHitBlocked ? 1 : 0;
   }
 
   const { samples } = fan;
@@ -262,10 +274,16 @@ export const traceFan = (
     const previous = i === 0 ? (wraps ? rays - 1 : -1) : i - 1;
 
     let needsRefinement = false;
-    if (previous >= 0 && refined < REFINE_LIMIT) {
+    // A pair of rays that both ran to the radius has no edge between them: the
+    // tile they end in is wherever the ray ran out, not a surface. Refining on
+    // that spent the whole budget in open floor — and, worse, let the corner
+    // stitch below join two unrelated end tiles into a spike of false geometry.
+    const touchesWall = previous >= 0 && (scratchBlocked[i] === 1 || scratchBlocked[previous] === 1);
+    if (touchesWall && refined < REFINE_LIMIT) {
       const distGap = Math.abs(reach[i] - reach[previous]) > gap;
       // Is it a continuous flat wall section?
       const isFlatWall =
+        scratchBlocked[i] === scratchBlocked[previous] &&
         scratchAxis[i] === scratchAxis[previous] &&
         (scratchAxis[i] === 0 ? scratchTx[i] === scratchTx[previous] : scratchTy[i] === scratchTy[previous]);
       if (distGap || !isFlatWall) {
@@ -282,11 +300,13 @@ export const traceFan = (
       let lowTx = scratchTx[previous];
       let lowTy = scratchTy[previous];
       let lowAxis = scratchAxis[previous];
+      let lowBlocked = scratchBlocked[previous] === 1;
 
       let highReach = reach[i];
       let highTx = scratchTx[i];
       let highTy = scratchTy[i];
       let highAxis = scratchAxis[i];
+      let highBlocked = scratchBlocked[i] === 1;
 
       for (let step = 0; step < REFINE_STEPS; step++) {
         const midAngle = (lowAngle + highAngle) / 2;
@@ -294,10 +314,17 @@ export const traceFan = (
         const midTx = lastHitTx;
         const midTy = lastHitTy;
         const midAxis = lastHitAxis;
+        const midBlocked = lastHitBlocked;
 
         let midIsLow: boolean;
-        const sameSurfaceAsLow = midAxis === lowAxis && (lowAxis === 0 ? midTx === lowTx : midTy === lowTy);
-        const sameSurfaceAsHigh = midAxis === highAxis && (highAxis === 0 ? midTx === highTx : midTy === highTy);
+        const sameSurfaceAsLow =
+          midBlocked === lowBlocked &&
+          midAxis === lowAxis &&
+          (lowAxis === 0 ? midTx === lowTx : midTy === lowTy);
+        const sameSurfaceAsHigh =
+          midBlocked === highBlocked &&
+          midAxis === highAxis &&
+          (highAxis === 0 ? midTx === highTx : midTy === highTy);
 
         if (sameSurfaceAsLow && !sameSurfaceAsHigh) {
           midIsLow = true;
@@ -314,12 +341,14 @@ export const traceFan = (
           lowTx = midTx;
           lowTy = midTy;
           lowAxis = midAxis;
+          lowBlocked = midBlocked;
         } else {
           highAngle = midAngle;
           highReach = midReach;
           highTx = midTx;
           highTy = midTy;
           highAxis = midAxis;
+          highBlocked = midBlocked;
         }
       }
 
@@ -330,9 +359,11 @@ export const traceFan = (
       // Вставляем идеальный 90-градусный угол ТОЛЬКО если оба луча ударили
       // в смежные поверхности, образуя непрерывный угол. 
       // Если это край силуэта (разрыв по дальности), не пытаемся их сшивать.
-      const isConnected = 
-        Math.abs(lowTx - highTx) <= 1 && 
-        Math.abs(lowTy - highTy) <= 1 && 
+      const isConnected =
+        lowBlocked &&
+        highBlocked &&
+        Math.abs(lowTx - highTx) <= 1 &&
+        Math.abs(lowTy - highTy) <= 1 &&
         Math.abs(lowReach - highReach) <= options.tileSize * 1.5;
 
       if (lowAxis !== highAxis && isConnected) {

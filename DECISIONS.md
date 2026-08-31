@@ -469,3 +469,10 @@ of `tests/invariants.test.ts` and `tests/content.test.ts` now being in the suite
   or switch on, which is what a lure on a belt is for.
 - **The belt overlapped the key legend at 1024 wide.** The adaptive breakpoint sat
   at 860 and the collision starts at about 1200.
+- **The visibility fan invented corners in open floor.** Refinement compared the
+  tile each ray ended in without asking whether the ray had hit anything, so two
+  rays that simply ran out at the radius looked like two different surfaces. In a
+  room the budget of ninety-six refinements was spent within the first ninety-six
+  rays — real corners went unrefined — and the corner stitch could join two
+  unrelated end tiles into a spike of false geometry that flickered as the player
+  moved. Every topology test now requires the ray to have been blocked.
