@@ -2,7 +2,15 @@
 
 import type { CameraView } from './camera';
 import type { Sprite } from './assets';
-import type { LightProfile, PolygonLight, Renderer, SpriteOptions, TextStyle } from './renderer';
+import type {
+  DarknessOptions,
+  LightCone,
+  LightProfile,
+  PolygonLight,
+  Renderer,
+  SpriteOptions,
+  TextStyle,
+} from './renderer';
 
 const applyWorldTransform = (
   ctx: CanvasRenderingContext2D,
@@ -22,10 +30,25 @@ const tracePolygon = (ctx: CanvasRenderingContext2D, points: Float32Array): void
   ctx.closePath();
 };
 
-/** Darkness is subtracted, so what it removes is alpha over black. */
-const BLACK = '0,0,0';
+/** The light mask only ever carries alpha; the colour it is painted in is moot. */
+const WHITE = '255,255,255';
 
 const clamp01 = (value: number): number => (value < 0 ? 0 : value > 1 ? 1 : value);
+
+/** Edge of a beam mask, in texels. Bigger only buys smoothness the blur adds anyway. */
+const BEAM_MASK = 256;
+
+const ease = (t: number): number => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
+
+/** The profile read at any point between its samples rather than only on them. */
+const sampleProfile = (profile: LightProfile, at: number): number => {
+  const last = profile.length - 1;
+  if (last < 1) return 0;
+  const position = clamp01(at) * last;
+  const index = Math.min(last - 1, Math.floor(position));
+  const blend = position - index;
+  return profile[index] + (profile[index + 1] - profile[index]) * blend;
+};
 
 /**
  * Fills a light's polygon with a radial gradient built from its profile. The
@@ -59,12 +82,28 @@ export class Canvas2DRenderer implements Renderer {
   private readonly ctx: CanvasRenderingContext2D;
   private readonly darkCanvas: HTMLCanvasElement;
   private readonly darkCtx: CanvasRenderingContext2D;
+  /**
+   * Every light lands here first and the whole mask is subtracted from the
+   * darkness in one go. Subtracting light by light meant two lights that
+   * overlapped removed more darkness than either asked for, which is what turned
+   * the middle of a torch beam white and drew rings where its pools met.
+   */
+  private readonly lightCanvas: HTMLCanvasElement;
+  private readonly lightCtx: CanvasRenderingContext2D;
   private readonly glowCanvas: HTMLCanvasElement;
   private readonly glowCtx: CanvasRenderingContext2D;
-  /** Both offscreen layers, so a visibility clip is applied to each of them. */
+  /** Both light layers, so a visibility clip is applied to each of them. */
   private readonly darknessLayers: readonly CanvasRenderingContext2D[];
   /** Colour channels of a glow colour, resolved once by the context itself. */
   private readonly channels = new Map<string, string>();
+  /** Ramps and beam masks, both keyed by the shape rather than by where they land. */
+  private readonly ramps = new Map<string, CanvasGradient>();
+  private readonly beams = new Map<string, HTMLCanvasElement>();
+  private readonly profileIds = new WeakMap<object, number>();
+  private nextProfileId = 1;
+  private vignetteKey = '';
+  private vignetteFill?: CanvasGradient;
+  private darkness: DarknessOptions = { softness: 0, bloom: 0, bloomStrength: 0 };
   private pixelRatio = 1;
   private worldDepth = 0;
   private visibilityDepth = 0;
@@ -80,11 +119,15 @@ export class Canvas2DRenderer implements Renderer {
     const darkCtx = this.darkCanvas.getContext('2d');
     if (!darkCtx) throw new Error('2d canvas context unavailable for the darkness layer');
     this.darkCtx = darkCtx;
+    this.lightCanvas = document.createElement('canvas');
+    const lightCtx = this.lightCanvas.getContext('2d');
+    if (!lightCtx) throw new Error('2d canvas context unavailable for the light layer');
+    this.lightCtx = lightCtx;
     this.glowCanvas = document.createElement('canvas');
     const glowCtx = this.glowCanvas.getContext('2d');
     if (!glowCtx) throw new Error('2d canvas context unavailable for the bloom layer');
     this.glowCtx = glowCtx;
-    this.darknessLayers = [this.darkCtx, this.glowCtx];
+    this.darknessLayers = [this.lightCtx, this.glowCtx];
     this.pixelRatio = Math.min(window.devicePixelRatio || 1, maxPixelRatio);
   }
 
@@ -103,8 +146,12 @@ export class Canvas2DRenderer implements Renderer {
     this.canvas.style.height = `${height}px`;
     this.darkCanvas.width = this.canvas.width;
     this.darkCanvas.height = this.canvas.height;
+    this.lightCanvas.width = this.canvas.width;
+    this.lightCanvas.height = this.canvas.height;
     this.glowCanvas.width = this.canvas.width;
     this.glowCanvas.height = this.canvas.height;
+    this.vignetteFill = undefined;
+    this.vignetteKey = '';
   }
 
   beginFrame(clearColor: string): void {
@@ -222,6 +269,75 @@ export class Canvas2DRenderer implements Renderer {
     this.ctx.fillText(text, x, y);
   }
 
+  fillPolygon(points: ArrayLike<number>, color: string): void {
+    if (points.length < 6) return;
+    this.ctx.fillStyle = color;
+    this.ctx.beginPath();
+    this.ctx.moveTo(points[0], points[1]);
+    for (let i = 2; i < points.length; i += 2) this.ctx.lineTo(points[i], points[i + 1]);
+    this.ctx.closePath();
+    this.ctx.fill();
+  }
+
+  /**
+   * The ramp is built in the rect's own frame and the rect is moved under it, so
+   * every wall face and every contact shadow in the level shares one gradient
+   * object instead of allocating one per tile per frame.
+   */
+  fillGradientRect(
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    dirX: number,
+    dirY: number,
+    from: string,
+    to: string,
+  ): void {
+    const key = `${dirX}:${dirY}:${from}:${to}`;
+    let ramp = this.ramps.get(key);
+    if (!ramp) {
+      ramp = this.ctx.createLinearGradient(0, 0, dirX, dirY);
+      ramp.addColorStop(0, from);
+      ramp.addColorStop(1, to);
+      this.ramps.set(key, ramp);
+    }
+    this.ctx.save();
+    this.ctx.translate(x, y);
+    this.ctx.fillStyle = ramp;
+    this.ctx.fillRect(0, 0, width, height);
+    this.ctx.restore();
+  }
+
+  vignette(color: string, strength: number, inner: number): void {
+    if (strength <= 0) return;
+    const { width, height } = this;
+    const key = `${width}:${height}:${color}:${inner}`;
+    if (key !== this.vignetteKey || !this.vignetteFill) {
+      const radius = Math.hypot(width, height) / 2;
+      const fill = this.ctx.createRadialGradient(
+        width / 2,
+        height / 2,
+        radius * clamp01(inner),
+        width / 2,
+        height / 2,
+        radius,
+      );
+      fill.addColorStop(0, 'rgba(0,0,0,0)');
+      fill.addColorStop(1, color);
+      this.vignetteFill = fill;
+      this.vignetteKey = key;
+    }
+    const previousAlpha = this.ctx.globalAlpha;
+    this.ctx.save();
+    this.ctx.setTransform(this.pixelRatio, 0, 0, this.pixelRatio, 0, 0);
+    this.ctx.globalAlpha = clamp01(strength);
+    this.ctx.fillStyle = this.vignetteFill;
+    this.ctx.fillRect(0, 0, width, height);
+    this.ctx.restore();
+    this.ctx.globalAlpha = previousAlpha;
+  }
+
   overlay(color: string, alpha: number): void {
     const previousAlpha = this.ctx.globalAlpha;
     this.ctx.setTransform(this.pixelRatio, 0, 0, this.pixelRatio, 0, 0);
@@ -238,21 +354,27 @@ export class Canvas2DRenderer implements Renderer {
    * top of the world. Painting light straight onto the frame cannot do the
    * first, and subtracting alone cannot do the second.
    */
-  beginDarkness(color: string, view: CameraView): void {
+  beginDarkness(color: string, view: CameraView, options: DarknessOptions): void {
+    this.darkness = options;
     this.darkCtx.setTransform(1, 0, 0, 1, 0, 0);
     this.darkCtx.globalCompositeOperation = 'source-over';
     this.darkCtx.globalAlpha = 1;
+    this.darkCtx.filter = 'none';
     this.darkCtx.fillStyle = color;
     this.darkCtx.fillRect(0, 0, this.darkCanvas.width, this.darkCanvas.height);
 
-    this.glowCtx.setTransform(1, 0, 0, 1, 0, 0);
-    this.glowCtx.globalCompositeOperation = 'source-over';
-    this.glowCtx.globalAlpha = 1;
-    this.glowCtx.clearRect(0, 0, this.glowCanvas.width, this.glowCanvas.height);
-
-    applyWorldTransform(this.darkCtx, view, this.pixelRatio);
-    applyWorldTransform(this.glowCtx, view, this.pixelRatio);
-    this.darkCtx.globalCompositeOperation = 'destination-out';
+    for (const ctx of this.darknessLayers) {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 1;
+      ctx.filter = 'none';
+      ctx.clearRect(0, 0, this.lightCanvas.width, this.lightCanvas.height);
+      applyWorldTransform(ctx, view, this.pixelRatio);
+    }
+    // Two lights over the same floor leave it as bright as the brighter of them
+    // plus what the other still has to give — the same diminishing sum the
+    // simulation counts, because plain alpha over alpha is exactly that sum.
+    this.lightCtx.globalCompositeOperation = 'source-over';
     // Bloom accumulates: two lamps overlapping are brighter than either alone.
     this.glowCtx.globalCompositeOperation = 'lighter';
   }
@@ -275,13 +397,113 @@ export class Canvas2DRenderer implements Renderer {
 
   punchPolygon(points: Float32Array, light: PolygonLight): void {
     if (points.length < 6 || light.radius <= 0) return;
-    if (light.strength > 0) {
-      fillProfile(this.darkCtx, points, light, light.strength, light.profile, BLACK);
+    const { cone, glow } = light;
+    if (cone) {
+      if (light.strength > 0) {
+        this.stampBeam(this.lightCtx, points, light, cone, light.strength, light.profile, WHITE);
+      }
+      if (glow && glow.strength > 0) {
+        const channels = this.channelsOf(glow.colour);
+        this.stampBeam(this.glowCtx, points, light, cone, glow.strength, glow.profile, channels);
+      }
+      return;
     }
-    const { glow } = light;
+    if (light.strength > 0) {
+      fillProfile(this.lightCtx, points, light, light.strength, light.profile, WHITE);
+    }
     if (glow && glow.strength > 0) {
       fillProfile(this.glowCtx, points, light, glow.strength, glow.profile, this.channelsOf(glow.colour));
     }
+  }
+
+  /**
+   * Lays one pre-built beam over the floor. The mask holds the whole shape —
+   * falloff along the beam and the soft edge across it — so a beam is a single
+   * draw whatever its length, and nothing inside it can overlap anything else
+   * inside it.
+   */
+  private stampBeam(
+    ctx: CanvasRenderingContext2D,
+    points: Float32Array,
+    light: PolygonLight,
+    cone: LightCone,
+    strength: number,
+    profile: LightProfile,
+    channels: string,
+  ): void {
+    const mask = this.beamMask(cone, profile, channels);
+    if (!mask) return;
+    ctx.save();
+    tracePolygon(ctx, points);
+    ctx.clip();
+    ctx.globalAlpha = clamp01(strength);
+    ctx.translate(light.x, light.y);
+    ctx.rotate(cone.facing);
+    ctx.scale(light.radius, light.radius);
+    ctx.drawImage(mask, -1, -1, 2, 2);
+    ctx.restore();
+  }
+
+  /** One mask per beam shape, built once and then only ever rotated and scaled. */
+  private beamMask(
+    cone: LightCone,
+    profile: LightProfile,
+    channels: string,
+  ): HTMLCanvasElement | undefined {
+    if (profile.length < 2) return undefined;
+    const key = `${this.profileId(profile)}:${cone.halfAngle.toFixed(4)}:${cone.core.toFixed(3)}:${cone.bulb.toFixed(3)}:${channels}`;
+    const cached = this.beams.get(key);
+    if (cached) return cached;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = BEAM_MASK;
+    canvas.height = BEAM_MASK;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return undefined;
+    const image = ctx.createImageData(BEAM_MASK, BEAM_MASK);
+    const data = image.data;
+    const [red, green, blue] = channels.split(',').map((part) => Number(part) || 0);
+    const half = Math.max(1e-3, cone.halfAngle);
+    const core = clamp01(cone.core);
+    const bulb = Math.max(1e-3, cone.bulb);
+
+    for (let py = 0; py < BEAM_MASK; py++) {
+      const ny = ((py + 0.5) / BEAM_MASK) * 2 - 1;
+      for (let px = 0; px < BEAM_MASK; px++) {
+        const nx = ((px + 0.5) / BEAM_MASK) * 2 - 1;
+        const distance = Math.hypot(nx, ny);
+        const offset = (py * BEAM_MASK + px) * 4;
+        data[offset] = red;
+        data[offset + 1] = green;
+        data[offset + 2] = blue;
+        if (distance >= 1) continue;
+        const across = Math.abs(Math.atan2(ny, nx)) / half;
+        const shaped = across <= core ? 1 : ease(1 - (across - core) / Math.max(1e-3, 1 - core));
+        // Near the lamp itself the cone is narrower than the lamp is wide, so it
+        // opens out into a bulb. Without it the beam starts at a point and the
+        // torch reads as floating in front of the player rather than held.
+        const opening = ease(distance / bulb);
+        const angular = shaped + (1 - shaped) * (1 - opening);
+        data[offset + 3] = Math.round(255 * clamp01(sampleProfile(profile, distance) * angular));
+      }
+    }
+    ctx.putImageData(image, 0, 0);
+    while (this.beams.size >= 16) {
+      const oldest = this.beams.keys().next();
+      if (oldest.done) break;
+      this.beams.delete(oldest.value);
+    }
+    this.beams.set(key, canvas);
+    return canvas;
+  }
+
+  private profileId(profile: LightProfile): number {
+    const key = profile as unknown as object;
+    const known = this.profileIds.get(key);
+    if (known !== undefined) return known;
+    const id = this.nextProfileId++;
+    this.profileIds.set(key, id);
+    return id;
   }
 
   /**
@@ -303,9 +525,27 @@ export class Canvas2DRenderer implements Renderer {
     return channels;
   }
 
+  /**
+   * The whole light mask comes off the darkness at once, blurred by a couple of
+   * pixels on the way. That blur is the penumbra: a shadow edge is a ray budget
+   * away from being exact, and softening it hides both the steps between rays
+   * and the way they crawl as the player moves. Bloom is blurred far harder and
+   * added over its own crisp core, which is what a bright lamp does to an eye.
+   */
   endDarkness(): void {
+    const { bloom, bloomStrength, softness } = this.darkness;
+    for (const ctx of this.darknessLayers) {
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 1;
+    }
+    this.darkCtx.setTransform(1, 0, 0, 1, 0, 0);
+    this.darkCtx.globalCompositeOperation = 'destination-out';
+    this.darkCtx.filter = softness > 0 ? `blur(${softness * this.pixelRatio}px)` : 'none';
+    this.darkCtx.drawImage(this.lightCanvas, 0, 0);
+    this.darkCtx.filter = 'none';
     this.darkCtx.globalCompositeOperation = 'source-over';
-    this.glowCtx.globalCompositeOperation = 'source-over';
+
     this.ctx.save();
     this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.ctx.globalAlpha = 1;
@@ -314,6 +554,13 @@ export class Canvas2DRenderer implements Renderer {
     this.ctx.drawImage(this.darkCanvas, 0, 0);
     this.ctx.globalCompositeOperation = 'lighter';
     this.ctx.drawImage(this.glowCanvas, 0, 0);
+    if (bloom > 0 && bloomStrength > 0) {
+      this.ctx.filter = `blur(${bloom * this.pixelRatio}px)`;
+      this.ctx.globalAlpha = clamp01(bloomStrength);
+      this.ctx.drawImage(this.glowCanvas, 0, 0);
+      this.ctx.filter = 'none';
+      this.ctx.globalAlpha = 1;
+    }
     this.ctx.globalCompositeOperation = 'source-over';
     this.ctx.restore();
   }

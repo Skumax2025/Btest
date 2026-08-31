@@ -45,6 +45,8 @@ export interface DarknessParams {
   /** How far the player can see lit places down an open corridor. */
   readonly losRadius: number;
   readonly flashlightOn: boolean;
+  /** Fractional tick, so the torch's own restlessness runs at frame rate. */
+  readonly tick: number;
   /**
    * Changes whenever the tile grid does — a chunk streamed in, or a new level.
    * Cached lamp shadows are only valid for the geometry they were traced against.
@@ -95,6 +97,8 @@ interface Profiles {
   readonly lamp: LightProfile;
   readonly lampGlow: LightProfile;
   readonly sight: LightProfile;
+  readonly beam: LightProfile;
+  readonly beamGlow: LightProfile;
 }
 
 export class LightingView {
@@ -114,7 +118,11 @@ export class LightingView {
     const light = params.config.light;
     const profiles = this.profilesFor(params.lighting, light);
     this.invalidate(params.geometryKey);
-    renderer.beginDarkness(params.palette.darkness, params.view);
+    renderer.beginDarkness(params.palette.darkness, params.view, {
+      softness: light.softness,
+      bloom: light.bloom,
+      bloomStrength: light.bloomStrength,
+    });
 
     // One cast, at the furthest radius anything the player owns can reach.
     const fan = this.playerFan(params);
@@ -139,6 +147,7 @@ export class LightingView {
 
     if (params.flashlightOn) this.drawFlashlight(renderer, params, profiles);
     renderer.endDarkness();
+    renderer.vignette(light.vignetteColour, light.vignette, light.vignetteInner);
   }
 
   private drawLamps(renderer: Renderer, params: DarknessParams, profiles: Profiles): void {
@@ -169,50 +178,42 @@ export class LightingView {
   }
 
   /**
-   * The beam is a chain of soft pools down the aim line, all clipped to one
-   * visibility cone cast from the player. The cone is what keeps the light out
-   * of the next room; the pools are what give the beam an edge that fades,
-   * because a pool's own falloff reaches zero before the cone does. The floor at
-   * the player's feet gets a little of it back, which is what stops the torch
-   * looking like it floats in front of them.
+   * One beam, not a chain of pools.
+   *
+   * The pools were an attempt at a soft edge and they cost one: every pool
+   * subtracted its own darkness, so where two overlapped the floor went brighter
+   * than either had asked for — a blown-out core down the aim line and a ring at
+   * every seam. The shape now lives in a mask the backend builds once, falloff
+   * along the beam and soft edge across it in the same texture, and the beam is
+   * a single stamp of it. The visibility cone still clips it, which is what keeps
+   * the light out of the next room, and the floor at the player's feet still gets
+   * a little back so the torch reads as held rather than as floating in front.
    */
   private drawFlashlight(renderer: Renderer, params: DarknessParams, profiles: Profiles): void {
     const light = params.config.light;
     const { lighting } = params;
-    const facingX = Math.cos(params.playerFacing);
-    const facingY = Math.sin(params.playerFacing);
-    const clip = this.beamCone(params);
-    const segments = Math.max(1, Math.round(light.beamSegments));
-    // A pool this wide at this distance subtends exactly the beam's half-angle,
-    // so the chain's envelope is the cone the config asked for.
-    const spread = Math.sin(Math.min(lighting.flashlightHalfAngle, Math.PI / 2));
-    // The clip is the one hard edge in the beam. Keeping every pool inside it
-    // with room to spare is what stops that edge from ever being the thing the
-    // player sees, which matters most at the torch itself, where the pools are
-    // close enough to the origin to be wider than the cone that holds them.
-    const inside =
-      0.85 * Math.sin(Math.min(lighting.flashlightHalfAngle * light.beamClip, Math.PI / 2));
+    const aim = this.torchAim(params);
+    const strength = lighting.flashlightStrength * this.torchFlutter(params);
+    const cone = {
+      facing: aim,
+      halfAngle: lighting.flashlightHalfAngle,
+      core: light.beamCore,
+      bulb: light.beamBulb,
+    };
 
-    for (let i = 0; i < segments; i++) {
-      const along = (i + 0.5) / segments;
-      const distance = along * lighting.flashlightRadius;
-      const radius = Math.min(light.beamNear + spread * distance, inside * distance);
-      const strength = lighting.flashlightStrength * (1 - ease(along) * light.beamFade);
-      renderer.punchPolygon(clip, {
-        x: params.playerX + facingX * distance,
-        y: params.playerY + facingY * distance,
-        radius,
-        strength,
-        profile: profiles.lamp,
-        glow: {
-          colour: params.palette.lampGlow,
-          // Bloom is additive, so it is shared out across the chain rather than
-          // paid in full by each pool.
-          strength: (strength * light.flashlightGlow) / segments,
-          profile: profiles.lampGlow,
-        },
-      });
-    }
+    renderer.punchPolygon(this.beamCone(params, aim), {
+      x: params.playerX,
+      y: params.playerY,
+      radius: lighting.flashlightRadius,
+      strength,
+      profile: profiles.beam,
+      cone,
+      glow: {
+        colour: params.palette.lampGlow,
+        strength: strength * light.flashlightGlow,
+        profile: profiles.beamGlow,
+      },
+    });
 
     const spill = Math.min(light.flashlightSpill, params.losRadius);
     this.scratchSpill = this.polygonAt(params, spill, this.scratchSpill);
@@ -220,7 +221,7 @@ export class LightingView {
       x: params.playerX,
       y: params.playerY,
       radius: spill,
-      strength: light.flashlightSpillStrength,
+      strength: light.flashlightSpillStrength * strength,
       profile: profiles.lamp,
       glow: {
         colour: params.palette.lampGlow,
@@ -230,13 +231,33 @@ export class LightingView {
     });
   }
 
+  /**
+   * Where the torch is actually pointing. Two cycles that do not divide into one
+   * another, so the wander never repeats on a beat the eye can pick out — a hand
+   * holding a torch is never quite still, and a beam that is says "cursor".
+   */
+  private torchAim(params: DarknessParams): number {
+    const { torchSway, torchSwayPeriod } = params.config.light;
+    if (torchSway <= 0) return params.playerFacing;
+    const phase = (params.tick / Math.max(1, torchSwayPeriod)) * Math.PI * 2;
+    return params.playerFacing + torchSway * (Math.sin(phase) * 0.6 + Math.sin(phase * 2.7 + 1.3) * 0.4);
+  }
+
+  /** The same restlessness in brightness. Never dips far enough to read as a fault. */
+  private torchFlutter(params: DarknessParams): number {
+    const { torchFlutter, torchSwayPeriod } = params.config.light;
+    if (torchFlutter <= 0) return 1;
+    const phase = (params.tick / Math.max(1, torchSwayPeriod)) * Math.PI * 2;
+    return 1 - torchFlutter * 0.5 * (1 - Math.cos(phase * 1.7 + 0.7));
+  }
+
   /** The player's fan, reshaped to a smaller radius. Exact, and free. */
   private polygonAt(params: DarknessParams, radius: number, out?: Float32Array): Float32Array {
     return fanPolygon(params.playerX, params.playerY, this.sightFan, radius, out);
   }
 
-  /** What the beam is allowed to reach at all: one cast, shared by every pool. */
-  private beamCone(params: DarknessParams): Float32Array {
+  /** What the beam is allowed to reach at all — the shadows in it, and nothing else. */
+  private beamCone(params: DarknessParams, aim: number): Float32Array {
     const options: FanOptions = {
       rayCount: params.rays.flashlightRays,
       tileSize: params.tileSize,
@@ -245,7 +266,7 @@ export class LightingView {
         params.lighting.flashlightHalfAngle * params.config.light.beamClip,
         Math.PI * 0.49,
       ),
-      facing: params.playerFacing,
+      facing: aim,
       wallPenetration: params.config.light.wallPenetration,
     };
     const arc = visibilityPolygon(
@@ -276,6 +297,10 @@ export class LightingView {
       lamp: falloffProfile(samples, lighting),
       lampGlow: falloffProfile(samples, lighting, config.glowConcentration),
       sight: flatProfile(samples, config.sightCore),
+      // A torch does not fall off like a bare bulb: it holds its brightness down
+      // the beam and then runs out, which is what `flatProfile` describes.
+      beam: flatProfile(samples, config.beamReach),
+      beamGlow: flatProfile(samples, config.beamReach, config.glowConcentration),
     };
     this.profileKey = lighting;
     this.viewKey = config;

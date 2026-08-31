@@ -63,28 +63,43 @@ export interface LightViewConfig {
   /** Exponent tightening the bloom into the middle of a light. Higher is tighter. */
   readonly glowConcentration: number;
   /**
-   * The beam is a string of soft pools laid along the aim line, not a wedge.
-   * A wedge is a polygon, and a polygon has a hard edge wherever it is not a
-   * wall — stacking wedges to fake a soft one only trades that edge for a fan of
-   * seams where their clips overlap. Pools have no edge to begin with: they fall
-   * off through the same curve a lamp does, and their union is the beam.
+   * Blur on the light mask, in screen pixels. A shadow edge is only ever as
+   * exact as the ray budget that found it; a couple of pixels of penumbra is
+   * both what a real edge looks like and what hides the steps between rays.
    */
-  readonly beamSegments: number;
+  readonly softness: number;
+  /** Blur on the bloom layer, in screen pixels. This is the halo itself. */
+  readonly bloom: number;
+  /** How much of that halo is added over its own crisp core. */
+  readonly bloomStrength: number;
+  /** How hard the corners of the frame are pulled down. 0 turns it off. */
+  readonly vignette: number;
+  /** Share of the frame left untouched in the middle. */
+  readonly vignetteInner: number;
+  readonly vignetteColour: string;
   /**
-   * Widest half-angle the pools are clipped to, as a multiple of the beam's own.
-   * Only wall shadows should ever reach it; if the pools do, it has a visible
-   * edge again.
+   * Widest half-angle the beam is clipped to, as a multiple of its own. Only
+   * wall shadows should ever reach that clip; if the beam itself does, the one
+   * hard edge in the whole pass becomes the thing the player looks at.
    */
   readonly beamClip: number;
-  /** Pool radius at the torch itself, in world units; it widens with the beam after that. */
-  readonly beamNear: number;
-  /** How much dimmer the end of the beam is than its root. A torch does not fall
-   *  off like a bare bulb, so this stays modest. */
-  readonly beamFade: number;
+  /** Share of the beam's half-angle held at full brightness across the beam. */
+  readonly beamCore: number;
+  /** Share of the radius over which the beam opens out of the torch itself, so
+   *  the light has a body at the player's hand rather than starting at a point. */
+  readonly beamBulb: number;
+  /** Share of the beam's length held near full brightness before it fades out. */
+  readonly beamReach: number;
   readonly flashlightGlow: number;
   /** Light bouncing back off the floor at the player's feet, in world units. */
   readonly flashlightSpill: number;
   readonly flashlightSpillStrength: number;
+  /** How far the torch wanders off the aim line. A hand is not a tripod. */
+  readonly torchSway: number;
+  /** Depth of the torch's own unsteadiness in brightness, 0 for a dead-steady beam. */
+  readonly torchFlutter: number;
+  /** Ticks per cycle of both. */
+  readonly torchSwayPeriod: number;
 }
 
 /**
@@ -133,19 +148,28 @@ export interface CombatViewConfig {
 export const VIEW: ViewConfig = {
   light: {
     wallPenetration: 0.5,
-    profileSamples: 12,
+    profileSamples: 24,
     cacheLimit: 512,
-    playerLightStrength: 0.88,
-    sightCore: 0.5,
-    lampGlow: 0.3,
+    playerLightStrength: 0.84,
+    sightCore: 0.42,
+    lampGlow: 0.34,
     glowConcentration: 2.1,
-    beamSegments: 12,
-    beamClip: 2.4,
-    beamNear: 30,
-    beamFade: 0.3,
-    flashlightGlow: 0.26,
-    flashlightSpill: 96,
-    flashlightSpillStrength: 0.34,
+    softness: 3,
+    bloom: 15,
+    bloomStrength: 0.6,
+    vignette: 0.55,
+    vignetteInner: 0.26,
+    vignetteColour: 'rgba(3,2,7,0.92)',
+    beamClip: 1.9,
+    beamCore: 0.34,
+    beamBulb: 0.16,
+    beamReach: 0.4,
+    flashlightGlow: 0.3,
+    flashlightSpill: 92,
+    flashlightSpillStrength: 0.3,
+    torchSway: 0.02,
+    torchFlutter: 0.05,
+    torchSwayPeriod: 53,
   },
   wallFaceHeight: 0.22,
   floorVariationEvery: 5,

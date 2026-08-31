@@ -476,3 +476,18 @@ of `tests/invariants.test.ts` and `tests/content.test.ts` now being in the suite
   rays — real corners went unrefined — and the corner stitch could join two
   unrelated end tiles into a spike of false geometry that flickered as the player
   moved. Every topology test now requires the ray to have been blocked.
+- **Every light subtracted its own darkness.** Two lights over the same floor
+  removed more than either had asked for, which is why the middle of the torch
+  beam went white and why rings appeared where the pools it was made of met. All
+  light now lands on one mask and the mask comes off the darkness once, so what
+  a place is worth in light is decided before anything is drawn.
+- **Shadows had the exact edge of the ray that found them.** The mask is blurred
+  by a couple of pixels on its way off the darkness, which is both what a real
+  penumbra looks like and what stops a shadow edge crawling ray by ray as the
+  player walks. Bloom is blurred far harder over its own crisp core.
+- **The beam was a chain of twelve pools.** It is one shape now, built into a
+  mask once — falloff along it and a soft edge across it in the same texture —
+  and opened out into a bulb at the player's hand so the torch reads as held.
+- **A browning-out lamp blinked out.** `collectLights` dropped a lamp the moment
+  it fell under the lit threshold, taking a sixth of full brightness out of the
+  room in one tick. It fades to nothing below the threshold instead.

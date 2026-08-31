@@ -88,6 +88,7 @@ export class WorldView {
       sightRadius: run.perception.sightRadius,
       losRadius: options.losRadius,
       flashlightOn: run.flashlightOn,
+      tick: run.tick + alpha,
       rays: options.rays,
       config: options.view,
     });

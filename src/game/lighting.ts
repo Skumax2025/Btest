@@ -107,16 +107,22 @@ export const collectLights = (
   config: LightingConfig,
 ): LightSource[] => {
   const lights: LightSource[] = [];
+  const threshold = Math.max(1e-3, config.litThreshold);
   for (const prop of props) {
     if (prop.kind !== 'lamp') continue;
     const intensity = lampIntensity(prop, tick, config);
-    // A lamp too faint to see is still a polygon to clip and a gradient to fill.
-    if (intensity < config.litThreshold) continue;
+    // Dropping a lamp the moment it fell under the threshold took a pool of a
+    // sixth of full brightness out of the room between one tick and the next, so
+    // a browning-out tube blinked rather than dimmed. Below the threshold the
+    // lamp fades out instead, and is only dropped once there is nothing left to
+    // draw — a lamp too faint to see is still a polygon to clip and fill.
+    const brightness = intensity * Math.min(1, intensity / threshold);
+    if (brightness < 0.01) continue;
     lights.push({
       x: prop.x,
       y: prop.y,
       radius: config.lampRadius,
-      strength: clamp(config.lampStrength * intensity, 0, 1),
+      strength: clamp(config.lampStrength * brightness, 0, 1),
     });
   }
   return lights;
