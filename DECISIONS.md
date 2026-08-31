@@ -469,3 +469,59 @@ of `tests/invariants.test.ts` and `tests/content.test.ts` now being in the suite
   or switch on, which is what a lure on a belt is for.
 - **The belt overlapped the key legend at 1024 wide.** The adaptive breakpoint sat
   at 860 and the collision starts at about 1200.
+
+## Light, surfaces and the feel (H1)
+
+- **Shape specs went fractional, and grew.** The old vocabulary was four
+  primitives positioned by a pixel inset, which can describe a coloured box and
+  almost nothing else — every item icon was the same rectangle with a different
+  fill. Coordinates are now fractions of the sprite's own box across eight
+  primitives (rect with a radius, ellipse, ring, polygon, line, seeded noise,
+  linear gradient, soft glow), so one spec is resolution-independent and an icon
+  authored once is drawn at 18 pixels on the carpet and 44 in the bag. Dropped:
+  an atlas of hand-drawn PNGs, which the brief's no-assets rule forbids, and
+  keeping the old spec kinds alongside the new ones, which would have left two
+  coordinate systems in one file.
+- **Icons are content, not interface.** The bag, the belt, the hands and both
+  tooltips all draw the same `def.sprite` the floor does. `IconSource` turns a
+  sprite into a data URL once and hands it to `background-image`, so no cell owns
+  a canvas and dragging a stack costs nothing. Dropped: a `<canvas>` per cell,
+  and a second set of DOM-only icons, which would have let the two drift.
+- **A test forbids a shared icon.** `item.ground` is the fallback marker, and an
+  item still pointing at it is an item nobody can tell from another. The content
+  test fails on that and on two items sharing art; bare hands are exempt by name,
+  because they are a stat block that is never spawned or carried.
+- **A palette names its tiles; sprites builds them.** Textures have to come from
+  the palette's own colours, and the two files must not import each other or the
+  cycle test fails. So `palettes.ts` declares ids and no colours travel upward;
+  `sprites.ts` reads `PALETTES` and paints exactly the ids declared. A new level
+  is still a palette entry rather than thirty new sprites. Dropped: texture ids
+  built by string concatenation at the draw site, which nothing could check.
+- **Floors got a seam because corridors felt static.** Flat fill gives the eye
+  nothing to measure movement against, so walking down an endless corridor read
+  as standing still. The seam is the fix; the grain and the four variants are
+  what stop the seam from reading as graph paper.
+- **Portable lights carry their own colour.** `LightDef.tint` is required, so a
+  new light has to decide what it burns like, and `LightSource.tint` is optional,
+  because a ceiling tube burns whatever the level's bulbs do. Dropped: one glow
+  colour per palette for everything, under which a chemical stick and a filament
+  torch were the same light with a different cone.
+- **A lamp needs two pools, not one.** With a single falloff the brightest thing
+  on screen is a patch of floor and the fitting above it reads as unlit. The
+  second pool is small and tight and lands on the fitting itself.
+- **Dark adaptation is brightness only, never radius.** The view and the
+  simulation agree about how far the player can see — that agreement is the point
+  of sharing `lightFalloff` — so the eye adjusting is a multiplier on how bright
+  the sight bubble is drawn and nothing else. It also eases per *frame* rather
+  than per tick, which is the honest cost of keeping it out of the simulation.
+- **The impact flash is read off the swing, not off the creature.** A swing
+  catches everything in the ring, so everything in the ring flinches. Giving each
+  creature a `hurtTicks` would be more accurate for the one that turned the blow
+  aside, at the cost of a new field in saved state and in the determinism
+  fingerprint, to fix a wrong highlight lasting a sixth of a second. Dropped.
+- **The camera leans towards the cursor.** A top-down view that centres the
+  character shows you the corridor you came from. The lean is a fraction of the
+  distance to the aim point and capped in world units, which is stable — the
+  cursor is fixed on the screen, so an uncapped lean would chase itself outward.
+  Stance moves the zoom rather than the speed: running widens the view, crouching
+  narrows it, and neither is meant to be noticed as a zoom.

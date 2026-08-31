@@ -63,6 +63,21 @@ Landmarks are the only navigation there is: no map, no compass, no coordinates.
 The generator guarantees one memorable room every few chunks and one way down
 every few chunks after that.
 
+### Light
+
+Light is the mechanic the building is built around, so it is drawn from the same
+curve the simulation reads: the pool you see is the pool the game counts as lit.
+Ceiling tubes burn the colour of the level's own bulbs; a torch, a head lamp and
+a chemical stick each burn their own, so what is in your hand is legible from the
+colour on the walls. Every lamp is two pools — a wide one on the floor and a
+tight one on the fitting, because a light you cannot see the source of reads as a
+stain rather than a lamp. A hand-held beam sways slightly, being held by a hand.
+
+Stepping out of a lit room into the dark is briefly worse than being in the dark
+already was: the eye takes about a second to adjust. That is brightness only —
+how far you can see is a number the simulation owns and the view never argues
+with.
+
 ### Carrying
 
 There is no weight. There are cells, and nine equipment slots — head, face,
@@ -226,7 +241,11 @@ and world generation derived from stateless coordinate hashes.
    `beacon` it needs. Behaviour is a combination of effects the item module
    already executes; an item never gets code of its own.
 2. Add `item.<id>.name` and `item.<id>.desc` to both locale files.
-3. Add a sprite spec under the same `sprite` id in `src/content/sprites.ts`.
+3. Draw an icon under the same `sprite` id in `src/content/sprites.ts` — a stack
+   of shapes in fractions of its own box, in whatever proportions the thing has.
+   The same spec is what the bag, the belt, the hands, the tooltips and the floor
+   all draw, so it only has to be authored once. A test fails if it is left on
+   the shared ground marker or borrows another item's art.
 4. Put it in a loot table in `src/content/loot-tables.ts`.
 
 No module above L3 changes. The tests fail if a loot table points at an item that
@@ -280,14 +299,21 @@ connectivity and density for every level.
 
 Add a `LevelSpec` to `LEVELS` in `src/content/levels.ts`: its own rooms,
 landmarks, palette id, corridor-lattice period, lamp and container odds, creature
-mix and ambient light. Add the palette to `src/content/palettes.ts`. The descent
-walks the array in order.
+mix and ambient light. Add the palette to `src/content/palettes.ts` — a palette
+declares the ids of the tiles painted with it, and `sprites.ts` builds carpet,
+wallpaper, pillars, damp and stains out of that palette's own colours, so a new
+level is a colour table rather than thirty new sprites. The descent walks the
+array in order.
 
 ## Performance
 
 60 FPS with the debug overlay open, measured in Chromium at 1280x720: about
 0.9 ms of simulation and 6.4 ms of rendering per frame with 20 creatures and 9
-chunks live. `tests/performance.test.ts` steps 200 active creatures and asserts
+chunks live. That figure predates the texture pass, which is now the largest
+draw in a frame: against the same scene, a software-rendered Chromium in a
+container puts the textured floor at roughly a sixth more render time than the
+flat fills it replaced, which would land the number above nearer 7.5 ms. The
+simulation is untouched by any of it. `tests/performance.test.ts` steps 200 active creatures and asserts
 the tick stays under 4 ms (it is around 2 ms), which is really a guard against an
 accidental O(n²) — the uniform grid and the source-bucketed noise field exist to
 keep it linear.
@@ -313,8 +339,8 @@ Nothing on either brief's cut list was cut. These are the honest gaps:
   as asked, but a player who never presses `Tab` will never find the bag.
 - **Splitting a stack always halves it.** There is no number picker; the context
   menu splits down the middle and that is the whole of it.
-- **Equipment has no silhouette art.** The slot panel is a labelled body layout,
-  not a drawn figure.
+- **Equipment has no silhouette art.** The slot panel is a labelled body layout
+  with the icons of what is worn in it, not a drawn figure.
 - **Low-nerve effects are modest**: false silhouettes at the edge of sight, a
   souring hum, whispers, and a colour shift on the HUD. No screen-space
   distortion.
@@ -329,12 +355,26 @@ Nothing on either brief's cut list was cut. These are the honest gaps:
   in `VISION` are set to keep that gap under a tile out to the distance the
   player can actually see. Beyond that, far shadow edges are approximate.
 - **Light is a flat overlay, so nothing is shaded by direction.** A wall's lit
-  face is the near half of its tile rather than a surface with a normal.
+  face is the near half of its tile rather than a surface with a normal, and the
+  wallpaper on it does not turn with the light either.
 - **No touch input.** The input layer is abstracted so an adapter that produces
   `InputFrame`s is all it would take, but the adapter is not written.
-- **Sound is synthesised placeholder tones**, like the sprites. Both sit behind
-  interfaces (`SpriteProvider`, `AudioOutput`) so real assets can replace them
-  without touching a game module.
+- **Sound is synthesised placeholder tones.** Sprites are procedural too — every
+  icon, tile and body is a stack of shapes drawn into a canvas at load time, not
+  a painting. Both sit behind interfaces (`SpriteProvider`, `AudioOutput`) so
+  real assets can replace them without touching a game module.
+- **Dark adaptation eases per frame, not per second.** It is a purely visual
+  memory kept in the view, so it is deliberately outside the fixed step; a
+  machine at 30 FPS adjusts about half as quickly. Nothing the simulation reads
+  depends on it.
+- **The impact flash is read off the swing, not off each creature.** Everything
+  inside the reach flinches when a swing lands, including the one that turned it
+  aside. Fixing that would mean a new field in creature state, in the save and in
+  the determinism fingerprint, to correct a highlight that lasts a sixth of a
+  second.
+- **The floor is four tiles and the walls three**, picked per cell from its own
+  coordinates. That is enough that no repeat is ever adjacent to itself, but it
+  is not the same as a building that is genuinely different everywhere.
 
 ## Layout
 

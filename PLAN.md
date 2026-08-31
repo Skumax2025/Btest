@@ -82,3 +82,40 @@ mod  src/content/locales/*
 
 ## G5 — polish
 README.md, DECISIONS.md, balance pass over the numbers in L3
+
+---
+
+# Third pass: light, surfaces, feel, icons
+
+## H0 — the drawing vocabulary
+mod  src/core/assets.ts                     (L0: fractional coordinates, eight primitives)
+mod  src/core/renderer.ts, src/core/canvas-renderer.ts   (strokeArc)
+
+## H1 — icons for the whole catalogue
+mod  src/content/sprites.ts                 (L3: 34 item icons, props, decals, creatures)
+new  src/ui/icons.ts                        (L4: sprite -> data URL, cached)
+mod  src/ui/{context,inventory-ui,hud,app}.ts, src/style.css
+mod  src/view/props.ts                      (aspect on the floor, shadow, throw spin)
+mod  tests/content.test.ts                  (no item on the fallback marker, no shared art)
+
+## H2 — surfaces
+mod  src/content/palettes.ts                (L3: a palette declares its tile ids)
+mod  src/content/sprites.ts                 (carpet, wallpaper, pillar, damp, stain per palette)
+mod  src/view/tiles.ts                      (textures, wall flanks)
+mod  src/content/view.ts                    (wallSideWidth, throwSpin)
+
+## H3 — light
+mod  src/game/lighting.ts                   (L2: LightSource.tint)
+mod  src/game/items.ts, src/content/items.ts, src/content/tuning.ts  (LightDef.tint)
+mod  src/view/lighting-view.ts              (lamp core, beam sway, dark adaptation, per-light tint)
+mod  src/view/world-view.ts, src/content/view.ts
+
+## H4 — feel
+mod  src/core/camera.ts                     (L0: zoomTowards)
+mod  src/content/tuning.ts                  (lead, stance zoom, swing and break shake)
+mod  src/ui/app.ts                          (camera target, zoom, combat shake, damage)
+mod  src/ui/hud.ts, src/style.css           (hurt vignette)
+mod  src/view/combat-view.ts, src/view/props.ts  (swing arc, impact flash)
+
+## H5 — documentation
+README.md, DECISIONS.md, PLAN.md
