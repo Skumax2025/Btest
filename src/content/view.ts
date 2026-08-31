@@ -8,8 +8,7 @@
 
 export interface ViewConfig {
   readonly light: LightViewConfig;
-  /** Height of a wall's lit cap and dark skirt, as a share of a tile. */
-  readonly wallFaceHeight: number;
+  readonly wall: WallViewConfig;
   /** One floor tile in this many gets the alternate shade. */
   readonly floorVariationEvery: number;
   readonly markerTiles: number;
@@ -103,6 +102,25 @@ export interface LightViewConfig {
 }
 
 /**
+ * How much of a wall the camera can see round the side of.
+ *
+ * The projection is one number in two parts: a wall's apparent height over the
+ * height the camera is looking down from. Everything else here is the shading
+ * that makes the raised part read as a side rather than as a wider wall.
+ */
+export interface WallViewConfig {
+  /** Apparent height of a wall, in tiles. */
+  readonly height: number;
+  /** How far above the floor the camera sits, in tiles. Larger is flatter. */
+  readonly cameraHeight: number;
+  /** The bright line along a wall's north crest, as a share of a tile. */
+  readonly crest: number;
+  /** How far a wall's shadow reaches onto the floor beside it, in tiles. */
+  readonly contactShadow: number;
+  readonly contactShadowColour: string;
+}
+
+/**
  * How loudly the interface talks. It stays out of the way while nothing is
  * happening and comes back the moment a bar moves or something walks into reach.
  */
@@ -152,26 +170,32 @@ export const VIEW: ViewConfig = {
     cacheLimit: 512,
     playerLightStrength: 0.84,
     sightCore: 0.42,
-    lampGlow: 0.34,
+    lampGlow: 0.2,
     glowConcentration: 2.1,
-    softness: 3,
-    bloom: 15,
-    bloomStrength: 0.6,
-    vignette: 0.55,
+    softness: 7,
+    bloom: 20,
+    bloomStrength: 0.42,
+    vignette: 0.42,
     vignetteInner: 0.26,
     vignetteColour: 'rgba(3,2,7,0.92)',
     beamClip: 1.9,
-    beamCore: 0.34,
-    beamBulb: 0.16,
-    beamReach: 0.4,
-    flashlightGlow: 0.3,
+    beamCore: 0.16,
+    beamBulb: 0.22,
+    beamReach: 0.14,
+    flashlightGlow: 0.14,
     flashlightSpill: 92,
     flashlightSpillStrength: 0.3,
     torchSway: 0.02,
     torchFlutter: 0.05,
     torchSwayPeriod: 53,
   },
-  wallFaceHeight: 0.22,
+  wall: {
+    height: 0.62,
+    cameraHeight: 16,
+    crest: 0.1,
+    contactShadow: 0.42,
+    contactShadowColour: 'rgba(9,7,4,0.55)',
+  },
   floorVariationEvery: 5,
   markerTiles: 3,
   markerAlpha: 0.85,

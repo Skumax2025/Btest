@@ -491,3 +491,15 @@ of `tests/invariants.test.ts` and `tests/content.test.ts` now being in the suite
 - **A browning-out lamp blinked out.** `collectLights` dropped a lamp the moment
   it fell under the lit threshold, taking a sixth of full brightness out of the
   room in one tick. It fades to nothing below the threshold instead.
+- **Walls were paint on the floor.** They are drawn standing now: the top is
+  pushed away from the middle of the screen by its height over the camera's, and
+  the strip that opens between the footprint's near edge and the same edge of the
+  top is the side of the wall the camera has come round to see. Corners are
+  projected one at a time so a block of wall has no seams down it, and the
+  footprint never moves, so what is drawn still says where the player may walk.
+  A gradient at the base of every wall is the contact shadow, which is the one
+  depth cue that survives the wall being unlit.
+- **The floor was ruled into squares.** Two rects sharing an edge each covered
+  part of the device pixel under it and neither covered all of it, so the
+  background showed through as a grid. Every tile is drawn half a unit past its
+  own edge.

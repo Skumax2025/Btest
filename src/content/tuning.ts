@@ -80,7 +80,7 @@ export const LIGHTING = {
   darkVisionRadius: 112,
   flashlightRadius: 620,
   flashlightHalfAngle: 0.46,
-  flashlightStrength: 1,
+  flashlightStrength: 0.93,
   darkThreshold: 0.22,
   flashlightLightLevel: 0.34,
   /** How far a lit room stays visible down an unobstructed line of sight. */

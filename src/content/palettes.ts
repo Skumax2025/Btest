@@ -6,8 +6,13 @@
 
 export interface Palette {
   readonly background: string;
+  /** Top of a wall — the surface the camera looks down on. */
   readonly wall: string;
+  /** A raised side of a wall that is not the one turned away from the light. */
   readonly wallShade: string;
+  /** The side turned away from it, which is the one the camera sees most of. */
+  readonly wallFaceDark: string;
+  /** The crest where the top meets a side: the one bright line on a wall. */
   readonly wallEdge: string;
   readonly floor: string;
   readonly floorAlt: string;
@@ -28,8 +33,9 @@ export const PALETTES: Readonly<Record<string, Palette>> = {
   'level0.yellow': {
     background: '#0a0907',
     wall: '#dcc57c',
-    wallShade: '#937c3d',
-    wallEdge: '#f3e4b0',
+    wallShade: '#8a7436',
+    wallFaceDark: '#5c4b1f',
+    wallEdge: '#f6e9bb',
     floor: '#5c4e28',
     floorAlt: '#524621',
     stain: '#40361c',
@@ -47,8 +53,9 @@ export const PALETTES: Readonly<Record<string, Palette>> = {
   'level1.grey': {
     background: '#07080a',
     wall: '#8d9296',
-    wallShade: '#6e7377',
-    wallEdge: '#aab0b4',
+    wallShade: '#5c6165',
+    wallFaceDark: '#41474a',
+    wallEdge: '#b6bcc0',
     floor: '#4a5054',
     floorAlt: '#414649',
     stain: '#33383b',
