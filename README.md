@@ -42,7 +42,10 @@ npm run check      # typecheck + lint + tests
 | `Enter` | After death: go back in with a new seed |
 
 The heads-up display carries a legend of these keys in the bottom-left corner,
-written from the live bindings, so it is never out of date with what is bound.
+written from the live bindings, so it is never out of date with what is bound;
+`F1` or a click on its title folds it away, and the choice is remembered. The
+four vitals sit across the top centre, the worn gear top right, the hands bottom
+right and the belt bottom centre.
 
 There is no attack key: melee is automatic (see below). Every key can be rebound
 in the settings, and the change applies immediately — including to every hint in

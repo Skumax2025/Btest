@@ -152,15 +152,16 @@ export class Hud {
     this.root.style.setProperty('--hud-scale', String(config.scale));
     this.root.style.setProperty('--belt-slot-size', `${config.beltSlotSize}px`);
 
-    // ── the body, top left ──────────────────────────────────────────────────
+    // ── the body, top centre ────────────────────────────────────────────────
+    this.levelLabel = el('div', 'hud-level', this.root);
     const vitals = el('div', 'hud-panel hud-vitals', this.root);
-    this.levelLabel = el('div', 'hud-vitals-level', vitals);
     for (const key of BAR_KEYS) {
       const row = el('div', `hud-bar hud-bar--${key}`, vitals);
-      const icon = el('span', 'hud-bar-icon', row);
+      const head = el('div', 'hud-bar-head', row);
+      const icon = el('span', 'hud-bar-icon', head);
       icon.textContent = BAR_ICONS[key];
       icon.setAttribute('aria-hidden', 'true');
-      ui.binder.bind(el('span', 'hud-bar-label', row), `hud.${key}`);
+      ui.binder.bind(el('span', 'hud-bar-label', head), `hud.${key}`);
       const track = el('div', 'hud-bar-track', row);
       this.bars.set(key, { row, fill: el('div', 'hud-bar-fill', track) });
     }

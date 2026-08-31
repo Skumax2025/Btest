@@ -335,6 +335,10 @@ export class InventoryUi {
 
   private readonly onPointerDown = (event: PointerEvent): void => {
     if (event.button !== 0) return;
+    // A press inside the menu is the player choosing from it. Closing the menu
+    // here would take the button out from under the click that follows, which is
+    // exactly how every entry in it stopped working.
+    if (event.target instanceof HTMLElement && event.target.closest('.bag-menu')) return;
     this.closeMenu();
     const id = this.stackIdAt(event.target);
     if (id === null) return;

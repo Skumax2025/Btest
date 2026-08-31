@@ -107,46 +107,58 @@ body {
   letter-spacing: 0.1em;
 }
 
-/* ── the body, top left ─────────────────────────────────────────────────── */
-.hud-vitals {
-  top: 14px;
-  left: 14px;
-  min-width: 232px;
+/* ── the body, top centre ───────────────────────────────────────────────────
+   The four vitals are the one thing worth the middle of the screen: they are
+   read at a glance, mid-stride, and never looked for. */
+.hud-level {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  color: var(--hud-dim);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  opacity: var(--hud-opacity);
+  transition: opacity 500ms ease;
   transform: scale(var(--ui-scale));
   transform-origin: top left;
 }
 
-.hud-vitals-level {
-  color: var(--hud-dim);
-  font-size: 10px;
-  letter-spacing: 0.22em;
-  margin-bottom: 9px;
+.hud-vitals {
+  top: 14px;
+  left: 50%;
+  display: flex;
+  gap: 26px;
+  padding: 13px 22px;
+  transform: translateX(-50%) scale(var(--ui-scale));
+  transform-origin: top center;
 }
 
 .hud-bar {
-  display: grid;
-  grid-template-columns: 16px 46px 1fr;
-  align-items: center;
-  gap: 8px;
-  min-height: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 168px;
 }
 
-.hud-bar + .hud-bar { margin-top: 5px; }
+.hud-bar-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
 
 .hud-bar-icon {
   color: var(--hud-faint);
-  font-size: 12px;
-  text-align: center;
+  font-size: 14px;
 }
 
 .hud-bar-label {
   color: var(--hud-dim);
-  font-size: 10px;
-  letter-spacing: 0.14em;
+  font-size: 12px;
+  letter-spacing: 0.18em;
 }
 
 .hud-bar-track {
-  height: 6px;
+  height: 10px;
   background: var(--hud-inset);
   border-radius: 1px;
   overflow: hidden;
@@ -454,13 +466,16 @@ body {
 
 @media (max-width: 1100px) {
   .hud-hands { width: min(270px, calc(100vw - 28px)); }
-  .hud-vitals { min-width: 200px; }
+  .hud-vitals { gap: 16px; padding: 11px 16px; }
+  .hud-bar { min-width: 128px; }
 }
 
 @media (max-width: 860px) {
   .hud-keys-grid { grid-template-columns: auto; }
   .hud-belt-slot { width: 76px; }
   .hud-hands { width: 220px; }
+  .hud-vitals { flex-wrap: wrap; max-width: calc(100vw - 28px); }
+  .hud-bar { min-width: calc(50% - 8px); }
 }
 
 @keyframes strain {

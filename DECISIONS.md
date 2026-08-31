@@ -420,3 +420,17 @@ I went, so the order is roughly chronological.
 - **One panel treatment for everything.** `.hud-panel` and one set of tokens —
   ink, surface, line, state — now cover the corners, the bag and the screens, so
   the interface reads as one object instead of five separately-invented ones.
+
+## Two corrections (G9)
+
+- **The bag's context menu was dead, and the fix is one guard.** The panel closed
+  the menu on any `pointerdown` inside itself, which took the button out from
+  under the click that was about to land on it — so every entry in the list did
+  nothing. A press that starts inside the menu is now left alone. Worth writing
+  down because the menu *looked* correct in every screenshot: only clicking an
+  entry and checking the world afterwards catches it.
+- **The vitals took the middle of the screen after all.** They were moved to a
+  corner to give the centre back to the game, but they are the one readout looked
+  at mid-stride without being searched for, and a corner made them something to
+  find. They are centred again and half as large again, with the level line left
+  alone in the corner they vacated.
