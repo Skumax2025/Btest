@@ -1309,3 +1309,16 @@ body {
 [data-quality='low'] .hud--strained {
   animation: none;
 }
+
+/* The one thing drawn without a canvas: the message that says why there is none. */
+.boot-failure {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 24px;
+  color: var(--hud-text);
+  font-size: 14px;
+  line-height: 1.6;
+  text-align: center;
+}

@@ -45,6 +45,7 @@ export const EN: Record<TextKey, LocaleString> = {
   'settings.video': 'Picture',
   'settings.brightness': 'Brightness',
   'settings.uiScale': 'Interface scale',
+  'boot.noCanvas': 'This browser cannot run the game: no 2D canvas is available.',
   'settings.quality': 'Quality',
   'settings.quality.auto': 'Auto',
   'settings.quality.low': 'Low',

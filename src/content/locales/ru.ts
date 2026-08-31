@@ -57,6 +57,7 @@ export const RU = {
   'settings.video': 'Изображение',
   'settings.brightness': 'Яркость',
   'settings.uiScale': 'Масштаб интерфейса',
+  'boot.noCanvas': 'Этот браузер не может запустить игру: холст 2D недоступен.',
   'settings.quality': 'Качество',
   'settings.quality.auto': 'Авто',
   'settings.quality.low': 'Низкое',
