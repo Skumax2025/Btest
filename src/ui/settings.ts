@@ -10,8 +10,10 @@
 import type { Localizer } from '@core/i18n';
 import type { InputDevice } from '@core/input';
 import { REBINDABLE_ACTIONS, SETTINGS_RANGES } from '@content/tuning';
+import { QUALITY } from '@content/view';
+import type { QualityPreference } from '@content/view';
 import type { UiContext } from './context';
-import { MenuList, Screen, slider, toggle } from './screen';
+import { MenuList, Screen, choice, slider, toggle } from './screen';
 import { defaultBindings } from './settings-store';
 import type { GameSettings } from './settings-store';
 import { keyLabel } from './keys';
@@ -128,6 +130,18 @@ export class SettingsScreen {
 
   private buildVideo(panel: HTMLElement): void {
     const section = this.section(panel, 'settings.video');
+    choice<QualityPreference>(
+      section,
+      this.ui,
+      'settings.quality',
+      [
+        { value: 'auto', labelKey: 'settings.quality.auto' },
+        ...QUALITY.map((tier) => ({ value: tier.id, labelKey: `settings.quality.${tier.id}` })),
+      ],
+      this.settings.quality,
+      (quality) => this.commit({ quality }),
+    );
+    this.ui.binder.bind(el('p', 'settings-hint', section), 'settings.qualityHint');
     slider(
       section,
       this.ui,

@@ -14,8 +14,19 @@ import { createRunConfig } from '@content/run-config';
 
 const ENTITIES = 200;
 const TICKS = 300;
-/** One simulation tick must leave most of a 16.6 ms frame for rendering. */
-const BUDGET_MS = 4;
+/**
+ * One simulation tick must leave nearly all of a 16.6 ms frame for rendering,
+ * which is where the cost actually is.
+ *
+ * The bound is loose for a CI box but no longer generous: a tick of this crowd
+ * measures around 0.6 ms. It was 4.7 ms until a creature that could not reach
+ * its target was found to be running a full A* search, to the whole node budget,
+ * on every single tick — so what this really guards is that a *failed* search
+ * still waits for the repath timer like a successful one does.
+ */
+const BUDGET_MS = 2;
+/** Generating a chunk is allowed more: it happens on a handful of ticks, not all. */
+const CHUNK_BUDGET_MS = 8;
 
 const crowd = (run: Run, count: number): void => {
   for (let i = 0; i < count; i++) {
@@ -73,6 +84,6 @@ describe('frame budget', () => {
     const start = performance.now();
     for (let i = 0; i < 40; i++) run.level.prime(i * run.level.chunkWorldSize, 0);
     const perChunk = (performance.now() - start) / 40;
-    expect(perChunk).toBeLessThan(BUDGET_MS * 2);
+    expect(perChunk).toBeLessThan(CHUNK_BUDGET_MS);
   });
 });

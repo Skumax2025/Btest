@@ -20,6 +20,13 @@ export interface LoopStats {
   simMs: number;
   renderMs: number;
   ticksLastFrame: number;
+  /**
+   * Wall-clock time since the previous frame started, clamped the same way the
+   * accumulator is. This is the number the player actually feels, and the one
+   * anything deciding how much work a frame may be should read — `simMs` and
+   * `renderMs` leave out everything the browser does after we hand it the frame.
+   */
+  frameMs: number;
 }
 
 export interface LoopCallbacks {
@@ -28,7 +35,7 @@ export interface LoopCallbacks {
 }
 
 export class GameLoop {
-  readonly stats: LoopStats = { fps: 0, simMs: 0, renderMs: 0, ticksLastFrame: 0 };
+  readonly stats: LoopStats = { fps: 0, simMs: 0, renderMs: 0, ticksLastFrame: 0, frameMs: 0 };
 
   private accumulator = 0;
   private lastTime = 0;
@@ -75,6 +82,7 @@ export class GameLoop {
     this.callbacks.render(this.accumulator / this.options.stepMs);
     const renderEnd = this.options.now();
 
+    this.stats.frameMs = elapsed;
     this.stats.ticksLastFrame = ticks;
     this.stats.simMs = simEnd - simStart;
     this.stats.renderMs = renderEnd - simEnd;

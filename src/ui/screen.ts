@@ -127,6 +127,42 @@ export const slider = (
   return input;
 };
 
+/**
+ * A row of mutually exclusive buttons. The language row had one of these built
+ * into it; this is the same thing with its labels taken from the dictionary, so
+ * the second setting that needs one does not grow a second implementation.
+ */
+export const choice = <T extends string>(
+  parent: HTMLElement,
+  ui: UiContext,
+  labelKey: string,
+  options: ReadonlyArray<{ readonly value: T; readonly labelKey: string }>,
+  value: T,
+  onChange: (value: T) => void,
+): void => {
+  const row = el('div', 'setting-row', parent);
+  ui.binder.bind(el('span', 'setting-label', row), labelKey);
+  const choices = el('div', 'setting-choices', row);
+  let current = value;
+  const buttons = options.map((option) => {
+    const button = el('button', 'setting-choice', choices);
+    button.type = 'button';
+    ui.binder.bind(button, option.labelKey);
+    button.addEventListener('click', () => {
+      current = option.value;
+      onChange(current);
+      paint();
+    });
+    return button;
+  });
+  const paint = (): void => {
+    buttons.forEach((button, index) => {
+      button.classList.toggle('setting-choice--active', options[index].value === current);
+    });
+  };
+  paint();
+};
+
 export const toggle = (
   parent: HTMLElement,
   ui: UiContext,

@@ -27,8 +27,29 @@ export interface StreamSave {
   readonly deltas: Array<[string, ChunkDelta]>;
 }
 
+/**
+ * Chunk coordinates as one number, for the map the tile sampler reads. Chunk
+ * coordinates are small; the offset keeps negatives on the positive side of the
+ * multiply, so the key stays a safe integer and the map stays a fast one.
+ */
+const CHUNK_KEY_OFFSET = 0x8000;
+const chunkIndex = (cx: number, cy: number): number =>
+  (cx + CHUNK_KEY_OFFSET) * 0x10000 + (cy + CHUNK_KEY_OFFSET);
+
 export class LevelStream {
-  private readonly chunks = new Map<string, Chunk>();
+  /**
+   * Keyed by number rather than by the string the deltas use. `tileAt` is the
+   * hottest call in the whole simulation — every ray, every path expansion and
+   * every collision test goes through it — and building a `"cx,cy"` string per
+   * sample was, on a profile, a quarter of the tick.
+   */
+  private readonly chunks = new Map<number, Chunk>();
+  /**
+   * The chunk the last sample landed in. Rays, paths and collision walks are
+   * spatially coherent, so nearly every sample lands in the chunk the one before
+   * it did and never touches the map at all.
+   */
+  private memo: Chunk | null = null;
   private readonly deltas = new Map<string, ChunkDelta>();
   private readonly loadedQueue: Chunk[] = [];
   private readonly unloadedQueue: Array<{ cx: number; cy: number }> = [];
@@ -96,7 +117,7 @@ export class LevelStream {
   }
 
   private load(cx: number, cy: number): boolean {
-    const key = chunkKey(cx, cy);
+    const key = chunkIndex(cx, cy);
     if (this.chunks.has(key)) return false;
     const chunk = generateChunk({
       seed: this.seed,
@@ -117,6 +138,7 @@ export class LevelStream {
       const distance = Math.max(Math.abs(chunk.cx - cx), Math.abs(chunk.cy - cy));
       if (distance > this.options.keepRadius) {
         this.chunks.delete(key);
+        if (this.memo === chunk) this.memo = null;
         this.unloadedQueue.push({ cx: chunk.cx, cy: chunk.cy });
         this.revision++;
       }
@@ -134,7 +156,7 @@ export class LevelStream {
   }
 
   chunkAt(cx: number, cy: number): Chunk | undefined {
-    return this.chunks.get(chunkKey(cx, cy));
+    return this.chunks.get(chunkIndex(cx, cy));
   }
 
   loadedChunks(): IterableIterator<Chunk> {
@@ -143,11 +165,18 @@ export class LevelStream {
 
   tileAt(tx: number, ty: number): number {
     const size = this.chunkTiles;
-    const chunk = this.chunks.get(chunkKey(floorDiv(tx, size), floorDiv(ty, size)));
+    const memo = this.memo;
+    if (memo) {
+      const localX = tx - memo.cx * size;
+      const localY = ty - memo.cy * size;
+      if (localX >= 0 && localX < size && localY >= 0 && localY < size) {
+        return memo.tiles[localY * size + localX];
+      }
+    }
+    const chunk = this.chunks.get(chunkIndex(floorDiv(tx, size), floorDiv(ty, size)));
     if (!chunk) return TILE.VOID;
-    const localX = tx - chunk.cx * size;
-    const localY = ty - chunk.cy * size;
-    return chunk.tiles[localY * size + localX];
+    this.memo = chunk;
+    return chunk.tiles[(ty - chunk.cy * size) * size + (tx - chunk.cx * size)];
   }
 
   tileAtWorld(worldX: number, worldY: number): number {

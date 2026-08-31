@@ -45,11 +45,23 @@ export class WebAudio implements AudioOutput {
   private effectsVolume = 1;
   private ambientVolume = 1;
   private droneTarget = 0;
+  /** Set once the browser has refused to give us a context at all. */
+  private failed = false;
 
   constructor(private readonly masterGain: number) {}
 
   resume(): void {
-    if (!this.context) this.start();
+    if (!this.context && !this.failed) {
+      try {
+        this.start();
+      } catch {
+        // A browser that refuses to open an audio context — private mode, a
+        // policy, a device with none — is a game with no sound, not a game that
+        // does not start. It is asked once and never again.
+        this.failed = true;
+        this.context = null;
+      }
+    }
     void this.context?.resume();
   }
 

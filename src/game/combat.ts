@@ -173,8 +173,6 @@ export const attackVeto = (input: AttackInput): AttackVeto => {
   return 'ready';
 };
 
-export const canAttack = (input: AttackInput): boolean => attackVeto(input) === 'ready';
-
 export interface BlockInput {
   readonly cooldown: number;
   readonly stamina: number;

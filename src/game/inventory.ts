@@ -16,7 +16,6 @@ import {
   NEUTRAL_PASSIVE,
   armorOf,
   carryCells,
-  condition,
   fitsBelt,
   fitsSlot,
   hasPockets,
@@ -630,13 +629,4 @@ export const stepWear = (state: InventoryState, catalog: ItemCatalog): WearEvent
     if (event) events.push(event);
   }
   return events;
-};
-
-/** How much life is left in a stack, as a fraction, for a bar on an icon. */
-export const conditionOf = (
-  catalog: ItemCatalog,
-  stack: InventoryStack,
-): number => {
-  const def = catalog[stack.itemId];
-  return def ? condition(def, stack.durability) : 1;
 };

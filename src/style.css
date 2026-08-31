@@ -10,6 +10,8 @@
   /* Surfaces. Every panel is the same glass over the same dark, so the corners
      of the screen read as one object rather than five stickers. */
   --hud-panel: rgba(12, 10, 7, 0.82);
+  /* The same panel with nothing behind it, for when blur is too expensive. */
+  --hud-panel-solid: rgb(16, 13, 9);
   --hud-panel-strong: rgba(9, 7, 5, 0.94);
   --hud-line: rgba(242, 232, 200, 0.16);
   --hud-line-strong: rgba(242, 232, 200, 0.38);
@@ -1268,4 +1270,22 @@ body {
 
 .screen-panel--guide .guide-tabs {
   overflow-y: auto;
+}
+
+/* ── the cheap seats ─────────────────────────────────────────────────────────
+   At the bottom tier the interface gives up its two genuinely expensive
+   effects. A blur behind a panel is a full-screen composite per panel, and the
+   strain animation filters the whole overlay on every frame it runs — on a
+   machine already short of a frame, both are paid for out of the game.
+   Everything is still legible: the panels simply become opaque. */
+[data-quality='low'] .hud-panel,
+[data-quality='low'] .hud-belt-slot,
+[data-quality='low'] .bag,
+[data-quality='low'] .screen-panel {
+  backdrop-filter: none;
+  background: var(--hud-panel-solid);
+}
+
+[data-quality='low'] .hud--strained {
+  animation: none;
 }

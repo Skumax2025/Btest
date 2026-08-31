@@ -72,7 +72,7 @@ const scratchTx = new Int16Array(MAX_RAYS);
 const scratchTy = new Int16Array(MAX_RAYS);
 const scratchAxis = new Int8Array(MAX_RAYS);
 
-export const rayReach = (
+const rayReach = (
   originX: number,
   originY: number,
   angle: number,

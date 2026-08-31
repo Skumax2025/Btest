@@ -173,10 +173,10 @@ export class Run implements RunWorld {
           attackCooldown: 0,
           blockCooldown: 0,
           health: def.health,
-          repathIn: 0,
+          repathIn: copy % Math.max(1, this.config.ai.repathTicks),
           path: [],
           pathIndex: 0,
-          noiseIn: 0,
+          noiseIn: copy % Math.max(1, this.config.ai.noiseTicks),
         });
       }
     }

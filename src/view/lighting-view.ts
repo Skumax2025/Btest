@@ -246,11 +246,24 @@ export class LightingView {
         radius,
         strength,
         profile: profiles.lamp,
+      });
+    }
+
+    // Bloom is additive and low-frequency, so the chain's is paid once for the
+    // whole beam rather than a share of it per pool: one pool the length of the
+    // beam sums to what the chain summed to, at a twelfth of the fill. It is
+    // clipped to the same cone, so it still stops at the same wall.
+    if (light.flashlightGlow > 0) {
+      const mid = lighting.flashlightRadius * 0.5;
+      renderer.punchPolygon(clip, {
+        x: params.playerX + facingX * mid,
+        y: params.playerY + facingY * mid,
+        radius: Math.max(light.beamNear, mid),
+        strength: 0,
+        profile: profiles.lamp,
         glow: {
           colour: tint,
-          // Bloom is additive, so it is shared out across the chain rather than
-          // paid in full by each pool.
-          strength: (strength * light.flashlightGlow) / segments,
+          strength: lighting.flashlightStrength * light.flashlightGlow,
           profile: profiles.lampGlow,
         },
       });

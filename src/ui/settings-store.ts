@@ -10,6 +10,8 @@ import { clearEnvelope, loadEnvelope, saveEnvelope } from '@core/serialize';
 import type { StorageLike } from '@core/serialize';
 import { DEFAULT_LOCALE } from '@content/locales';
 import { KEY_BINDINGS, SETTINGS_DEFAULTS } from '@content/tuning';
+import { DEFAULT_QUALITY } from '@content/view';
+import type { QualityPreference } from '@content/view';
 
 export const SETTINGS_KEY = 'backrooms.settings';
 export const SETTINGS_VERSION = 1;
@@ -21,6 +23,8 @@ export interface GameSettings {
   volumeAmbient: number;
   brightness: number;
   uiScale: number;
+  /** How much work a frame may be, or `auto` to let the frame clock decide. */
+  quality: QualityPreference;
   debugOverlay: boolean;
   /** Whether the key legend is expanded. A player is meant to outgrow it. */
   showControls: boolean;
@@ -40,6 +44,7 @@ export const defaultSettings = (): GameSettings => ({
   volumeAmbient: SETTINGS_DEFAULTS.volumeAmbient,
   brightness: SETTINGS_DEFAULTS.brightness,
   uiScale: SETTINGS_DEFAULTS.uiScale,
+  quality: DEFAULT_QUALITY,
   debugOverlay: SETTINGS_DEFAULTS.debugOverlay,
   showControls: SETTINGS_DEFAULTS.showControls,
   bindings: defaultBindings(),

@@ -35,7 +35,8 @@ import { GUIDE_SECTIONS } from '@content/guide';
 import { createRunConfig, createSandboxConfig } from '@content/run-config';
 import { AUDIO } from '@content/audio';
 import { paletteOf } from '@content/palettes';
-import { VIEW } from '@content/view';
+import { QUALITY, QUALITY_GOVERNOR, VIEW, viewFor } from '@content/view';
+import type { QualityTier, RayCounts, ViewConfig } from '@content/view';
 import { FALLBACK_SPRITE, SPRITES } from '@content/sprites';
 import {
   AXIS_BINDINGS,
@@ -45,7 +46,6 @@ import {
   LIGHTING,
   SIM,
   STATS,
-  VISION,
 } from '@content/tuning';
 import { WorldView } from '@view/world-view';
 import { drawDebug } from '@view/debug-view';
@@ -55,6 +55,7 @@ import type { UiContext } from './context';
 import { DebugOverlay } from './debug-overlay';
 import { GuidebookScreen } from './guidebook';
 import { IconSource } from './icons';
+import { QualityGovernor } from './quality';
 import { Hud } from './hud';
 import { InventoryUi } from './inventory-ui';
 import { MenuScreen } from './menu';
@@ -92,6 +93,10 @@ export class App {
   private readonly settingsScreen: SettingsScreen;
   private readonly guide: GuidebookScreen;
 
+  private readonly governor = new QualityGovernor(QUALITY, QUALITY_GOVERNOR, 'medium');
+  /** The view numbers the active tier asks for, rebuilt only when it changes. */
+  private viewConfig: ViewConfig = VIEW;
+  private rays: RayCounts = QUALITY[QUALITY.length - 1].rays;
   private settings: GameSettings;
   private state: AppState = 'menu';
   private run: Run;
@@ -108,7 +113,9 @@ export class App {
     this.canvas.className = 'game-canvas';
     root.appendChild(this.canvas);
 
-    this.renderer = new Canvas2DRenderer(this.canvas, CAMERA.maxPixelRatio);
+    // The tier decides the resolution; this is only what the first frame uses
+    // before `applyQuality` runs, a few lines further down.
+    this.renderer = new Canvas2DRenderer(this.canvas, this.governor.tier.maxPixelRatio);
     this.input = new InputDevice(this.settings.bindings ?? KEY_BINDINGS, AXIS_BINDINGS);
     this.input.attach(this.canvas, window);
     // One store of art for the whole application: the world draws its canvases
@@ -206,6 +213,10 @@ export class App {
     this.resize();
 
     this.applySettings(this.settings);
+    // The stored preference has to reach the renderer before the first frame,
+    // and `applySettings` only reacts to a change.
+    this.governor.setPreference(this.settings.quality);
+    this.applyQuality();
     this.setState('menu');
 
     this.loop = new GameLoop(browserLoopOptions(SIM.stepMs, SIM.maxFrameMs), {
@@ -314,16 +325,40 @@ export class App {
   // ── settings ─────────────────────────────────────────────────────────────
 
   private applySettings(settings: GameSettings): void {
+    const qualityChanged = settings.quality !== this.settings?.quality;
     this.settings = settings;
     this.localizer.setLocale(settings.locale);
     this.audio.setVolumes(settings.volumeMaster, settings.volumeEffects, settings.volumeAmbient);
-    this.canvas.style.filter = `brightness(${settings.brightness})`;
+    // A CSS filter on the canvas is a whole extra composite of the frame, every
+    // frame. At the default brightness it would be one that changes nothing.
+    this.canvas.style.filter =
+      settings.brightness === 1 ? 'none' : `brightness(${settings.brightness})`;
     this.overlay.style.setProperty('--ui-scale', String(settings.uiScale));
     this.debug.setVisible(settings.debugOverlay);
     this.hud.setControlsVisible(settings.showControls);
+    if (qualityChanged) {
+      this.governor.setPreference(settings.quality);
+      this.applyQuality();
+    }
     // Rebinding a key rewrites every label that names one, here and in the bag.
     this.ui.binder.refresh();
     saveSettings(this.storage, settings);
+  }
+
+  /**
+   * Hands the active tier to everything that draws with it. Called only when the
+   * tier actually changes — it resizes the light buffers, which is not something
+   * to do on a frame that did not ask for it.
+   */
+  private applyQuality(): void {
+    const tier: QualityTier = this.governor.tier;
+    this.viewConfig = viewFor(tier);
+    this.rays = tier.rays;
+    // The interface has its own expensive effects — blur behind a panel, a
+    // filter animating over the whole screen — and they are given up together
+    // with the ones in the world.
+    this.root.dataset.quality = tier.id;
+    this.resize();
   }
 
   /** Where the cursor is pointing, in world units — what a thrown thing aims at. */
@@ -332,11 +367,22 @@ export class App {
     return this.camera.screenToWorld(pointer.x, pointer.y);
   }
 
+  /**
+   * The one place the frame is sized. Quality is re-read here rather than only
+   * when it changes, because the device pixel ratio can move without anything
+   * asking it to — a window dragged to another monitor, a browser zoom — and
+   * the buffers have to be rebuilt for it either way.
+   */
   private readonly resize = (): void => {
     const width = this.root.clientWidth || window.innerWidth;
     const height = this.root.clientHeight || window.innerHeight;
+    const tier = this.governor.tier;
+    this.renderer.setQuality(tier.maxPixelRatio, tier.darknessScale, tier.maxPixels);
     this.renderer.resize(width, height);
     this.camera.resize(width, height);
+    // A resize changes what a frame costs, so the frames measured before it say
+    // nothing about the ones after.
+    this.governor.reset();
   };
 
   // ── the tick ─────────────────────────────────────────────────────────────
@@ -443,6 +489,9 @@ export class App {
   }
 
   private render(alpha: number): void {
+    // Quality is decided from the frame clock before anything is drawn with it.
+    const stats = this.loop.stats;
+    if (this.governor.frame(stats.frameMs, stats.simMs + stats.renderMs)) this.applyQuality();
     this.camera.updateShake(
       CAMERA.shakeDecay,
       Math.sin(this.run.tick * 12.9898),
@@ -453,10 +502,10 @@ export class App {
     this.worldView.draw(this.run, view, alpha, {
       lighting: LIGHTING,
       palette: paletteOf(this.run.spec.paletteId),
-      rays: VISION,
+      rays: this.rays,
       losRadius: LIGHTING.losRadius,
       derangement,
-      view: VIEW,
+      view: this.viewConfig,
       prompt:
         this.run.hint && this.run.hintTarget
           ? { ...this.run.hintTarget, text: this.hud.promptFor(this.run.hint) }
@@ -473,7 +522,12 @@ export class App {
     this.bag.update();
     this.summary.setVisible(this.state === 'dead');
     this.summary.update(this.run);
-    this.debug.update(this.run, this.loop.stats, window.devicePixelRatio || 1);
+    this.debug.update(
+      this.run,
+      this.loop.stats,
+      this.renderer.quality.pixelRatio,
+      `${this.governor.tier.id}${this.governor.auto ? ' (auto)' : ''}`,
+    );
     if (playing) this.audioView.update(this.run, derangement);
   }
 

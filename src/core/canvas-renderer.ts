@@ -27,10 +27,22 @@ const BLACK = '0,0,0';
 
 const clamp01 = (value: number): number => (value < 0 ? 0 : value > 1 ? 1 : value);
 
+/** The world rectangle a view covers, which is all a light can usefully paint. */
+interface WorldRect {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
+
 /**
  * Fills a light's polygon with a radial gradient built from its profile. The
  * profile decides the shape, the caller decides the colour channels: the
  * darkness layer subtracts black, the bloom layer adds the lamp's own colour.
+ *
+ * The fill is clipped to the visible rectangle before it is painted. A lamp
+ * radius is a quarter of a screen across, so half of a light near the edge of
+ * the view is fill nobody sees — and fill is what this pass is made of.
  */
 const fillProfile = (
   ctx: CanvasRenderingContext2D,
@@ -39,9 +51,15 @@ const fillProfile = (
   strength: number,
   profile: LightProfile,
   channels: string,
+  visible: WorldRect,
 ): void => {
   const last = profile.length - 1;
   if (last < 1) return;
+  const left = Math.max(light.x - light.radius, visible.minX);
+  const top = Math.max(light.y - light.radius, visible.minY);
+  const right = Math.min(light.x + light.radius, visible.maxX);
+  const bottom = Math.min(light.y + light.radius, visible.maxY);
+  if (right <= left || bottom <= top) return;
   ctx.save();
   tracePolygon(ctx, points);
   ctx.clip();
@@ -51,7 +69,7 @@ const fillProfile = (
     gradient.addColorStop(i / last, `rgba(${channels},${peak * clamp01(profile[i])})`);
   }
   ctx.fillStyle = gradient;
-  ctx.fillRect(light.x - light.radius, light.y - light.radius, light.radius * 2, light.radius * 2);
+  ctx.fillRect(left, top, right - left, bottom - top);
   ctx.restore();
 };
 
@@ -68,6 +86,15 @@ export class Canvas2DRenderer implements Renderer {
   private pixelRatio = 1;
   private worldDepth = 0;
   private visibilityDepth = 0;
+  /** Resolution of the darkness layers relative to the frame, in (0, 1]. */
+  private darknessScale = 1;
+  /** Device pixels per CSS pixel the quality tier asked for, before the budget. */
+  private requestedRatio = 1;
+  /** Ceiling on the backing store, in pixels. Zero means no ceiling. */
+  private maxPixels = 0;
+  /** True once something has actually been painted into the bloom layer. */
+  private glowPainted = false;
+  private readonly visible: WorldRect = { minX: 0, minY: 0, maxX: 0, maxY: 0 };
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -85,7 +112,28 @@ export class Canvas2DRenderer implements Renderer {
     if (!glowCtx) throw new Error('2d canvas context unavailable for the bloom layer');
     this.glowCtx = glowCtx;
     this.darknessLayers = [this.darkCtx, this.glowCtx];
-    this.pixelRatio = Math.min(window.devicePixelRatio || 1, maxPixelRatio);
+    this.requestedRatio = Math.min(window.devicePixelRatio || 1, maxPixelRatio);
+    this.pixelRatio = this.requestedRatio;
+  }
+
+  /**
+   * How many device pixels the frame is drawn at, and how large a share of it
+   * the light layers are. Both are quality settings: on a phone at three device
+   * pixels per CSS pixel the frame is nine times the work of one at one, and
+   * light is the least detailed thing on screen, so it is the first to be drawn
+   * smaller. Changing either resizes the buffers, which is why it is a call and
+   * not a per-frame parameter.
+   */
+  setQuality(maxPixelRatio: number, darknessScale: number, maxPixels = 0): void {
+    // Read live: a window dragged to a second monitor changes the device pixel
+    // ratio under a canvas that has no other way of hearing about it.
+    this.requestedRatio = Math.min(window.devicePixelRatio || 1, Math.max(0.5, maxPixelRatio));
+    this.darknessScale = Math.min(1, Math.max(0.25, darknessScale));
+    this.maxPixels = Math.max(0, maxPixels);
+  }
+
+  get quality(): { readonly pixelRatio: number; readonly darknessScale: number } {
+    return { pixelRatio: this.pixelRatio, darknessScale: this.darknessScale };
   }
 
   get width(): number {
@@ -97,14 +145,31 @@ export class Canvas2DRenderer implements Renderer {
   }
 
   resize(width: number, height: number): void {
+    this.pixelRatio = this.ratioFor(width, height);
     this.canvas.width = Math.max(1, Math.round(width * this.pixelRatio));
     this.canvas.height = Math.max(1, Math.round(height * this.pixelRatio));
     this.canvas.style.width = `${width}px`;
     this.canvas.style.height = `${height}px`;
-    this.darkCanvas.width = this.canvas.width;
-    this.darkCanvas.height = this.canvas.height;
-    this.glowCanvas.width = this.canvas.width;
-    this.glowCanvas.height = this.canvas.height;
+    const layerWidth = Math.max(1, Math.round(this.canvas.width * this.darknessScale));
+    const layerHeight = Math.max(1, Math.round(this.canvas.height * this.darknessScale));
+    this.darkCanvas.width = layerWidth;
+    this.darkCanvas.height = layerHeight;
+    this.glowCanvas.width = layerWidth;
+    this.glowCanvas.height = layerHeight;
+  }
+
+  /**
+   * A ratio the frame can actually afford. A 4K display at two device pixels per
+   * CSS pixel is thirty-three million pixels of backing store, three times over
+   * — the frame, the darkness and the bloom — and the cost of every full-screen
+   * operation scales with it. Past the budget the ratio comes down instead,
+   * which costs sharpness on a screen large enough to hide it.
+   */
+  private ratioFor(width: number, height: number): number {
+    const ratio = this.requestedRatio;
+    if (this.maxPixels <= 0) return ratio;
+    const pixels = Math.max(1, width * height) * ratio * ratio;
+    return pixels <= this.maxPixels ? ratio : ratio * Math.sqrt(this.maxPixels / pixels);
   }
 
   beginFrame(clearColor: string): void {
@@ -257,6 +322,7 @@ export class Canvas2DRenderer implements Renderer {
    * first, and subtracting alone cannot do the second.
    */
   beginDarkness(color: string, view: CameraView): void {
+    const layerRatio = this.pixelRatio * this.darknessScale;
     this.darkCtx.setTransform(1, 0, 0, 1, 0, 0);
     this.darkCtx.globalCompositeOperation = 'source-over';
     this.darkCtx.globalAlpha = 1;
@@ -267,12 +333,22 @@ export class Canvas2DRenderer implements Renderer {
     this.glowCtx.globalCompositeOperation = 'source-over';
     this.glowCtx.globalAlpha = 1;
     this.glowCtx.clearRect(0, 0, this.glowCanvas.width, this.glowCanvas.height);
+    this.glowPainted = false;
 
-    applyWorldTransform(this.darkCtx, view, this.pixelRatio);
-    applyWorldTransform(this.glowCtx, view, this.pixelRatio);
+    applyWorldTransform(this.darkCtx, view, layerRatio);
+    applyWorldTransform(this.glowCtx, view, layerRatio);
     this.darkCtx.globalCompositeOperation = 'destination-out';
     // Bloom accumulates: two lamps overlapping are brighter than either alone.
     this.glowCtx.globalCompositeOperation = 'lighter';
+
+    // What a light can paint, in world units. Anything outside it is fill the
+    // player never sees, and this pass is almost entirely fill.
+    const halfW = view.width / (2 * view.zoom);
+    const halfH = view.height / (2 * view.zoom);
+    this.visible.minX = view.x - halfW;
+    this.visible.maxX = view.x + halfW;
+    this.visible.minY = view.y - halfH;
+    this.visible.maxY = view.y + halfH;
   }
 
   beginVisibility(points: Float32Array): void {
@@ -293,12 +369,30 @@ export class Canvas2DRenderer implements Renderer {
 
   punchPolygon(points: Float32Array, light: PolygonLight): void {
     if (points.length < 6 || light.radius <= 0) return;
+    // One rejection for both layers: a light entirely off screen is not a light.
+    if (
+      light.x + light.radius < this.visible.minX ||
+      light.x - light.radius > this.visible.maxX ||
+      light.y + light.radius < this.visible.minY ||
+      light.y - light.radius > this.visible.maxY
+    ) {
+      return;
+    }
     if (light.strength > 0) {
-      fillProfile(this.darkCtx, points, light, light.strength, light.profile, BLACK);
+      fillProfile(this.darkCtx, points, light, light.strength, light.profile, BLACK, this.visible);
     }
     const { glow } = light;
     if (glow && glow.strength > 0) {
-      fillProfile(this.glowCtx, points, light, glow.strength, glow.profile, this.channelsOf(glow.colour));
+      fillProfile(
+        this.glowCtx,
+        points,
+        light,
+        glow.strength,
+        glow.profile,
+        this.channelsOf(glow.colour),
+        this.visible,
+      );
+      this.glowPainted = true;
     }
   }
 
@@ -327,11 +421,25 @@ export class Canvas2DRenderer implements Renderer {
     this.ctx.save();
     this.ctx.setTransform(1, 0, 0, 1, 0, 0);
     this.ctx.globalAlpha = 1;
+    // Stretching the light layers back up is a resample of the whole frame,
+    // twice. Light has no detail to lose and the interpolation is most of what
+    // that costs, so it is turned off for these two blits and these two only —
+    // `save`/`restore` keeps it on for everything drawn in world space.
+    this.ctx.imageSmoothingEnabled = false;
+    const width = this.canvas.width;
+    const height = this.canvas.height;
     // Dim first, then let the lights themselves put colour back into what is lit.
+    // The layers are drawn back at frame size: below full scale they are a
+    // smaller image stretched over it, which light — the lowest-frequency thing
+    // on screen — survives with nothing visible lost but the cost.
     this.ctx.globalCompositeOperation = 'source-over';
-    this.ctx.drawImage(this.darkCanvas, 0, 0);
-    this.ctx.globalCompositeOperation = 'lighter';
-    this.ctx.drawImage(this.glowCanvas, 0, 0);
+    this.ctx.drawImage(this.darkCanvas, 0, 0, width, height);
+    // A frame with no lamp in view and no torch lit has an empty bloom layer,
+    // and compositing an empty full-screen layer is not free.
+    if (this.glowPainted) {
+      this.ctx.globalCompositeOperation = 'lighter';
+      this.ctx.drawImage(this.glowCanvas, 0, 0, width, height);
+    }
     this.ctx.globalCompositeOperation = 'source-over';
     this.ctx.restore();
   }

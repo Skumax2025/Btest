@@ -6,6 +6,92 @@
  * live here with everything else rather than as literals inside the view.
  */
 
+/**
+ * How much work a frame is allowed to be.
+ *
+ * The demo runs on whatever the browser is running on, and the darkness pass —
+ * full-screen fill, one gradient per light — is almost the whole cost of a
+ * frame. These are the knobs that make it cheaper, ordered so that the first
+ * thing given up is the least visible: the resolution light is *computed* at,
+ * then the number of rays its shadows are traced with, then bloom.
+ */
+export type QualityId = 'low' | 'medium' | 'high';
+
+/** What the player asked for: a fixed tier, or the frame clock's judgement. */
+export type QualityPreference = QualityId | 'auto';
+
+export interface QualityTier {
+  readonly id: QualityId;
+  /** Ceiling on device pixels per CSS pixel. A phone at 3 draws nine times a 1. */
+  readonly maxPixelRatio: number;
+  /**
+   * Ceiling on the whole backing store. The ratio alone is not a bound: a 4K
+   * display at 2 is thirty-three million pixels, and there are three buffers of
+   * them. Past this the ratio comes down instead — on a screen that large,
+   * nobody can see the difference anyway.
+   */
+  readonly maxPixels: number;
+  /** Resolution of the darkness and bloom layers, as a share of the frame. */
+  readonly darknessScale: number;
+  readonly rays: RayCounts;
+  /** Pools along the torch beam. Fewer is a coarser beam, not a shorter one. */
+  readonly beamSegments: number;
+  /** Multiplier on a lamp's second, tighter pool; 0 drops it. */
+  readonly lampCore: number;
+  /** Multiplier on every bloom; 0 leaves the bloom layer empty and uncomposited. */
+  readonly glow: number;
+  /** Multiplier on the false silhouettes low nerve draws. */
+  readonly phantoms: number;
+}
+
+/**
+ * Rays per fan. Every ray is one DDA walk, and the angular gap between two of
+ * them is the size of the jagged step a shadow edge shows: at the player's line
+ * of sight radius, `playerRays` has to keep that gap under a tile or the world
+ * visibly wobbles as you walk. The top tier does; the tiers below trade that
+ * for frames, which is the right way round — a coarse shadow edge on a machine
+ * that cannot afford a fine one is better than a fine one at nine frames a
+ * second. Lamp fans are cached per lamp, so their count is close to free.
+ */
+export interface RayCounts {
+  readonly lightRays: number;
+  readonly playerRays: number;
+  readonly flashlightRays: number;
+}
+
+/**
+ * When to give up quality and when to take it back.
+ *
+ * Two clocks, because one of them lies. The *frame* is what the player feels,
+ * but the browser pins it to the refresh rate: a machine drawing comfortably at
+ * 60 Hz reports 16.6 ms whether it spent one millisecond of that on us or
+ * fifteen, so a rule written on frame time alone can never tell a fast machine
+ * it may have more. The *work* — our own simulation plus our own drawing — has
+ * no such ceiling, and it is what we can actually spend.
+ *
+ * So: give quality up only when the frame is long *and* we are the reason it is
+ * long; take it back when our own work is small, whatever the display is doing.
+ * That way a device the browser has throttled to 30 Hz keeps the tier it can
+ * clearly afford, instead of being punished for a frame rate it was given.
+ *
+ * The gap between the two work thresholds is what stops a machine sitting on the
+ * boundary from flickering between tiers, and a step up needs several windows in
+ * a row where a step down needs one: a slow frame is felt at once, spare
+ * capacity is not.
+ */
+export interface QualityGovernorConfig {
+  /** Frame time above which a frame is a candidate for being too slow. */
+  readonly downshiftMs: number;
+  /** Our own cost within such a frame, above which we are the reason for it. */
+  readonly downshiftWorkMs: number;
+  /** Our own cost below which a frame is counted as having room to spare. */
+  readonly upshiftWorkMs: number;
+  /** Frames in a window, after which a decision is taken. */
+  readonly window: number;
+  /** Windows in a row that must agree before quality is raised. */
+  readonly settleWindows: number;
+}
+
 export interface ViewConfig {
   readonly light: LightViewConfig;
   /** Height of a wall's lit cap and dark skirt, as a share of a tile. */
@@ -170,6 +256,58 @@ export interface CombatViewConfig {
   readonly impactScale: number;
 }
 
+export const QUALITY: readonly QualityTier[] = [
+  {
+    id: 'low',
+    maxPixelRatio: 1,
+    maxPixels: 1_600_000,
+    darknessScale: 0.4,
+    rays: { lightRays: 40, playerRays: 96, flashlightRays: 28 },
+    beamSegments: 6,
+    lampCore: 0,
+    glow: 0,
+    phantoms: 0.5,
+  },
+  {
+    id: 'medium',
+    maxPixelRatio: 1.5,
+    maxPixels: 3_000_000,
+    darknessScale: 0.6,
+    rays: { lightRays: 56, playerRays: 160, flashlightRays: 36 },
+    beamSegments: 9,
+    lampCore: 1,
+    glow: 1,
+    phantoms: 1,
+  },
+  {
+    id: 'high',
+    maxPixelRatio: 2,
+    maxPixels: 4_600_000,
+    darknessScale: 0.85,
+    rays: { lightRays: 72, playerRays: 256, flashlightRays: 48 },
+    beamSegments: 12,
+    lampCore: 1,
+    glow: 1,
+    phantoms: 1,
+  },
+];
+
+/**
+ * Quality decides itself from how long frames are taking. A player who wants to
+ * overrule it can, but nobody should have to know what their device can draw
+ * before they can play on it.
+ */
+export const DEFAULT_QUALITY: QualityPreference = 'auto';
+
+/** A 60 Hz frame is 16.6 ms; the shelf below it is where the tiers are placed. */
+export const QUALITY_GOVERNOR: QualityGovernorConfig = {
+  downshiftMs: 20,
+  downshiftWorkMs: 9,
+  upshiftWorkMs: 5,
+  window: 45,
+  settleWindows: 3,
+};
+
 export const VIEW: ViewConfig = {
   light: {
     wallPenetration: 0.5,
@@ -247,3 +385,21 @@ export const VIEW: ViewConfig = {
     impactScale: 1.35,
   },
 };
+
+/**
+ * The view configuration a tier asks for. The base numbers are the design; a
+ * tier only ever turns them down, and it does it here rather than in the view,
+ * so every drawing module keeps reading one `ViewConfig` and knows nothing
+ * about quality at all.
+ */
+export const viewFor = (tier: QualityTier): ViewConfig => ({
+  ...VIEW,
+  light: {
+    ...VIEW.light,
+    lampCore: VIEW.light.lampCore * tier.lampCore,
+    lampGlow: VIEW.light.lampGlow * tier.glow,
+    flashlightGlow: VIEW.light.flashlightGlow * tier.glow,
+    beamSegments: tier.beamSegments,
+  },
+  phantomCount: VIEW.phantomCount * tier.phantoms,
+});

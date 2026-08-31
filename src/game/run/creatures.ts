@@ -52,10 +52,15 @@ export const syncCreatures = (world: RunWorld): number => {
         attackCooldown: 0,
         blockCooldown: 0,
         health: def.health,
-        repathIn: 0,
+        // Spread out from the spawn's own seed rather than starting together.
+        // A dozen creatures loading with the same chunk would otherwise ask for
+        // a path on the same tick for the rest of their lives, and step on the
+        // same tick, which is both a spike in the frame and a corridor that
+        // breathes in unison.
+        repathIn: prop.seed % Math.max(1, world.config.ai.repathTicks),
         path: [],
         pathIndex: 0,
-        noiseIn: 0,
+        noiseIn: prop.seed % Math.max(1, world.config.ai.noiseTicks),
       });
     }
   }
@@ -133,7 +138,14 @@ const advance = (world: RunWorld, creature: CreatureState, speed: number): void 
     creature.path.length = 0;
     creature.pathIndex = 0;
   } else {
-    if (creature.repathIn <= 0 || creature.pathIndex * 2 >= creature.path.length) {
+    // A path that ran out is worth replacing at once. A path that was never
+    // found is not: the search that failed cost the whole node budget, and
+    // asking the same question again on the very next tick costs it again for
+    // the same answer. An empty path therefore waits for the timer like
+    // everything else — which is what stops a crowd with no route to the player
+    // from spending the entire frame in A*.
+    const ranOut = creature.path.length > 0 && creature.pathIndex * 2 >= creature.path.length;
+    if (creature.repathIn <= 0 || ranOut) {
       creature.repathIn = world.config.ai.repathTicks;
       creature.pathIndex = 0;
       creature.path =

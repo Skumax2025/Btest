@@ -62,7 +62,6 @@ export const CAMERA = {
   swingShakePerTarget: 0.7,
   /** Kick when the thing in your hand comes apart. */
   breakShake: 5,
-  maxPixelRatio: 2,
 } as const;
 
 export const PLAYER = {
@@ -397,19 +396,6 @@ export const AI = {
   repathTicks: 24,
   noiseTicks: 40,
   waypointReachedFactor: 0.4,
-} as const;
-
-/**
- * Rays per fan. Every ray is one DDA walk, and the angular gap between two of
- * them is the size of the jagged step a shadow edge shows: at the player's line
- * of sight radius, `playerRays` has to keep that gap under a tile or the world
- * visibly wobbles as you walk. Lamp fans are cached per lamp, so their count is
- * close to free.
- */
-export const VISION = {
-  lightRays: 72,
-  playerRays: 256,
-  flashlightRays: 48,
 } as const;
 
 export const KEY_BINDINGS = {

@@ -214,8 +214,6 @@ export const hasTag = (def: ItemDef, tag: ItemTag): boolean => def.tags.includes
 
 export const isLightSource = (def: ItemDef): boolean => hasTag(def, 'light') && def.charge > 0;
 
-export const isStackable = (def: ItemDef): boolean => def.maxStack > 1;
-
 export const fitsSlot = (def: ItemDef, slot: EquipSlot): boolean => def.slots.includes(slot);
 
 export const fitsBelt = (def: ItemDef): boolean => def.belt;

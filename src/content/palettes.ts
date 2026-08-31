@@ -40,9 +40,9 @@ export interface Palette {
   readonly textures: PaletteTextures;
 }
 
-/** Floor variants per palette. Four is enough that no repeat is ever adjacent. */
-export const FLOOR_VARIANTS = 4;
-export const WALL_VARIANTS = 3;
+/** Variants per palette. Four is enough that no repeat is ever adjacent. */
+const FLOOR_VARIANTS = 4;
+const WALL_VARIANTS = 3;
 
 const textures = (id: string): PaletteTextures => ({
   floor: Array.from({ length: FLOOR_VARIANTS }, (_, i) => `tile.${id}.floor.${i}`),
