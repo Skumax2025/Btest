@@ -35,7 +35,7 @@ import { GUIDE_SECTIONS } from '@content/guide';
 import { createRunConfig, createSandboxConfig } from '@content/run-config';
 import { AUDIO } from '@content/audio';
 import { paletteOf } from '@content/palettes';
-import { QUALITY, QUALITY_GOVERNOR, VIEW, viewFor } from '@content/view';
+import { QUALITY, QUALITY_GOVERNOR, TOUCH, VIEW, viewFor } from '@content/view';
 import type { QualityTier, RayCounts, ViewConfig } from '@content/view';
 import { FALLBACK_SPRITE, SPRITES } from '@content/sprites';
 import {
@@ -56,6 +56,7 @@ import { DebugOverlay } from './debug-overlay';
 import { GuidebookScreen } from './guidebook';
 import { IconSource } from './icons';
 import { QualityGovernor } from './quality';
+import { TouchControls } from './touch';
 import { Hud } from './hud';
 import { InventoryUi } from './inventory-ui';
 import { MenuScreen } from './menu';
@@ -87,6 +88,7 @@ export class App {
   private readonly worldTooltipIcon: HTMLElement;
   private readonly worldTooltipText: HTMLElement;
   private readonly bag: InventoryUi;
+  private readonly touch: TouchControls;
   private readonly summary: SummaryScreen;
   private readonly debug: DebugOverlay;
   private readonly menu: MenuScreen;
@@ -105,6 +107,8 @@ export class App {
   private lastHealth = Number.POSITIVE_INFINITY;
   /** Combat events are counted, so each one kicks the camera exactly once. */
   private lastCombatSerial = 0;
+  /** True while the player is driving with fingers, pad up or bag open. */
+  private touchMode = false;
 
   constructor(private readonly root: HTMLElement) {
     this.settings = loadSettings(this.storage);
@@ -158,7 +162,11 @@ export class App {
     this.worldTooltipText.className = 'world-tooltip-text';
     this.worldTooltip.append(this.worldTooltipIcon, this.worldTooltipText);
     this.overlay.appendChild(this.worldTooltip);
-    this.summary = new SummaryScreen(this.overlay, this.ui);
+    this.touch = new TouchControls(this.overlay, this.ui, this.input, TOUCH);
+    this.summary = new SummaryScreen(this.overlay, this.ui, {
+      restart: () => this.startNewRun(),
+      toMenu: () => this.setState('menu'),
+    });
     this.debug = new DebugOverlay(this.overlay);
     this.bag = new InventoryUi(
       this.overlay,
@@ -340,6 +348,7 @@ export class App {
       this.governor.setPreference(settings.quality);
       this.applyQuality();
     }
+    this.touch.setMode(settings.touchControls);
     // Rebinding a key rewrites every label that names one, here and in the bag.
     this.ui.binder.refresh();
     saveSettings(this.storage, settings);
@@ -388,8 +397,11 @@ export class App {
   // ── the tick ─────────────────────────────────────────────────────────────
 
   private fixedUpdate(): void {
-    const pointer = this.input.pointerScreen;
-    const world = this.camera.screenToWorld(pointer.x, pointer.y);
+    // A pad aims by direction from the player; a mouse aims at a point on the
+    // screen. Both arrive as a world position, which is all the run reads.
+    const world = this.touch.active
+      ? this.touch.aimAt(this.run.player.x, this.run.player.y)
+      : this.pointerWorld();
     const frame = this.input.sample(world.x, world.y);
 
     if (this.state !== 'playing') {
@@ -518,6 +530,13 @@ export class App {
     this.overlay.classList.toggle('overlay--dimmed', !playing && this.state !== 'dead');
     this.hud.setVisible(playing);
     this.hud.update(this.run);
+    this.touch.setContext(playing && !this.bag.isOpen);
+    this.touch.update(this.run);
+    // Every readout that names a key has to name a button instead once the pad
+    // is up, and the pad is what the hands panel would otherwise duplicate.
+    this.touchMode = this.touch.usingTouch;
+    this.hud.setTouch(this.touchMode);
+    this.bag.setTouch(this.touchMode);
     this.updateWorldTooltip();
     this.bag.update();
     this.summary.setVisible(this.state === 'dead');

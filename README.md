@@ -52,6 +52,30 @@ in the settings, and the change applies immediately — including to every hint 
 the game and to the controls table in the guidebook, which are all generated from
 the live bindings. The default table is `KEY_BINDINGS` in `src/content/tuning.ts`.
 
+### On a touchscreen
+
+There is nothing to set up: touch the screen and the pad appears; use a key or a
+mouse and it goes away again. A laptop with a touchscreen therefore gets whichever
+one is in the player's hands at that moment. **Settings → Controls → Touch** pins
+it either way.
+
+| | |
+| --- | --- |
+| Left half, anywhere | Walk. The stick appears under the thumb that lands, so there is nothing to find |
+| …pushed all the way out | Sprint. There is no button for it: both thumbs are already holding something |
+| Right half, anywhere | Look. Released, the aim stays where it was left; untouched, you face the way you walk |
+| ◎ | Search, pick up, take the way down |
+| ✱ ✲ | The two hands — each button wears the icon of what is in it |
+| ☀ ▦ ⌄ | Torch, bag, crouch. Crouch is a toggle: a stance is not something you hold |
+| ➤ ⤓ ⇄ ❚❚ | Throw, put down, swap hands, pause |
+| Belt | The four slots are buttons already; tap one |
+| In the bag | Drag as with a mouse; double tap does the obvious thing, and a long press opens the list the right button opens |
+
+While the pad is up, two panels go away — the hands panel, because the two hand
+buttons already carry what is in them, and the key legend, because it is a list of
+keys nobody has. Every hint that would name a key names the button instead: the
+prompt over a crate reads `◎ — pick up`, not `Space — pick up`.
+
 ## How it plays
 
 Thirst is the tightest clock, hunger the second. Nerve drains in the dark, in
@@ -154,8 +178,9 @@ creatures and the ambient hum together.
 
 Settings (reachable from the main menu and from a pause, the same screen in both):
 language, master/effects/ambient volume, quality, brightness, interface scale, the
-debug overlay, full key rebinding with conflict handling and a reset, and confirmed
-wipes of the saved run and of the settings themselves. They live under their own
+debug overlay, whether the on-screen pad is up, full key rebinding with conflict
+handling and a reset, and confirmed wipes of the saved run and of the settings
+themselves. They live under their own
 storage key, so erasing a run never costs you your language, keys or volume.
 
 ## Guidebook
@@ -187,7 +212,8 @@ cycles.
 
 ```
 src/
-  core/      L0  loop, entity/component store, event bus, seeded RNG, input,
+  core/      L0  loop, entity/component store, event bus, seeded RNG, input
+                 (keyboard, mouse and whatever a pad feeds it),
                  renderer interface, camera, spatial index, assets, audio,
                  localization, serialization         — no game words at all
   systems/   L1  collision, ray marching, visibility, pathfinding, sound
@@ -432,8 +458,6 @@ Nothing on either brief's cut list was cut. These are the honest gaps:
 - **Light is a flat overlay, so nothing is shaded by direction.** A wall's lit
   face is the near half of its tile rather than a surface with a normal, and the
   wallpaper on it does not turn with the light either.
-- **No touch input.** The input layer is abstracted so an adapter that produces
-  `InputFrame`s is all it would take, but the adapter is not written.
 - **Sound is synthesised placeholder tones.** Sprites are procedural too — every
   icon, tile and body is a stack of shapes drawn into a canvas at load time, not
   a painting. Both sit behind interfaces (`SpriteProvider`, `AudioOutput`) so
@@ -453,12 +477,12 @@ Nothing on either brief's cut list was cut. These are the honest gaps:
 - **Quality moves in three steps, not continuously.** A machine between two
   tiers gets the lower one and its spare capacity goes unused; the alternative
   is a dial with no name, which is harder to reason about and harder to test.
-- **No touch input, so a phone can run it but not play it.** The frame fits a
-  phone — the pixel budget and the tiers see to that — but there is no adapter
-  producing `InputFrame`s from touches, so the controls are still a keyboard and
-  a mouse. Below 700 px wide the display drops the key legend and stacks the
-  belt above the hands rather than across them, which is a small window being
-  made legible, not a phone being supported.
+- **Touch has no rebinding and no layout options.** Where the pad puts its
+  buttons is where they are; the keyboard can be remapped and the pad cannot.
+  Nothing else in the game is a fixed control.
+- **A double tap in the bag relies on the browser synthesising `dblclick`.**
+  Every current one does, now that the page refuses to zoom, but it is the one
+  touch gesture here that is not built from pointer events directly.
 - **A failed path is retried on a timer, not on a change.** A creature whose
   route opens up waits out the rest of its repath interval before noticing,
   which is up to two fifths of a second of standing still.
@@ -478,7 +502,9 @@ src/game/          player body, stats, inventory, items, combat, loot, lighting,
 src/content/       all data and all numbers, locales, guidebook structure
 src/view/          tiles, props, lighting, combat marks, prompts, debug drawing
 src/ui/            app shell and state machine, HUD, bag, menu, settings,
-                   guidebook, summary, debug overlay, audio view
+                   guidebook, summary, debug overlay, audio view, touch pad,
+                   quality governor
 tests/             layer/cycle guard, determinism, generation, survival, AI,
-                   input, localization, combat, gameplay loop, frame budget
+                   input, localization, combat, gameplay loop, frame budget,
+                   quality tiers
 ```

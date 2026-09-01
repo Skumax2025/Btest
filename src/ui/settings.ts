@@ -11,7 +11,7 @@ import type { Localizer } from '@core/i18n';
 import type { InputDevice } from '@core/input';
 import { REBINDABLE_ACTIONS, SETTINGS_RANGES } from '@content/tuning';
 import { QUALITY } from '@content/view';
-import type { QualityPreference } from '@content/view';
+import type { QualityPreference, TouchMode } from '@content/view';
 import type { UiContext } from './context';
 import { MenuList, Screen, choice, slider, toggle } from './screen';
 import { defaultBindings } from './settings-store';
@@ -160,6 +160,19 @@ export class SettingsScreen {
 
   private buildControls(panel: HTMLElement): void {
     const section = this.section(panel, 'settings.controls');
+    choice<TouchMode>(
+      section,
+      this.ui,
+      'settings.touch',
+      [
+        { value: 'auto', labelKey: 'settings.touch.auto' },
+        { value: 'on', labelKey: 'settings.touch.on' },
+        { value: 'off', labelKey: 'settings.touch.off' },
+      ],
+      this.settings.touchControls,
+      (touchControls) => this.commit({ touchControls }),
+    );
+    this.ui.binder.bind(el('p', 'settings-hint', section), 'settings.touchHint');
     this.ui.binder.bind(el('p', 'settings-hint', section), 'settings.controlsHint');
     const list = el('div', 'binding-list', section);
     for (const action of REBINDABLE_ACTIONS) {

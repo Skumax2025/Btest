@@ -31,6 +31,7 @@ import { isLowSanity } from '@game/stats';
 import type { HudConfig } from '@content/view';
 import type { UiContext } from './context';
 import { actionLabel, movementLabel } from './keys';
+import { TOUCH_GLYPHS } from './touch';
 import { el, setStyle, setText } from './dom';
 
 interface Bar {
@@ -146,6 +147,8 @@ export class Hud {
   private calmCountdown = 0;
   /** How red the edges of the screen currently are, in [0, 1]. */
   private hurt = 0;
+  /** True while the on-screen pad is what the player is using. */
+  private touch = false;
 
   constructor(
     parent: HTMLElement,
@@ -253,6 +256,14 @@ export class Hud {
    */
   registerDamage(amount: number): void {
     this.hurt = Math.min(1, this.hurt + amount / Math.max(1, this.config.hurtFlashDamage));
+  }
+
+  /**
+   * A hint that names a key is a lie on a device with no keys. While the pad is
+   * up, every one of them names the button that does the same thing instead.
+   */
+  setTouch(touch: boolean): void {
+    this.touch = touch;
   }
 
   /** The legend is the one part of the display a player is meant to outgrow. */
@@ -480,10 +491,16 @@ export class Hud {
   promptFor(hint: HintKey): string {
     const { t, bindings } = this.ui;
     if (hint === 'move') {
-      return t('hint.move', { move: movementLabel(t, bindings(), MOVE_ACTIONS) });
+      return this.touch
+        ? t('hint.moveTouch')
+        : t('hint.move', { move: movementLabel(t, bindings(), MOVE_ACTIONS) });
     }
     const action = HINT_ACTION[hint];
-    return t(`hint.${hint}`, action ? { key: actionLabel(t, bindings(), action) } : undefined);
+    if (!action) return t(`hint.${hint}`);
+    const key = this.touch
+      ? (TOUCH_GLYPHS[action] ?? actionLabel(t, bindings(), action))
+      : actionLabel(t, bindings(), action);
+    return t(`hint.${hint}`, { key });
   }
 
   /** The last thing melee did, in words, because nobody pressed a key for it. */

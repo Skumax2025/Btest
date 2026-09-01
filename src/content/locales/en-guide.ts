@@ -104,6 +104,7 @@ export const EN_GUIDE: Record<GuideKey, LocaleString> = {
     'Any of them near you eats at your nerve even when it never touches you. Do not stand and ' +
     'watch.',
 
+  'guide.controls.p2': 'A touchscreen has no bindings: the left stick walks and, pushed all the way out, runs; the right one looks. The buttons on the right are the two hands, the torch, the bag, crouch, and the large one is interact. In the bag, a long press opens the same list the right mouse button does.',
   'guide.combat.title': '6. Fighting',
   'guide.combat.p1':
     'You do not swing with a key. While anything is inside your weapon\'s reach you swing by ' +

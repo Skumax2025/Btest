@@ -154,3 +154,30 @@ del  VISION (now the top tier), canAttack, conditionOf, isStackable, rayReach ex
 mod  src/core/audio.ts                     (a refused audio context is silence, not a crash)
 mod  src/style.css                          (narrow and short window layouts)
 mod  README.md, DECISIONS.md, PLAN.md
+
+---
+
+# Fifth pass: touch (separate branch)
+
+## J0 — the second source
+mod  src/core/input.ts                      (L0: stick, virtual actions, releaseVirtual)
+mod  tests/input.test.ts                    (merging, clamping, edges)
+
+## J1 — the pad
+new  src/ui/touch.ts                        (L4: floating sticks, buttons, mode)
+mod  src/content/view.ts                    (L3: TouchConfig, TOUCH, TouchMode, DEFAULT_TOUCH_MODE)
+mod  src/ui/app.ts                          (aim from a direction, context, mode)
+mod  src/style.css                          (pad, safe areas, no browser gestures)
+mod  index.html                             (viewport-fit, no user scaling)
+
+## J2 — the interface under a thumb
+mod  src/ui/hud.ts                          (hints name buttons; hands panel yields)
+mod  src/ui/inventory-ui.ts                 (long press, touch help line)
+mod  src/ui/summary.ts                      (the death screen is buttons, not text)
+mod  src/ui/i18n-dom.ts                     (translated attributes, for aria-labels)
+mod  src/ui/{settings,settings-store}.ts    (Touch: auto / always / never)
+mod  src/content/locales/*                  (pad strings, guidebook paragraph)
+mod  tests/content.test.ts                  (every pad action is named)
+
+## J3 — documentation
+README.md, DECISIONS.md, PLAN.md

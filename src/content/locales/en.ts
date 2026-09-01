@@ -21,6 +21,7 @@ export const EN: Record<TextKey, LocaleString> = {
   'ui.none': 'unbound',
   'ui.pressKey': 'Press a key…',
   'ui.seconds': '{value}s',
+  'boot.noCanvas': 'This browser cannot run the game: no 2D canvas is available.',
   'ui.percent': '{value}%',
 
   'menu.title': 'NO EXIT',
@@ -45,7 +46,6 @@ export const EN: Record<TextKey, LocaleString> = {
   'settings.video': 'Picture',
   'settings.brightness': 'Brightness',
   'settings.uiScale': 'Interface scale',
-  'boot.noCanvas': 'This browser cannot run the game: no 2D canvas is available.',
   'settings.quality': 'Quality',
   'settings.quality.auto': 'Auto',
   'settings.quality.low': 'Low',
@@ -54,6 +54,11 @@ export const EN: Record<TextKey, LocaleString> = {
   'settings.qualityHint': 'Auto watches the frame clock and decides what to give up. Lower means light computed over fewer pixels and coarser shadows, in exchange for an even frame.',
   'settings.debugOverlay': 'Debug overlay',
   'settings.controls': 'Controls',
+  'settings.touch': 'Touch',
+  'settings.touch.auto': 'Auto',
+  'settings.touch.on': 'Always',
+  'settings.touch.off': 'Never',
+  'settings.touchHint': 'Auto raises the on-screen sticks at the first touch and takes them away the moment you go back to the keys. Left stick walks, all the way out runs; right stick looks.',
   'settings.controlsHint': 'Click a row and press the new key. ESC cancels.',
   'settings.conflict': 'Taken by: {action}',
   'settings.resetBindings': 'Restore default keys',
@@ -129,6 +134,7 @@ export const EN: Record<TextKey, LocaleString> = {
   'hud.failing': '{name} is going',
 
   'hint.move': '{move} to walk. The mouse is where you look.',
+  'hint.moveTouch': 'Left stick walks, all the way out runs. Right stick looks.',
   'hint.search': '{key} — search',
   'hint.pickup': '{key} — pick up',
   'hint.descend': '{key} — go down',
@@ -155,6 +161,7 @@ export const EN: Record<TextKey, LocaleString> = {
   'inventory.help':
     'Drag between the bag, the slots and the belt. Double click is the obvious action, ' +
     'right click is the whole list. Keys 1-4 are the belt, {swap} swaps hands, {drop} puts it down.',
+  'inventory.helpTouch': 'Drag between the bag, the slots and the belt. Double tap does the obvious thing, a long press opens the list.',
   'inventory.cells': { one: '{count} cell', other: '{count} cells' },
   'inventory.equipment': 'WORN',
   'inventory.container': 'IN THE BAG',

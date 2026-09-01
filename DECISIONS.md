@@ -579,3 +579,48 @@ what I would have guessed.
   composite per panel and the low-nerve strain animation filters the whole
   overlay every frame it runs. Both are given up at the bottom tier, in CSS,
   from one attribute the renderer's tier writes on the root.
+
+## Touch (J1)
+
+- **A second source, not a second mode.** The pad writes into the same
+  `InputDevice` the keyboard writes into: a held button is a held action, and the
+  stick overrides the four movement keys only while a thumb is actually on it.
+  Nothing below L4 learned a new word, and a laptop with a touchscreen needs no
+  mode at all. Dropped: a `TouchInputDevice` alongside the keyboard one, which
+  would have made "both at once" a case somebody has to handle.
+- **The sticks float.** They appear where the thumb lands inside their half of
+  the screen rather than sitting in a fixed place. A fixed pad is a thing you
+  have to look down and find, and looking down is the one thing a game about not
+  being able to see should not ask for.
+- **Sprint is the far end of the movement stick.** There are two thumbs and both
+  are already holding something; a sprint button would have to be pressed by one
+  of them letting go of the thing it was doing. The stick knows how far it has
+  been pushed, and that is the same information a `Shift` key carries.
+- **Crouch is a toggle, sprint is not.** A stance is a state you are in; running
+  is something you are doing. Holding a button for the first is a cramp, and
+  toggling the second would strand a player sprinting into a wall.
+- **The aim stick keeps its direction when released.** Snapping back to some
+  default would spin the character every time a thumb lifted. With no thumb on it
+  at all, walking turns you — so a player who never finds the right stick still
+  faces where they are going.
+- **Aim is a direction, not a point.** The keyboard build turns the cursor into a
+  world position and reads the direction from it. The pad hands over a direction
+  and the app makes a world position out of it at a fixed distance, which is all
+  the run ever reads — facing and throwing both normalise it. Dropped: moving a
+  virtual cursor around the screen, which would have fed the camera's own lean
+  back into the aim.
+- **The hand buttons carry the item's icon**, which is what lets the hands panel
+  go away while the pad is up. Two readouts of the same fact, in the same corner,
+  is one too many on a screen this size.
+- **Hints name the button, not the key.** `Space — pick up` is false on a phone.
+  Every prompt that names an action now asks the pad for its mark first, so the
+  same string renders as `◎ — pick up` under a thumb and as the bound key under a
+  keyboard. The move hint is the one that needed its own sentence: a stick is not
+  a key with a different name.
+- **A long press opens the context menu.** There is no second mouse button, and
+  the menu is the only route to equipping to a slot that is not the default, to
+  splitting a stack, and to dropping from the bag. Held still for 420 ms, the
+  drag it started as is abandoned and the list opens instead.
+- **The pad goes away when the bag opens.** The bag is a drag surface that wants
+  the whole screen, and a stick under it would walk the player into a wall while
+  they rummaged. Everything it was holding is released with it.

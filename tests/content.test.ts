@@ -15,6 +15,7 @@ import { LEVELS, SANDBOX_LEVEL } from '@content/levels';
 import { RU } from '@content/locales/ru';
 import { EN } from '@content/locales/en';
 import { EQUIP_SLOTS } from '@game/items';
+import { TOUCH_ACTIONS, TOUCH_GLYPHS } from '@ui/touch';
 
 const KEYS = new Set(Object.keys(RU));
 
@@ -114,6 +115,24 @@ describe('content consistency', () => {
     const missing = dynamic.filter((key) => !KEYS.has(key));
     expect(missing).toEqual([]);
     expect(dynamic.filter((key) => !(key in EN))).toEqual([]);
+  });
+
+  /**
+   * The pad's buttons wear marks rather than words, so the word behind each one
+   * only exists in the dictionary — and a screen reader, or a player holding a
+   * button down to see what it is, is the only thing that ever reads it.
+   */
+  it('names every action the on-screen pad can reach', () => {
+    const missing: string[] = [];
+    for (const action of TOUCH_ACTIONS) {
+      const key = `action.${action}`;
+      if (!KEYS.has(key)) missing.push(`ru: ${key}`);
+      if (!(key in EN)) missing.push(`en: ${key}`);
+    }
+    for (const action of Object.keys(TOUCH_GLYPHS)) {
+      if (!TOUCH_ACTIONS.includes(action)) missing.push(`glyph for an action no button has: ${action}`);
+    }
+    expect(missing).toEqual([]);
   });
 
   it('keeps every belt item usable and every worn item wearable', () => {

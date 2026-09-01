@@ -308,6 +308,41 @@ export const QUALITY_GOVERNOR: QualityGovernorConfig = {
   settleWindows: 3,
 };
 
+/**
+ * The on-screen pad. A thumb is not a mouse: it covers what it touches, it has
+ * no hover, it cannot be precise, and there are only two of them. So the sticks
+ * appear wherever the thumb lands rather than in a fixed place it has to find,
+ * the dead zone is generous enough that a resting thumb does not walk, and
+ * sprinting is the far end of the movement stick rather than one more button
+ * competing for a finger that is already busy.
+ */
+export interface TouchConfig {
+  /** How far the knob travels from where the thumb landed, in pixels. */
+  readonly stickRadius: number;
+  /** Share of that travel ignored entirely. */
+  readonly deadZone: number;
+  /** Share of it past which the movement stick also sprints. */
+  readonly sprintAt: number;
+  /** How far ahead of the player the aim stick points, in world units. */
+  readonly aimDistance: number;
+}
+
+/**
+ * `auto` follows what the player last used — a touch puts the pad up, a key or a
+ * mouse takes it away — which is the only rule that works on a laptop with a
+ * touchscreen, where neither answer is right for the whole session.
+ */
+export const DEFAULT_TOUCH_MODE: TouchMode = 'auto';
+
+export type TouchMode = 'auto' | 'on' | 'off';
+
+export const TOUCH: TouchConfig = {
+  stickRadius: 54,
+  deadZone: 0.16,
+  sprintAt: 0.82,
+  aimDistance: 320,
+};
+
 export const VIEW: ViewConfig = {
   light: {
     wallPenetration: 0.5,

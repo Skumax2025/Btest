@@ -21,6 +21,12 @@ interface Row {
   readonly value: HTMLElement;
 }
 
+/** What the screen cannot do itself, because it ends or starts a run. */
+export interface SummaryHost {
+  restart(): void;
+  toMenu(): void;
+}
+
 export class SummaryScreen {
   private readonly root: HTMLElement;
   private readonly cause: HTMLElement;
@@ -33,6 +39,7 @@ export class SummaryScreen {
   constructor(
     parent: HTMLElement,
     private readonly ui: UiContext,
+    host: SummaryHost,
   ) {
     this.root = el('div', 'summary', parent);
     ui.binder.bind(el('div', 'summary-title', this.root), 'summary.title');
@@ -43,8 +50,17 @@ export class SummaryScreen {
       const label = ui.binder.bind(el('span', 'summary-label', row), `summary.${key}`);
       this.rows.set(key, { label, value: el('span', 'summary-value', row) });
     }
-    this.restart = el('div', 'summary-restart', this.root);
-    this.toMenu = el('div', 'summary-restart', this.root);
+    // Buttons, not lines of text: the key they name does not exist on a device
+    // with no keyboard, and death is not a good place to discover that.
+    this.restart = el('button', 'summary-restart', this.root);
+    this.toMenu = el('button', 'summary-restart', this.root);
+    for (const [button, act] of [
+      [this.restart, () => host.restart()],
+      [this.toMenu, () => host.toMenu()],
+    ] as const) {
+      (button as HTMLButtonElement).type = 'button';
+      button.addEventListener('click', act);
+    }
     this.setVisible(false);
   }
 

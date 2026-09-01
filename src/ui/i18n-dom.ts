@@ -13,6 +13,8 @@ interface Binding {
   readonly element: HTMLElement;
   readonly key: string;
   readonly params?: () => TextParams;
+  /** Written into this attribute instead of the element's text, when given. */
+  readonly attribute?: string;
 }
 
 export class TextBinder {
@@ -23,6 +25,18 @@ export class TextBinder {
   /** Registers an element and writes the current translation into it at once. */
   bind(element: HTMLElement, key: string, params?: () => TextParams): HTMLElement {
     const binding: Binding = { element, key, params };
+    this.bindings.push(binding);
+    this.apply(binding);
+    return element;
+  }
+
+  /**
+   * The same, into an attribute. A button whose face is a glyph still has to say
+   * what it does to a screen reader, and that sentence is translated like any
+   * other — it just does not live in the element's text.
+   */
+  bindAttribute(element: HTMLElement, attribute: string, key: string): HTMLElement {
+    const binding: Binding = { element, key, attribute };
     this.bindings.push(binding);
     this.apply(binding);
     return element;
@@ -41,6 +55,8 @@ export class TextBinder {
   }
 
   private apply(binding: Binding): void {
-    setText(binding.element, this.localizer.t(binding.key, binding.params?.()));
+    const text = this.localizer.t(binding.key, binding.params?.());
+    if (binding.attribute) binding.element.setAttribute(binding.attribute, text);
+    else setText(binding.element, text);
   }
 }

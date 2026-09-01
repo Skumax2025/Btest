@@ -43,6 +43,16 @@ body {
   font-family: ui-monospace, 'SF Mono', 'Menlo', 'Consolas', 'DejaVu Sans Mono',
     'Liberation Mono', monospace;
   user-select: none;
+  /* A game is not a document: no rubber-banding at the edges, no grey flash
+     under a tap, and no browser gesture in place of a control. */
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+}
+
+/* The world takes touches as input; only the panels that scroll may scroll. */
+.game-canvas {
+  touch-action: none;
 }
 
 #app {
@@ -68,6 +78,9 @@ body {
   position: absolute;
   inset: 0;
   display: block;
+  /* Above the pad's stick zones: the belt is tappable and the zones must not
+     swallow it. Everything else in the display lets a touch straight through. */
+  z-index: 26;
   font-size: 13px;
   letter-spacing: 0.06em;
   --hud-opacity: 1;
@@ -539,6 +552,17 @@ body {
   .hud-belt-slot { width: 68px; }
 }
 
+/* The bag is the one panel wider than a phone. It scrolls inside the window
+   rather than out of it, and its two columns become one. */
+@media (max-width: 700px) {
+  .bag-columns {
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .bag-slots { grid-template-columns: repeat(3, 68px); }
+}
+
 /* A narrow window — a phone held upright, a browser at a quarter of a desktop.
    Four corners cannot all be occupied at this width, so the display becomes
    three: the body at the top, the hands in their corner, and the belt moved up
@@ -611,6 +635,12 @@ body {
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
+  /* Never larger than the window: a phone on its side is 390 tall, and a panel
+     hanging off both ends of it has rows nobody can reach. */
+  max-width: calc(100vw - 12px);
+  max-height: calc(100vh - 12px);
+  overflow: auto;
+  touch-action: pan-x pan-y;
   background: var(--hud-panel-strong);
   border: 1px solid var(--hud-line);
   border-radius: var(--hud-radius);
@@ -956,8 +986,23 @@ body {
 
 .summary-restart {
   margin-top: 10px;
-  font-size: 12px;
+  padding: 9px 18px;
+  border: 1px solid var(--hud-line);
+  border-radius: var(--hud-radius);
+  background: transparent;
   color: var(--hud-dim);
+  font: inherit;
+  font-size: 12px;
+  pointer-events: auto;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color 140ms ease, color 140ms ease;
+}
+
+.summary-restart:hover,
+.summary-restart:active {
+  border-color: var(--hud-line-strong);
+  color: var(--hud-text);
 }
 
 .debug {
@@ -1027,8 +1072,10 @@ body {
   box-shadow: var(--hud-shadow);
   backdrop-filter: blur(6px);
   padding: 26px 34px;
-  min-width: 460px;
-  max-width: 860px;
+  /* Never wider than the window it is in: a screen that overflows sideways on
+     a phone is a screen with a way out nobody can reach. */
+  min-width: min(460px, 100%);
+  max-width: min(860px, 100%);
   max-height: 88vh;
   overflow-y: auto;
 }
@@ -1321,4 +1368,189 @@ body {
   font-size: 14px;
   line-height: 1.6;
   text-align: center;
+}
+
+/* ── the on-screen pad ───────────────────────────────────────────────────────
+   Two floating sticks and a cluster of buttons, for a device with no keyboard.
+   The layer itself catches nothing: the zones, the buttons and the belt above
+   them do. `touch-action: none` everywhere a finger lands, or the browser
+   scrolls, zooms or swipes the page out from under the game. */
+.touch {
+  position: absolute;
+  inset: 0;
+  z-index: 24;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: none;
+}
+
+.touch-zone {
+  position: absolute;
+  bottom: 0;
+  width: 46%;
+  height: 62%;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.touch-zone--move { left: 0; }
+.touch-zone--aim { right: 0; }
+
+/* The stick is drawn where the thumb landed, so it is never in the way and
+   never has to be found. Nothing is drawn until one does. */
+.touch-stick {
+  position: absolute;
+  display: none;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.touch-stick::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: calc(var(--touch-stick, 54px) * 2);
+  height: calc(var(--touch-stick, 54px) * 2);
+  margin: calc(var(--touch-stick, 54px) * -1);
+  border: 1px solid var(--hud-line-strong);
+  border-radius: 50%;
+  background: rgba(12, 10, 7, 0.35);
+}
+
+.touch-knob {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 46px;
+  height: 46px;
+  margin: -23px;
+  border: 1px solid var(--hud-line-strong);
+  border-radius: 50%;
+  background: rgba(232, 216, 160, 0.22);
+}
+
+.touch-stick--aim .touch-knob { background: rgba(160, 208, 232, 0.22); }
+
+.touch-pad {
+  position: absolute;
+  right: calc(10px + env(safe-area-inset-right, 0px));
+  bottom: calc(104px + env(safe-area-inset-bottom, 0px));
+  display: grid;
+  grid-template-columns: repeat(3, auto);
+  gap: 10px;
+  align-items: end;
+  justify-items: center;
+  pointer-events: none;
+}
+
+/* A vertical strip on the other side for what a thumb needs rarely. */
+.touch-strip {
+  position: absolute;
+  left: calc(10px + env(safe-area-inset-left, 0px));
+  top: calc(72px + env(safe-area-inset-top, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.touch-button {
+  position: relative;
+  width: 58px;
+  height: 58px;
+  padding: 0;
+  border: 1px solid var(--hud-line-strong);
+  border-radius: 50%;
+  background: var(--hud-panel);
+  color: var(--hud-text);
+  font: inherit;
+  font-size: 20px;
+  line-height: 1;
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 80ms ease, background 120ms ease, border-color 120ms ease;
+}
+
+.touch-button:active {
+  transform: scale(0.94);
+  background: rgba(232, 216, 160, 0.24);
+}
+
+.touch-button--primary {
+  width: 78px;
+  height: 78px;
+  font-size: 26px;
+  border-color: var(--hud-warm);
+}
+
+.touch-button--small {
+  width: 44px;
+  height: 44px;
+  font-size: 15px;
+}
+
+/* Lit and stanced states read at a glance, because there is no key to look at. */
+.touch-button--lit,
+.touch-button--on {
+  background: rgba(232, 216, 160, 0.3);
+  border-color: var(--hud-warm);
+}
+
+.touch-button--empty { opacity: 0.55; }
+
+.touch-button-glyph {
+  display: block;
+  pointer-events: none;
+}
+
+/* A hand with something in it shows the thing, not the mark. */
+.touch-button--carrying .touch-button-glyph { visibility: hidden; }
+
+/* The hand buttons carry what is in that hand, which is why the hands panel
+   can go away entirely while the pad is up. */
+.touch-button-icon {
+  position: absolute;
+  inset: 8px;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+  pointer-events: none;
+}
+
+.touch-button-icon[hidden] { display: none; }
+
+/* With a pad up, two panels are redundant: the hands are on the buttons, and a
+   keyboard legend is a list of keys nobody has. */
+[data-touch='on'] .hud-hands,
+[data-touch='on'] .hud-keys {
+  display: none;
+}
+
+/* Room for the pad: the belt moves off the very bottom edge, where a thumb
+   reaching the stick would otherwise brush it. */
+[data-touch='on'] .hud-belt {
+  bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+}
+
+/* A short window is a phone on its side: the cluster tightens rather than
+   growing up the screen. */
+@media (max-height: 560px) {
+  .bag { padding: 12px; }
+  .bag-slots { grid-template-columns: repeat(3, 64px); }
+  .bag-cell,
+  .bag-slot,
+  .bag-quick { min-height: 54px; }
+  .bag-quick { width: 54px; }
+  .touch-pad {
+    bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+    gap: 8px;
+  }
+  .touch-button { width: 50px; height: 50px; font-size: 17px; }
+  .touch-button--primary { width: 64px; height: 64px; font-size: 21px; }
+  .touch-button--small { width: 38px; height: 38px; font-size: 13px; }
 }

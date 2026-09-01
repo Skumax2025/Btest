@@ -94,3 +94,68 @@ describe('input device', () => {
     }
   });
 });
+
+/**
+ * The second source. A pad has to be indistinguishable from a keyboard by the
+ * time the simulation sees it, and it must not be able to do anything a keyboard
+ * cannot — including walking faster than one.
+ */
+describe('a virtual source', () => {
+  it('overrides the movement keys while it is pushed, and hands them back', () => {
+    const { device, key } = setup();
+    key('keydown', 'KeyD');
+    expect(device.sample(0, 0).axisX).toBe(1);
+
+    device.setStick(-0.5, 0.25);
+    const stick = device.sample(0, 0);
+    expect(stick.axisX).toBeCloseTo(-0.5, 6);
+    expect(stick.axisY).toBeCloseTo(0.25, 6);
+
+    device.setStick(null, null);
+    expect(device.sample(0, 0).axisX).toBe(1);
+  });
+
+  it('cannot ask for more speed than a key can', () => {
+    const { device } = setup();
+    device.setStick(6, 8);
+    const frame = device.sample(0, 0);
+    expect(Math.hypot(frame.axisX, frame.axisY)).toBeCloseTo(1, 6);
+  });
+
+  it('produces the same press edge a key does, once per press', () => {
+    const { device } = setup();
+    device.setVirtualAction('interact', true);
+    expect(wasPressed(device.sample(0, 0), 'interact')).toBe(true);
+    // Still held on the next tick, but the edge is spent.
+    const second = device.sample(0, 0);
+    expect(wasPressed(second, 'interact')).toBe(false);
+    expect(isHeld(second, 'interact')).toBe(true);
+
+    device.setVirtualAction('interact', false);
+    expect(isHeld(device.sample(0, 0), 'interact')).toBe(false);
+  });
+
+  it('merges with the keys rather than replacing them', () => {
+    const { device, key } = setup();
+    key('keydown', 'KeyE');
+    device.setVirtualAction('flashlight', true);
+    const frame = device.sample(0, 0);
+    expect(isHeld(frame, 'handMain')).toBe(true);
+    expect(isHeld(frame, 'flashlight')).toBe(true);
+  });
+
+  it('lets go of everything it was holding, and of nothing the keys hold', () => {
+    const { device, key } = setup();
+    key('keydown', 'KeyW');
+    device.setVirtualAction('crouch', true);
+    device.setStick(1, 0);
+    device.sample(0, 0);
+
+    device.releaseVirtual();
+    const frame = device.sample(0, 0);
+    expect(isHeld(frame, 'crouch')).toBe(false);
+    expect(isHeld(frame, 'up')).toBe(true);
+    // The stick is gone, so the keys have the axes again.
+    expect(frame.axisY).toBe(-1);
+  });
+});

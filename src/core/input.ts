@@ -3,7 +3,13 @@
  *
  * The simulation only ever sees an `InputFrame` — a plain, serializable value.
  * That is what makes replay and the determinism test possible, and what lets a
- * touch adapter be added later: it just has to produce `InputFrame`s.
+ * second source of input exist at all: it only has to say what it is doing, in
+ * the same words a key does.
+ *
+ * There are two such sources now, and they are merged rather than switched
+ * between: a held key and a held button are the same held action, and a stick
+ * overrides the four movement keys only while it is actually being pushed. A
+ * device with both a keyboard and a touchscreen therefore needs no mode.
  */
 
 export interface InputFrame {
@@ -45,13 +51,18 @@ export interface AxisBindings {
 }
 
 /**
- * Collects raw keyboard/mouse state. Remappable: `rebind` replaces the codes for
+ * Collects raw keyboard and pointer state, plus whatever a virtual source — an
+ * on-screen pad — is holding down. Remappable: `rebind` replaces the codes for
  * one action without touching anything else.
  */
 export class InputDevice {
   private readonly codeToActions = new Map<string, string[]>();
   private readonly heldActions = new Set<string>();
   private readonly pressedActions = new Set<string>();
+  /** Actions a virtual source is holding. Kept apart so keys can release alone. */
+  private readonly virtualActions = new Set<string>();
+  private stickX: number | null = null;
+  private stickY: number | null = null;
   private bindings: Record<string, string[]>;
   private pointerScreenX = 0;
   private pointerScreenY = 0;
@@ -70,6 +81,48 @@ export class InputDevice {
   rebind(action: string, codes: readonly string[]): void {
     this.bindings[action] = [...codes];
     this.rebuild();
+  }
+
+  /**
+   * Analog movement from a source that has one. Null hands the axes back to the
+   * four keys, so a stick that is let go does not leave the player unable to
+   * walk with a keyboard.
+   */
+  setStick(x: number | null, y: number | null): void {
+    if (x === null || y === null) {
+      this.stickX = null;
+      this.stickY = null;
+      return;
+    }
+    // Clamped here rather than trusted: a pad that hands over a longer vector
+    // than a key can would be a speed cheat, not a control scheme.
+    const length = Math.hypot(x, y);
+    const scale = length > 1 ? 1 / length : 1;
+    this.stickX = x * scale;
+    this.stickY = y * scale;
+  }
+
+  /**
+   * Holds or releases an action from something that is not a key. The press edge
+   * is generated on the transition, exactly as a key's is, so an on-screen
+   * button and a bound key are indistinguishable to everything above this.
+   */
+  setVirtualAction(action: string, down: boolean): void {
+    if (down) {
+      if (!this.virtualActions.has(action) && !this.heldActions.has(action)) {
+        this.pressedActions.add(action);
+      }
+      this.virtualActions.add(action);
+    } else {
+      this.virtualActions.delete(action);
+    }
+  }
+
+  /** Drops everything a virtual source was holding, without touching the keys. */
+  releaseVirtual(): void {
+    this.virtualActions.clear();
+    this.stickX = null;
+    this.stickY = null;
   }
 
   /** The live table, so the UI can name the key an action is bound to today. */
@@ -144,19 +197,26 @@ export class InputDevice {
   sample(pointerWorldX: number, pointerWorldY: number): InputFrame {
     let axisX = 0;
     let axisY = 0;
-    if (this.heldActions.has(this.axes.left)) axisX -= 1;
-    if (this.heldActions.has(this.axes.right)) axisX += 1;
-    if (this.heldActions.has(this.axes.up)) axisY -= 1;
-    if (this.heldActions.has(this.axes.down)) axisY += 1;
-    if (axisX !== 0 && axisY !== 0) {
-      const inverseDiagonal = Math.SQRT1_2;
-      axisX *= inverseDiagonal;
-      axisY *= inverseDiagonal;
+    if (this.stickX !== null && this.stickY !== null) {
+      axisX = this.stickX;
+      axisY = this.stickY;
+    } else {
+      if (this.heldActions.has(this.axes.left)) axisX -= 1;
+      if (this.heldActions.has(this.axes.right)) axisX += 1;
+      if (this.heldActions.has(this.axes.up)) axisY -= 1;
+      if (this.heldActions.has(this.axes.down)) axisY += 1;
+      if (axisX !== 0 && axisY !== 0) {
+        const inverseDiagonal = Math.SQRT1_2;
+        axisX *= inverseDiagonal;
+        axisY *= inverseDiagonal;
+      }
     }
+    const held = new Set(this.heldActions);
+    for (const action of this.virtualActions) held.add(action);
     const frame: InputFrame = {
       axisX,
       axisY,
-      held: [...this.heldActions].sort(),
+      held: [...held].sort(),
       pressed: [...this.pressedActions].sort(),
       pointerX: pointerWorldX,
       pointerY: pointerWorldY,

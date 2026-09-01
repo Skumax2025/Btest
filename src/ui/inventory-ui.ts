@@ -62,6 +62,22 @@ interface DragState {
   readonly node: HTMLElement;
 }
 
+/**
+ * A finger held still on a stack. There is no second mouse button on a phone,
+ * and the list this opens is the only way to equip a thing to a slot it does not
+ * fit by default, split a stack, or drop one from the bag.
+ */
+interface LongPress {
+  readonly stackId: number;
+  readonly x: number;
+  readonly y: number;
+  readonly timer: number;
+}
+
+/** Milliseconds a finger must stay put, and how far it may drift while it does. */
+const LONG_PRESS_MS = 420;
+const LONG_PRESS_SLOP = 12;
+
 interface SlotView {
   readonly root: HTMLElement;
   readonly target: DropTarget;
@@ -73,6 +89,7 @@ export class InventoryUi {
   private readonly grid: HTMLElement;
   private readonly belt: HTMLElement;
   private readonly cellsLabel: HTMLElement;
+  private readonly help: HTMLElement;
   private readonly tooltip: HTMLElement;
   private readonly tooltipIcon: HTMLElement;
   private readonly tooltipText: HTMLElement;
@@ -82,8 +99,11 @@ export class InventoryUi {
   private readonly slotViews = new Map<string, SlotView>();
   private readonly nodes = new Map<number, HTMLElement>();
   private drag: DragState | null = null;
+  private longPress: LongPress | null = null;
   private pending: { id: number; slot: EquipSlot } | null = null;
   private open = false;
+  /** True while the on-screen pad is up, which changes how the panel explains itself. */
+  private touch = false;
 
   constructor(
     parent: HTMLElement,
@@ -120,10 +140,9 @@ export class InventoryUi {
     no.addEventListener('click', () => this.resolveConfirm(false));
     this.confirmBar.hidden = true;
 
-    ui.binder.bind(el('div', 'bag-help', this.root), 'inventory.help', () => ({
-      drop: actionLabel(ui.t, ui.bindings(), 'drop'),
-      swap: actionLabel(ui.t, ui.bindings(), 'swapHands'),
-    }));
+    // Written every frame rather than bound once: what the panel has to explain
+    // depends on what the player is holding it with.
+    this.help = el('div', 'bag-help', this.root);
 
     this.tooltip = el('div', 'bag-tooltip', this.root);
     this.tooltipIcon = el('span', 'bag-tooltip-icon', this.tooltip);
@@ -160,8 +179,14 @@ export class InventoryUi {
     return this.open;
   }
 
+  /** Whether a pad is up, so the help line describes fingers rather than a mouse. */
+  setTouch(touch: boolean): void {
+    this.touch = touch;
+  }
+
   setOpen(open: boolean): void {
     this.open = open;
+    this.cancelLongPress();
     setStyle(this.root, 'display', open ? 'block' : 'none');
     if (!open) {
       this.closeMenu();
@@ -214,6 +239,16 @@ export class InventoryUi {
    */
   private render(): void {
     if (this.drag) return;
+    const { t, bindings } = this.ui;
+    setText(
+      this.help,
+      this.touch
+        ? t('inventory.helpTouch')
+        : t('inventory.help', {
+            drop: actionLabel(t, bindings(), 'drop'),
+            swap: actionLabel(t, bindings(), 'swapHands'),
+          }),
+    );
     const cells = capacity(this.state, this.catalog);
     const stacks = containerStacks(this.state);
     setText(
@@ -357,9 +392,40 @@ export class InventoryUi {
     event.preventDefault();
     this.drag = { stackId: id, node };
     node.classList.add('bag-item--dragging');
+    // No right button on a touchscreen: holding still opens the same list.
+    if (event.pointerType === 'touch' || event.pointerType === 'pen') {
+      this.longPress = {
+        stackId: id,
+        x: event.clientX,
+        y: event.clientY,
+        timer: window.setTimeout(() => this.fireLongPress(), LONG_PRESS_MS),
+      };
+    }
   };
 
+  /** The hold survived: drop the drag it started as and open the list instead. */
+  private fireLongPress(): void {
+    const press = this.longPress;
+    this.longPress = null;
+    if (!press) return;
+    if (this.drag) {
+      this.drag.node.classList.remove('bag-item--dragging');
+      this.drag = null;
+    }
+    this.openMenu(press.stackId, press.x, press.y);
+  }
+
+  private cancelLongPress(): void {
+    if (!this.longPress) return;
+    window.clearTimeout(this.longPress.timer);
+    this.longPress = null;
+  }
+
   private readonly onPointerMove = (event: PointerEvent): void => {
+    const press = this.longPress;
+    if (press && Math.hypot(event.clientX - press.x, event.clientY - press.y) > LONG_PRESS_SLOP) {
+      this.cancelLongPress();
+    }
     if (!this.drag) return;
     const stack = findStack(this.state, this.drag.stackId);
     if (!stack) return;
@@ -378,6 +444,7 @@ export class InventoryUi {
   };
 
   private readonly onPointerUp = (event: PointerEvent): void => {
+    this.cancelLongPress();
     const drag = this.drag;
     if (!drag) return;
     this.drag = null;

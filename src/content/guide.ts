@@ -98,7 +98,7 @@ export const GUIDE_SECTIONS: readonly GuideSection[] = [
   { titleKey: 'guide.items.title', bodyKeys: paragraphs('items', 4), params: bagParams },
   {
     titleKey: 'guide.controls.title',
-    bodyKeys: ['guide.controls.p1'],
+    bodyKeys: ['guide.controls.p1', 'guide.controls.p2'],
     controls: [
       'up',
       'down',
